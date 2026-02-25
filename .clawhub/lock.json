@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "skills": {
+    "self-improving-agent": {
+      "version": "1.0.11",
+      "installedAt": 1771859769069
+    },
+    "memory-manager": {
+      "version": "1.0.0",
+      "installedAt": 1771859772648
+    },
+    "memory-setup": {
+      "version": "1.0.0",
+      "installedAt": 1771862566250
+    },
+    "recursive-self-improvement": {
+      "version": "1.0.0",
+      "installedAt": 1771862580286
+    },
+    "memory-hygiene": {
+      "version": "1.0.0",
+      "installedAt": 1771905077719
+    }
+  }
+}
