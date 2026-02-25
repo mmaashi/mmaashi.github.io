@@ -65,69 +65,97 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} dir={isRTL ? "rtl" : "ltr"}>
-      <body className={`${ibmPlexArabic.variable} ${inter.variable} ${spaceGrotesk.variable} antialiased min-h-screen`}
-            style={{ backgroundColor: "var(--c-base)", color: "var(--c-text)" }}>
-
+      <body
+        className={`${ibmPlexArabic.variable} ${inter.variable} ${spaceGrotesk.variable} antialiased min-h-screen`}
+        style={{ backgroundColor: "var(--c-base)", color: "var(--c-text)" }}
+      >
         {/* ── Header ── */}
-        <header className="fixed top-0 left-0 right-0 z-50"
-                style={{ background: "rgba(7,15,28,0.94)", backdropFilter: "blur(20px)",
-                         WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid var(--c-border)" }}>
-          <div className="max-w-[1280px] mx-auto px-4 flex items-center justify-between gap-4"
-               style={{ height: 60 }}>
-
+        <header
+          className="fixed top-0 left-0 right-0 z-50"
+          style={{
+            background: "rgba(7,15,28,0.94)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            borderBottom: "1px solid var(--c-border)",
+          }}
+        >
+          <div
+            className="max-w-[1280px] mx-auto px-4 flex items-center justify-between gap-4"
+            style={{ height: 60 }}
+          >
             {/* Logo */}
-            <Link href={`/${locale}`} className="flex items-center gap-2 shrink-0">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-                   style={{ background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}>
+            <Link href={`/${locale}`} className="flex items-center gap-2 shrink-0" style={{ textDecoration: "none" }}>
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}
+              >
                 <TrendingUp size={14} style={{ color: "var(--c-gold)" }} />
               </div>
-              <span className="text-lg font-bold tracking-tight"
-                    style={{ color: "var(--c-gold)", fontFamily: "var(--font-grotesk)" }}>
+              <span
+                className="text-lg font-bold tracking-tight"
+                style={{ color: "var(--c-gold)", fontFamily: "var(--font-grotesk)" }}
+              >
                 SŪQAI
               </span>
             </Link>
 
-            {/* Desktop nav links */}
+            {/* Desktop nav — pure CSS hover via .nav-link class */}
             <nav className="hidden md:flex items-center gap-0.5">
               {navLinks.map(({ href, label, Icon }) => (
-                <Link key={href} href={href}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 hover:text-white"
-                      style={{ color: "var(--c-text-sm)" }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--c-elevated)"}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                <Link key={href} href={href} className="nav-link">
                   <Icon size={13} />
                   {label}
                 </Link>
               ))}
             </nav>
 
-            {/* Right: TASI + Lang */}
+            {/* Right: TASI chip + lang toggle */}
             <div className="flex items-center gap-2 shrink-0">
               {/* TASI chip */}
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg"
-                   style={{ background: "var(--c-elevated)", border: "1px solid var(--c-border-md)" }}>
-                <span style={{ color: "var(--c-muted)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em" }}>TASI</span>
-                <span className="font-num font-semibold text-sm" style={{ color: "var(--c-text)" }}>{tasi.value}</span>
-                <span className="font-num text-sm font-semibold"
-                      style={{ color: tasi.isPositive ? "var(--c-green)" : "var(--c-red)" }}>
+              <div
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg"
+                style={{ background: "var(--c-elevated)", border: "1px solid var(--c-border-md)" }}
+              >
+                <span style={{ color: "var(--c-muted)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em" }}>
+                  TASI
+                </span>
+                <span className="font-num font-semibold text-sm" style={{ color: "var(--c-text)" }}>
+                  {tasi.value}
+                </span>
+                <span
+                  className="font-num text-sm font-semibold"
+                  style={{ color: tasi.isPositive ? "var(--c-green)" : "var(--c-red)" }}
+                >
                   {tasi.change}
                 </span>
-                <span className={tasi.isOpen ? "badge badge-open" : "badge badge-closed"}
-                      style={{ fontSize: 10, padding: "1px 7px", gap: 4 }}>
-                  {tasi.isOpen ? <><span className="live-dot" style={{ width: 5, height: 5 }} />Open</> : "Closed"}
+                <span
+                  className={tasi.isOpen ? "badge badge-open" : "badge badge-closed"}
+                  style={{ fontSize: 10, padding: "1px 7px", gap: 4 }}
+                >
+                  {tasi.isOpen ? (
+                    <><span className="live-dot" style={{ width: 5, height: 5 }} />Open</>
+                  ) : (
+                    "Closed"
+                  )}
                 </span>
               </div>
 
               {/* Language toggle */}
-              <div className="flex items-center rounded-lg overflow-hidden"
-                   style={{ border: "1px solid var(--c-border-md)", background: "var(--c-elevated)" }}>
+              <div
+                className="flex items-center rounded-lg overflow-hidden"
+                style={{ border: "1px solid var(--c-border-md)", background: "var(--c-elevated)" }}
+              >
                 {[{ code: "ar", label: "AR" }, { code: "en", label: "EN" }].map(({ code, label }) => (
-                  <Link key={code} href={`/${code}`}
-                        className="px-3 py-1.5 text-xs font-bold transition-all"
-                        style={{
-                          color: locale === code ? "var(--c-base)" : "var(--c-muted)",
-                          background: locale === code ? "var(--c-gold)" : "transparent",
-                        }}>
+                  <Link
+                    key={code}
+                    href={`/${code}`}
+                    className="px-3 py-1.5 text-xs font-bold transition-all"
+                    style={{
+                      color: locale === code ? "var(--c-base)" : "var(--c-muted)",
+                      background: locale === code ? "var(--c-gold)" : "transparent",
+                      textDecoration: "none",
+                    }}
+                  >
                     {label}
                   </Link>
                 ))}
@@ -140,14 +168,23 @@ export default async function LocaleLayout({
         <main style={{ paddingTop: 60, paddingBottom: 72 }}>{children}</main>
 
         {/* ── Mobile bottom nav ── */}
-        <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
-             style={{ background: "rgba(7,15,28,0.96)", backdropFilter: "blur(20px)",
-                      WebkitBackdropFilter: "blur(20px)", borderTop: "1px solid var(--c-border)" }}>
+        <nav
+          className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
+          style={{
+            background: "rgba(7,15,28,0.96)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            borderTop: "1px solid var(--c-border)",
+          }}
+        >
           <div className="flex justify-around items-center" style={{ height: 56 }}>
             {navLinks.map(({ href, label, Icon }) => (
-              <Link key={href} href={href}
-                    className="flex flex-col items-center justify-center gap-0.5 px-3 py-1"
-                    style={{ color: "var(--c-muted)", minWidth: 56 }}>
+              <Link
+                key={href}
+                href={href}
+                className="flex flex-col items-center justify-center gap-0.5 px-3 py-1"
+                style={{ color: "var(--c-muted)", minWidth: 56, textDecoration: "none" }}
+              >
                 <Icon size={18} />
                 <span style={{ fontSize: 10, fontWeight: 600 }}>{label}</span>
               </Link>
