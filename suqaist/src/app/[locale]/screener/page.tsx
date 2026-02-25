@@ -1,137 +1,92 @@
-import Link from "next/link";
-
-// Empty State
-function EmptyState() {
-  return (
-    <div className="text-center py-12">
-      <p className="text-gray-400">No companies found</p>
-    </div>
-  );
-}
-
-// Loading Skeleton
-function TableSkeleton() {
-  return (
-    <div className="animate-pulse">
-      {[...Array(10)].map((_, i) => (
-        <div key={i} className="h-12 border-b border-gray-800 bg-gray-800/30"></div>
-      ))}
-    </div>
-  );
-}
+import { createServiceClient } from "@/lib/supabase/server";
+import ScreenerTable from "@/components/ScreenerTable";
 
 export default async function ScreenerPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ sector?: string; sort?: string }>;
 }) {
   const { locale } = await params;
-  const { sector, sort } = await searchParams;
+  const supabase = createServiceClient();
+
+  // Fetch all companies
+  const { data: companies } = await supabase
+    .from("companies")
+    .select("id, ticker, name_en, name_ar, sector, market, is_shariah_compliant")
+    .order("name_en");
+
+  // Fetch latest 2 prices per company to compute change %
+  const { data: allPrices } = await supabase
+    .from("stock_prices")
+    .select("company_id, close, volume, date")
+    .order("date", { ascending: false })
+    .limit(200);
+
+  // Build price map: latest + previous close per company
+  const priceMap = new Map<string, { close: number; prevClose: number | null; volume: number }>();
+  const seenDates = new Map<string, number>(); // company_id -> count of entries seen
+
+  for (const p of allPrices || []) {
+    const count = seenDates.get(p.company_id) || 0;
+    if (count === 0) {
+      priceMap.set(p.company_id, { close: Number(p.close), prevClose: null, volume: Number(p.volume) });
+    } else if (count === 1) {
+      const existing = priceMap.get(p.company_id)!;
+      existing.prevClose = Number(p.close);
+    }
+    seenDates.set(p.company_id, count + 1);
+  }
+
+  // Build enriched company list for ScreenerTable
+  const enriched = (companies || []).map((c) => {
+    const price = priceMap.get(c.id);
+    const latestClose = price?.close ?? null;
+    const prevClose = price?.prevClose ?? null;
+    const change_pct =
+      latestClose !== null && prevClose !== null && prevClose > 0
+        ? ((latestClose - prevClose) / prevClose) * 100
+        : null;
+
+    return {
+      id: c.id,
+      ticker: c.ticker,
+      name_en: c.name_en,
+      name_ar: c.name_ar || c.name_en,
+      sector: c.sector || "Other",
+      market: c.market || "Main",
+      is_shariah_compliant: c.is_shariah_compliant || false,
+      price: latestClose,
+      open: null,
+      volume: price?.volume ?? null,
+      change_pct,
+    };
+  });
+
+  // Get distinct sectors for the filter dropdown
+  const sectors = [...new Set((companies || []).map((c) => c.sector).filter(Boolean))].sort();
 
   const title = locale === "ar" ? "مصفاة الأسهم" : "Stock Screener";
-
-  // This would fetch from API - placeholder
-  const companies: any[] = [];
-  const sectors = ["Energy", "Materials", "Industials", "Consumer", "Healthcare", "Financials", "IT", "Telecom", "Utilities"];
+  const subtitle =
+    locale === "ar"
+      ? "تصفية وفرز جميع الأسهم المدرجة في تداول"
+      : "Filter and sort all Tadawul-listed companies";
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="max-w-7xl mx-auto px-4 py-6">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">{title}</h1>
+        <p className="text-gray-400 text-sm mt-1">{subtitle}</p>
       </div>
 
-      {/* Filters */}
-      <div className="bg-[#111827] rounded-lg p-4 mb-6">
-        <div className="grid md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Sector</label>
-            <select className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white">
-              <option value="">All Sectors</option>
-              {sectors.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Market Cap (SAR)</label>
-            <select className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white">
-              <option value="">Any</option>
-              <option value="small">&lt; 1B</option>
-              <option value="medium">1B - 10B</option>
-              <option value="large">10B - 50B</option>
-              <option value="mega">&gt; 50B</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">P/E Ratio</label>
-            <select className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white">
-              <option value="">Any</option>
-              <option value="low">&lt; 15</option>
-              <option value="mid">15 - 25</option>
-              <option value="high">&gt; 25</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Dividend Yield</label>
-            <select className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white">
-              <option value="">Any</option>
-              <option value="high">&gt; 3%</option>
-              <option value="mid">1% - 3%</option>
-              <option value="low">&lt; 1%</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Results Table */}
-      <div className="bg-[#111827] rounded-lg overflow-hidden">
-        {companies.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-800/50">
-                <tr>
-                  <th className="text-left text-xs text-gray-400 font-medium p-3">Ticker</th>
-                  <th className="text-left text-xs text-gray-400 font-medium p-3">Company</th>
-                  <th className="text-right text-xs text-gray-400 font-medium p-3">Price</th>
-                  <th className="text-right text-xs text-gray-400 font-medium p-3">Change%</th>
-                  <th className="text-right text-xs text-gray-400 font-medium p-3">Market Cap</th>
-                  <th className="text-right text-xs text-gray-400 font-medium p-3">P/E</th>
-                  <th className="text-right text-xs text-gray-400 font-medium p-3">Div Yield</th>
-                  <th className="text-left text-xs text-gray-400 font-medium p-3">Sector</th>
-                </tr>
-              </thead>
-              <tbody>
-                {companies.map((company) => (
-                  <tr key={company.ticker} className="border-t border-gray-800 hover:bg-gray-800/30 cursor-pointer">
-                    <td className="p-3 font-medium text-[#C8A951]">
-                      <Link href={`/stock/${company.ticker}`}>{company.ticker}</Link>
-                    </td>
-                    <td className="p-3 text-white">{company.name_en}</td>
-                    <td className="p-3 text-right text-white">{company.price?.toFixed(2)}</td>
-                    <td className={`p-3 text-right ${company.change >= 0 ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
-                      {company.change >= 0 ? '+' : ''}{company.change?.toFixed(2)}%
-                    </td>
-                    <td className="p-3 text-right text-gray-400">{(company.market_cap / 1e9).toFixed(1)}B</td>
-                    <td className="p-3 text-right text-gray-400">{company.pe_ratio || '--'}</td>
-                    <td className="p-3 text-right text-gray-400">{company.dividend_yield || '--'}</td>
-                    <td className="p-3 text-gray-400">{company.sector}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* ScreenerTable — client component with filtering/sorting */}
+      <ScreenerTable companies={enriched} sectors={sectors as string[]} locale={locale} />
 
       {/* Disclaimer */}
       <div className="mt-8 p-4 bg-gray-800/50 rounded-lg">
         <p className="text-xs text-gray-500 text-center">
-          SŪQAI provides translated market data for informational purposes only. This is not investment advice.
+          SŪQAI provides translated market data for informational purposes only. This is not
+          investment advice.
         </p>
       </div>
     </div>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { IBM_Plex_Sans_Arabic, Inter, Space_Grotesk } from "next/font/google";
 import { notFound } from "next/navigation";
 import "../globals.css";
+import { getMarketSummary } from "@/lib/sahm";
 
 const ibmPlexArabic = IBM_Plex_Sans_Arabic({
   weight: ["400", "500", "600", "700"],
@@ -47,6 +48,35 @@ export default async function LocaleLayout({
 
   const isRTL = locale === "ar";
 
+  // Fetch live TASI data — fall back gracefully if API is unavailable
+  let tasi: { value: string; change: string; isPositive: boolean; status: string } = {
+    value: "--",
+    change: "--",
+    isPositive: true,
+    status: "Market Closed",
+  };
+
+  try {
+    const summary = await getMarketSummary();
+    const isPositive = summary.index_change >= 0;
+    const sign = isPositive ? "+" : "";
+
+    // Determine market status based on Riyadh time (UTC+3)
+    const riyadh = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Riyadh" }));
+    const day = riyadh.getDay(); // 0=Sun … 6=Sat
+    const minuteOfDay = riyadh.getHours() * 60 + riyadh.getMinutes();
+    const isOpen = day >= 0 && day <= 4 && minuteOfDay >= 600 && minuteOfDay <= 900;
+
+    tasi = {
+      value: summary.index_value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      change: `${sign}${summary.index_change_percent.toFixed(2)}%`,
+      isPositive,
+      status: isOpen ? "Market Open" : "Market Closed",
+    };
+  } catch {
+    // API unavailable — keep fallback values
+  }
+
   return (
     <html lang={locale} dir={isRTL ? "rtl" : "ltr"}>
       <body
@@ -60,19 +90,39 @@ export default async function LocaleLayout({
               <span className="text-xl font-bold text-[#C8A951]">SŪQAI</span>
             </div>
 
-            {/* Market Status Bar */}
+            {/* Market Status Bar — Live TASI */}
             <div className="hidden md:flex items-center gap-4 text-sm">
               <span className="text-gray-400">TASI</span>
-              <span className="text-[#10B981]">12,345.67</span>
-              <span className="text-[#10B981]">+1.23%</span>
-              <span className="text-gray-500 text-xs">Market Open</span>
+              <span className={tasi.isPositive ? "text-[#10B981] font-semibold" : "text-[#EF4444] font-semibold"}>
+                {tasi.value}
+              </span>
+              <span className={tasi.isPositive ? "text-[#10B981]" : "text-[#EF4444]"}>
+                {tasi.change}
+              </span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                tasi.status === "Market Open"
+                  ? "bg-green-900/50 text-green-400"
+                  : "bg-gray-800 text-gray-500"
+              }`}>
+                {tasi.status}
+              </span>
             </div>
 
             {/* Language Toggle */}
             <div className="flex items-center gap-2">
-              <a href="/ar" className="px-3 py-1 text-sm text-[#C8A951] font-medium">AR</a>
+              <a
+                href="/ar"
+                className={`px-3 py-1 text-sm font-medium ${locale === "ar" ? "text-[#C8A951]" : "text-gray-400 hover:text-white"}`}
+              >
+                AR
+              </a>
               <span className="text-gray-600">|</span>
-              <a href="/en" className="px-3 py-1 text-sm text-gray-400 hover:text-white">EN</a>
+              <a
+                href="/en"
+                className={`px-3 py-1 text-sm font-medium ${locale === "en" ? "text-[#C8A951]" : "text-gray-400 hover:text-white"}`}
+              >
+                EN
+              </a>
             </div>
           </div>
         </header>

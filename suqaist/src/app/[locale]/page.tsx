@@ -1,4 +1,5 @@
 import { getMarketSummary, getTopGainers, getTopLosers } from "@/lib/data-sources";
+import { createServiceClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
 // Loading skeleton component
@@ -149,17 +150,56 @@ async function TopMovers() {
 }
 
 // Latest News Component
-async function LatestNews() {
-  // This would fetch from news API - placeholder for now
+async function LatestNews({ locale }: { locale: string }) {
+  const supabase = createServiceClient();
+  const { data: articles } = await supabase
+    .from("news")
+    .select("id, title_en, title_ar, source, source_url, published_at")
+    .order("published_at", { ascending: false })
+    .limit(5);
+
   return (
     <div className="bg-[#111827] rounded-lg p-4">
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-semibold text-white">Latest News</h3>
-        <Link href="/news" className="text-sm text-[#C8A951] hover:underline">View All</Link>
+        <Link href={`/${locale}/news`} className="text-sm text-[#C8A951] hover:underline">
+          View All
+        </Link>
       </div>
-      <div className="text-gray-400 text-sm">
-        <p className="py-4 text-center">No news available</p>
-      </div>
+
+      {!articles?.length ? (
+        <p className="text-gray-500 text-sm text-center py-4">No news available</p>
+      ) : (
+        <div className="space-y-1">
+          {articles.map((a) => {
+            const title = locale === "ar" && a.title_ar ? a.title_ar : a.title_en;
+            const ago = a.published_at
+              ? (() => {
+                  const diff = Date.now() - new Date(a.published_at).getTime();
+                  const h = Math.floor(diff / 3600000);
+                  if (h < 1) return "just now";
+                  if (h < 24) return `${h}h ago`;
+                  return `${Math.floor(h / 24)}d ago`;
+                })()
+              : "";
+            return (
+              <a
+                key={a.id}
+                href={a.source_url || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block py-3 border-b border-gray-800/60 hover:bg-gray-800/30 transition -mx-4 px-4 last:border-b-0"
+              >
+                <p className="text-sm text-white leading-snug line-clamp-2">{title}</p>
+                <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                  {a.source && <span className="capitalize">{a.source}</span>}
+                  {ago && <span>{ago}</span>}
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -197,7 +237,7 @@ export default async function DashboardPage({
 
       {/* Latest News */}
       <section className="mb-6">
-        <LatestNews />
+        <LatestNews locale={locale} />
       </section>
 
       {/* Disclaimer */}
