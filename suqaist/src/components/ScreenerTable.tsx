@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Filter } from "lucide-react";
 
 interface Company {
   id: string;
@@ -17,7 +18,7 @@ interface Company {
   change_pct: number | null;
 }
 
-type SortKey = "name" | "price" | "change" | "volume";
+type SortKey = "ticker" | "name_en" | "price" | "change_pct" | "volume";
 type SortDir = "asc" | "desc";
 
 export default function ScreenerTable({
@@ -29,184 +30,216 @@ export default function ScreenerTable({
   sectors: string[];
   locale: string;
 }) {
-  const [sectorFilter, setSectorFilter] = useState("");
-  const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<SortKey>("name");
+  const [query, setQuery] = useState("");
+  const [sector, setSector] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("ticker");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [shariah, setShariah] = useState(false);
 
-  const handleSort = (col: SortKey) => {
-    if (sortBy === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortBy(col); setSortDir("asc"); }
-  };
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("asc"); }
+  }
 
   const filtered = useMemo(() => {
-    let result = [...companies];
-
-    if (sectorFilter) result = result.filter((c) => c.sector === sectorFilter);
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (c) =>
-          c.ticker.toLowerCase().includes(q) ||
-          c.name_en.toLowerCase().includes(q) ||
-          c.name_ar.includes(q)
+    let list = companies;
+    if (query) {
+      const q = query.toLowerCase();
+      list = list.filter(
+        (c) => c.ticker.toLowerCase().includes(q) || c.name_en.toLowerCase().includes(q)
       );
     }
+    if (sector) list = list.filter((c) => c.sector === sector);
+    if (shariah) list = list.filter((c) => c.is_shariah_compliant);
 
-    result.sort((a, b) => {
-      let diff = 0;
-      if (sortBy === "name") diff = a.name_en.localeCompare(b.name_en);
-      else if (sortBy === "price") diff = (a.price ?? -Infinity) - (b.price ?? -Infinity);
-      else if (sortBy === "change") diff = (a.change_pct ?? -Infinity) - (b.change_pct ?? -Infinity);
-      else if (sortBy === "volume") diff = (a.volume ?? -Infinity) - (b.volume ?? -Infinity);
-      return sortDir === "asc" ? diff : -diff;
+    return [...list].sort((a, b) => {
+      let av: any = a[sortKey] ?? -Infinity;
+      let bv: any = b[sortKey] ?? -Infinity;
+      if (typeof av === "string") av = av.toLowerCase();
+      if (typeof bv === "string") bv = bv.toLowerCase();
+      const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+      return sortDir === "asc" ? cmp : -cmp;
     });
+  }, [companies, query, sector, sortKey, sortDir, shariah]);
 
-    return result;
-  }, [companies, sectorFilter, search, sortBy, sortDir]);
+  function SortIcon({ k }: { k: SortKey }) {
+    if (sortKey !== k) return <ChevronsUpDown size={12} style={{ color: "var(--c-dim)" }} />;
+    return sortDir === "asc"
+      ? <ChevronUp size={12} style={{ color: "var(--c-gold)" }} />
+      : <ChevronDown size={12} style={{ color: "var(--c-gold)" }} />;
+  }
 
-  const SortBtn = ({ col, label }: { col: SortKey; label: string }) => (
-    <th
-      onClick={() => handleSort(col)}
-      className="text-xs font-medium p-3 cursor-pointer select-none hover:text-white transition text-gray-400"
-    >
-      <span className="flex items-center gap-1 justify-end">
-        {label}
-        {sortBy === col ? (
-          <span className="text-[#C8A951]">{sortDir === "asc" ? "↑" : "↓"}</span>
-        ) : (
-          <span className="text-gray-700">↕</span>
-        )}
-      </span>
-    </th>
-  );
+  function TH({ label, k, right }: { label: string; k: SortKey; right?: boolean }) {
+    return (
+      <th onClick={() => toggleSort(k)} className="cursor-pointer select-none"
+          style={{ textAlign: right ? "right" : "left", padding: "10px 14px",
+                   color: sortKey === k ? "var(--c-gold)" : "var(--c-muted)",
+                   fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
+                   textTransform: "uppercase", background: "var(--c-elevated)",
+                   borderBottom: "1px solid var(--c-border-md)", whiteSpace: "nowrap" }}>
+        <span className="inline-flex items-center gap-1">
+          {right && <SortIcon k={k} />}
+          {label}
+          {!right && <SortIcon k={k} />}
+        </span>
+      </th>
+    );
+  }
 
   return (
-    <>
-      {/* Filter Bar */}
-      <div className="bg-[#111827] rounded-xl p-4 mb-4 border border-gray-800">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+    <div>
+      {/* Filters bar */}
+      <div className="card mb-4" style={{ padding: "14px 16px" }}>
+        <div className="flex flex-wrap gap-3 items-center">
+          {/* Search */}
+          <div className="relative flex-1" style={{ minWidth: 200 }}>
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2"
+                    style={{ color: "var(--c-muted)" }} />
             <input
-              type="text"
-              placeholder="Search ticker or company..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-white text-sm focus:border-[#C8A951] focus:outline-none transition"
+              className="input-field"
+              style={{ paddingLeft: 32 }}
+              placeholder="Search ticker or name..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <select
-            value={sectorFilter}
-            onChange={(e) => setSectorFilter(e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:border-[#C8A951] focus:outline-none transition"
-          >
-            <option value="">All Sectors</option>
-            {sectors.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <span className="w-2 h-2 rounded-full bg-[#C8A951]"></span>
-            {filtered.length} of {companies.length} companies
+
+          {/* Sector filter */}
+          <div style={{ position: "relative" }}>
+            <Filter size={12} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--c-muted)", pointerEvents: "none" }} />
+            <select
+              className="input-field"
+              style={{ paddingLeft: 28, paddingRight: 28, minWidth: 160, cursor: "pointer",
+                       appearance: "none", WebkitAppearance: "none" }}
+              value={sector}
+              onChange={(e) => setSector(e.target.value)}
+            >
+              <option value="">All Sectors</option>
+              {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
+
+          {/* Shariah toggle */}
+          <button
+            onClick={() => setShariah((v) => !v)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all"
+            style={{
+              border: "1px solid",
+              borderColor: shariah ? "rgba(200,169,81,0.4)" : "var(--c-border-md)",
+              background: shariah ? "var(--c-gold-dim)" : "var(--c-elevated)",
+              color: shariah ? "var(--c-gold)" : "var(--c-muted)",
+            }}
+          >
+            <span style={{ fontSize: 13 }}>☽</span>
+            Shariah
+          </button>
+
+          {/* Count */}
+          <span style={{ fontSize: 12, color: "var(--c-muted)", marginLeft: "auto" }}>
+            {filtered.length} of {companies.length} companies
+          </span>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-[#111827] rounded-xl overflow-hidden border border-gray-800">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-[#0D1626] border-b border-gray-800">
-              <tr>
-                <th
-                  onClick={() => handleSort("name")}
-                  className="text-left text-xs font-medium p-3 cursor-pointer select-none hover:text-white transition text-gray-400"
-                >
-                  <span className="flex items-center gap-1">
-                    Company
-                    {sortBy === "name" ? (
-                      <span className="text-[#C8A951]">{sortDir === "asc" ? "↑" : "↓"}</span>
-                    ) : (
-                      <span className="text-gray-700">↕</span>
-                    )}
-                  </span>
-                </th>
-                <th className="text-left text-xs font-medium p-3 text-gray-400">Sector</th>
-                <SortBtn col="price" label="Price" />
-                <SortBtn col="change" label="Change %" />
-                <SortBtn col="volume" label="Volume" />
-                <th className="text-center text-xs font-medium p-3 text-gray-400">Shariah</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((company, i) => {
-                const isPositive = (company.change_pct ?? 0) >= 0;
-                return (
-                  <tr
-                    key={company.ticker}
-                    className="border-t border-gray-800/60 hover:bg-gray-800/40 transition"
-                  >
-                    <td className="p-3">
-                      <Link href={`/${locale}/stock/${company.ticker}`} className="block group">
-                        <span className="text-[#C8A951] font-bold text-sm group-hover:underline">
-                          {company.ticker}
+      <div className="card overflow-hidden">
+        {filtered.length === 0 ? (
+          <div style={{ padding: "48px 0", textAlign: "center" }}>
+            <p style={{ color: "var(--c-muted)", fontSize: 14 }}>No companies match your filters</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <TH label="Ticker" k="ticker" />
+                  <TH label="Company" k="name_en" />
+                  <TH label="Price" k="price" right />
+                  <TH label="Change" k="change_pct" right />
+                  <TH label="Volume" k="volume" right />
+                  <th style={{ textAlign: "left", padding: "10px 14px", color: "var(--c-muted)",
+                               fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
+                               textTransform: "uppercase", background: "var(--c-elevated)",
+                               borderBottom: "1px solid var(--c-border-md)" }}>
+                    Sector
+                  </th>
+                  <th style={{ background: "var(--c-elevated)", borderBottom: "1px solid var(--c-border-md)" }} />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((c) => {
+                  const isUp = (c.change_pct ?? 0) >= 0;
+                  const name = locale === "ar" && c.name_ar ? c.name_ar : c.name_en;
+                  return (
+                    <tr key={c.ticker}>
+                      {/* Ticker */}
+                      <td>
+                        <Link href={`/${locale}/stock/${c.ticker}`}
+                              className="flex items-center gap-2 group">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                               style={{ background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}>
+                            <span style={{ fontSize: 8, fontWeight: 800, color: "var(--c-gold)" }}>
+                              {c.ticker.slice(0, 4)}
+                            </span>
+                          </div>
+                          <span className="ticker-tag group-hover:underline">{c.ticker}</span>
+                        </Link>
+                      </td>
+                      {/* Name */}
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <span style={{ color: "var(--c-text)", fontSize: 13 }}>{name}</span>
+                          {c.is_shariah_compliant && (
+                            <span className="badge badge-gold" style={{ padding: "1px 6px", fontSize: 9 }}>☽ S</span>
+                          )}
+                        </div>
+                      </td>
+                      {/* Price */}
+                      <td style={{ textAlign: "right" }}>
+                        {c.price !== null ? (
+                          <span className="font-num font-semibold" style={{ color: "var(--c-text)" }}>
+                            {c.price.toFixed(2)}
+                          </span>
+                        ) : <span style={{ color: "var(--c-dim)" }}>—</span>}
+                      </td>
+                      {/* Change */}
+                      <td style={{ textAlign: "right" }}>
+                        {c.change_pct !== null ? (
+                          <span className={`badge font-num ${isUp ? "badge-up" : "badge-down"}`}>
+                            {isUp ? "+" : ""}{c.change_pct.toFixed(2)}%
+                          </span>
+                        ) : <span style={{ color: "var(--c-dim)" }}>—</span>}
+                      </td>
+                      {/* Volume */}
+                      <td style={{ textAlign: "right" }}>
+                        <span className="font-num" style={{ color: "var(--c-text-sm)", fontSize: 12 }}>
+                          {c.volume
+                            ? c.volume >= 1e6
+                              ? `${(c.volume / 1e6).toFixed(1)}M`
+                              : `${(c.volume / 1e3).toFixed(0)}K`
+                            : "—"}
                         </span>
-                        <p className="text-xs text-gray-400 mt-0.5 leading-tight">
-                          {locale === "ar" ? company.name_ar : company.name_en}
-                        </p>
-                      </Link>
-                    </td>
-                    <td className="p-3">
-                      <span className="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">
-                        {company.sector}
-                      </span>
-                    </td>
-                    <td className="p-3 text-right">
-                      <span className="text-white font-semibold text-sm">
-                        {company.price != null ? `SAR ${company.price.toFixed(2)}` : "--"}
-                      </span>
-                    </td>
-                    <td className="p-3 text-right">
-                      {company.change_pct != null ? (
-                        <span className={`text-sm font-medium ${isPositive ? "text-[#10B981]" : "text-[#EF4444]"}`}>
-                          {isPositive ? "+" : ""}{company.change_pct.toFixed(2)}%
-                        </span>
-                      ) : (
-                        <span className="text-gray-600 text-sm">--</span>
-                      )}
-                    </td>
-                    <td className="p-3 text-right text-gray-400 text-sm">
-                      {company.volume != null
-                        ? company.volume >= 1e6
-                          ? `${(company.volume / 1e6).toFixed(1)}M`
-                          : `${(company.volume / 1e3).toFixed(0)}K`
-                        : "--"}
-                    </td>
-                    <td className="p-3 text-center">
-                      {company.is_shariah_compliant ? (
-                        <span className="text-xs bg-emerald-900/40 text-emerald-400 border border-emerald-800/50 px-2 py-0.5 rounded-full">
-                          ✓ Halal
-                        </span>
-                      ) : (
-                        <span className="text-gray-700 text-xs">—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {filtered.length === 0 && (
-          <div className="text-center py-16">
-            <p className="text-gray-500">No companies match your search</p>
+                      </td>
+                      {/* Sector */}
+                      <td>
+                        <span className="badge badge-neutral" style={{ fontSize: 10 }}>{c.sector}</span>
+                      </td>
+                      {/* Link */}
+                      <td style={{ textAlign: "right" }}>
+                        <Link href={`/${locale}/stock/${c.ticker}`}
+                              className="text-xs font-semibold transition-colors hover:text-white"
+                              style={{ color: "var(--c-gold)" }}>
+                          View →
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }

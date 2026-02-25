@@ -1,26 +1,199 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════════════
+   SŪQAI  —  Premium Dark Financial Terminal Design System
+   ═══════════════════════════════════════════════════════════ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ── Surfaces ── */
+  --c-base:       #070F1C;
+  --c-surface:    #0C1628;
+  --c-elevated:   #101E35;
+  --c-hover:      #152040;
+
+  /* ── Borders ── */
+  --c-border:     #192A45;
+  --c-border-md:  #223659;
+  --c-border-hi:  #3A5F9A;
+
+  /* ── Brand Gold ── */
+  --c-gold:       #C8A951;
+  --c-gold-light: #D4BB72;
+  --c-gold-dim:   rgba(200, 169, 81, 0.10);
+  --c-gold-ring:  rgba(200, 169, 81, 0.30);
+
+  /* ── Status ── */
+  --c-green:      #0ECB81;
+  --c-green-bg:   rgba(14, 203, 129, 0.08);
+  --c-green-ring: rgba(14, 203, 129, 0.20);
+  --c-red:        #F6465D;
+  --c-red-bg:     rgba(246, 70, 93, 0.08);
+  --c-red-ring:   rgba(246, 70, 93, 0.20);
+
+  /* ── Text ── */
+  --c-text:       #E6ECF5;
+  --c-text-sm:    #A0AFCC;
+  --c-muted:      #637AA0;
+  --c-dim:        #3D5070;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* ── Reset & Base ──────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--c-base);
+  color: var(--c-text);
+  font-family: var(--font-inter), "Inter", system-ui, -apple-system, sans-serif;
+  font-feature-settings: "tnum" on, "lnum" on, "cv01" on;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+}
+
+[dir="rtl"] body {
+  font-family: var(--font-arabic), "IBM Plex Sans Arabic", system-ui, sans-serif;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--c-border-md); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--c-border-hi); }
+
+/* ── Typography utilities ──────────────────────────────────── */
+.font-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" on;
+  letter-spacing: -0.02em;
+}
+.text-up    { color: var(--c-green) !important; }
+.text-down  { color: var(--c-red)   !important; }
+.text-gold  { color: var(--c-gold)  !important; }
+.text-muted { color: var(--c-muted) !important; }
+
+/* ── Card ──────────────────────────────────────────────────── */
+.card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 14px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.card:hover {
+  border-color: var(--c-border-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+.card-gold:hover {
+  border-color: rgba(200, 169, 81, 0.4);
+  box-shadow: 0 0 28px var(--c-gold-dim);
+}
+
+/* ── Badge ─────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.7;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.badge-up      { background: var(--c-green-bg); color: var(--c-green); border-color: var(--c-green-ring); }
+.badge-down    { background: var(--c-red-bg);   color: var(--c-red);   border-color: var(--c-red-ring); }
+.badge-gold    { background: var(--c-gold-dim); color: var(--c-gold);  border-color: var(--c-gold-ring); }
+.badge-neutral { background: rgba(100,116,139,0.10); color: var(--c-muted); border-color: rgba(100,116,139,0.20); }
+.badge-open    { background: rgba(14,203,129,0.12); color: var(--c-green); border-color: var(--c-green-ring); }
+.badge-closed  { background: rgba(63,80,112,0.18); color: var(--c-muted); border-color: var(--c-border-md); }
+
+/* ── Data Table ────────────────────────────────────────────── */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table thead tr { background: var(--c-elevated); }
+.data-table th {
+  padding: 10px 14px;
+  color: var(--c-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--c-border-md);
+}
+.data-table td {
+  padding: 11px 14px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--c-border);
+  transition: background 0.12s;
+}
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover td { background: var(--c-hover); }
+
+/* ── Separator ─────────────────────────────────────────────── */
+.sep { border-color: var(--c-border); }
+
+/* ── Input ─────────────────────────────────────────────────── */
+.input-field {
+  background: var(--c-elevated);
+  border: 1px solid var(--c-border-md);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--c-text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+.input-field:focus { border-color: var(--c-gold); }
+.input-field::placeholder { color: var(--c-muted); }
+
+/* ── Live dot ──────────────────────────────────────────────── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--c-green-ring); }
+  50%       { opacity: 0.7; box-shadow: 0 0 0 4px transparent; }
+}
+.live-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--c-green);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ── Fade in ───────────────────────────────────────────────── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fade-up 0.35s ease forwards; }
+
+/* ── Number glow ───────────────────────────────────────────── */
+.glow-green { text-shadow: 0 0 16px rgba(14, 203, 129, 0.5); }
+.glow-red   { text-shadow: 0 0 16px rgba(246, 70, 93, 0.5); }
+.glow-gold  { text-shadow: 0 0 20px rgba(200, 169, 81, 0.6); }
+
+/* ── Gradient divider ──────────────────────────────────────── */
+.gradient-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--c-border-md), transparent);
+  border: none;
+}
+
+/* ── Ticker tag (company symbol display) ──────────────────── */
+.ticker-tag {
+  color: var(--c-gold);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+}
+
+/* ── Page layout utility ───────────────────────────────────── */
+.page-wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+@media (min-width: 768px) {
+  .page-wrap { padding: 28px 24px; }
 }

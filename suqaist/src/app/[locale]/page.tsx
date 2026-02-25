@@ -1,199 +1,255 @@
 import { getMarketSummary, getTopGainers, getTopLosers } from "@/lib/data-sources";
 import { createServiceClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { TrendingUp, TrendingDown, Minus, Activity, ArrowUpRight, ArrowDownRight, Newspaper } from "lucide-react";
 
-// Loading skeleton component
-function MarketStatusSkeleton() {
-  return (
-    <div className="bg-[#111827] rounded-lg p-4 animate-pulse">
-      <div className="h-4 bg-gray-700 rounded w-20 mb-2"></div>
-      <div className="h-8 bg-gray-700 rounded w-32"></div>
-    </div>
-  );
-}
-
-function MoversSkeleton() {
-  return (
-    <div className="bg-[#111827] rounded-lg p-4 animate-pulse">
-      <div className="h-6 bg-gray-700 rounded w-24 mb-4"></div>
-      {[...Array(5)].map((_, i) => (
-        <div key={i} className="flex justify-between py-2 border-b border-gray-800">
-          <div className="h-4 bg-gray-700 rounded w-16"></div>
-          <div className="h-4 bg-gray-700 rounded w-12"></div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function NewsSkeleton() {
-  return (
-    <div className="bg-[#111827] rounded-lg p-4 animate-pulse">
-      <div className="h-6 bg-gray-700 rounded w-24 mb-4"></div>
-      {[...Array(5)].map((_, i) => (
-        <div key={i} className="py-3 border-b border-gray-800">
-          <div className="h-4 bg-gray-700 rounded w-full mb-2"></div>
-          <div className="h-3 bg-gray-700 rounded w-24"></div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// Market Status Bar Component
-async function MarketStatusBar() {
+// ── Hero Market Card ──────────────────────────────────────────
+async function MarketHero({ locale }: { locale: string }) {
   try {
-    const summary = await getMarketSummary();
-    const isPositive = summary.index_change >= 0;
+    const s = await getMarketSummary();
+    const isUp = s.index_change >= 0;
+    const total = (s.advancing || 0) + (s.declining || 0) + (s.unchanged || 0);
+    const advPct = total > 0 ? ((s.advancing / total) * 100).toFixed(0) : "0";
 
     return (
-      <div className="bg-[#111827] rounded-lg p-4">
-        <div className="flex items-center justify-between">
+      <div className="card fade-up" style={{ padding: "24px 28px", position: "relative", overflow: "hidden" }}>
+        {/* Subtle background glow */}
+        <div style={{
+          position: "absolute", top: -60, right: -40,
+          width: 280, height: 280, borderRadius: "50%",
+          background: isUp ? "rgba(14,203,129,0.04)" : "rgba(246,70,93,0.04)",
+          filter: "blur(40px)", pointerEvents: "none",
+        }} />
+
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          {/* Main index number */}
           <div>
-            <span className="text-gray-400 text-sm">TASI</span>
-            <div className="text-2xl font-bold text-white">
-              {summary.index_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className="flex items-center gap-2 mb-2">
+              <Activity size={14} style={{ color: "var(--c-muted)" }} />
+              <span style={{ color: "var(--c-muted)", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em" }}>
+                TADAWUL ALL-SHARE INDEX (TASI)
+              </span>
+            </div>
+            <div className="flex items-end gap-4 flex-wrap">
+              <span className="font-num" style={{ fontSize: 44, fontWeight: 700, lineHeight: 1, color: "var(--c-text)", letterSpacing: "-0.03em" }}>
+                {s.index_value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <div className="flex flex-col pb-1">
+                <span className={`font-num font-bold text-xl ${isUp ? "text-up" : "text-down"}`}>
+                  {isUp ? "+" : ""}{s.index_change.toFixed(2)}
+                </span>
+                <span className={`font-num font-semibold text-sm ${isUp ? "text-up" : "text-down"}`}>
+                  {isUp ? "+" : ""}{s.index_change_percent.toFixed(2)}%
+                </span>
+              </div>
             </div>
           </div>
-          <div className={`text-right ${isPositive ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
-            <div className="text-lg font-semibold">
-              {isPositive ? '+' : ''}{summary.index_change.toFixed(2)}
+
+          {/* Market breadth */}
+          <div className="flex items-center gap-6">
+            <div className="text-center">
+              <div className="flex items-center gap-1 justify-center mb-1">
+                <ArrowUpRight size={13} style={{ color: "var(--c-green)" }} />
+                <span className="font-num font-bold text-lg text-up">{s.advancing}</span>
+              </div>
+              <span style={{ fontSize: 10, color: "var(--c-muted)", fontWeight: 600, letterSpacing: "0.05em" }}>ADVANCING</span>
             </div>
-            <div className="text-sm">
-              {isPositive ? '+' : ''}{summary.index_change_percent.toFixed(2)}%
+            <div style={{ width: 1, height: 36, background: "var(--c-border)" }} />
+            <div className="text-center">
+              <div className="flex items-center gap-1 justify-center mb-1">
+                <ArrowDownRight size={13} style={{ color: "var(--c-red)" }} />
+                <span className="font-num font-bold text-lg text-down">{s.declining}</span>
+              </div>
+              <span style={{ fontSize: 10, color: "var(--c-muted)", fontWeight: 600, letterSpacing: "0.05em" }}>DECLINING</span>
+            </div>
+            <div style={{ width: 1, height: 36, background: "var(--c-border)" }} />
+            <div className="text-center">
+              <div className="flex items-center gap-1 justify-center mb-1">
+                <Minus size={13} style={{ color: "var(--c-muted)" }} />
+                <span className="font-num font-bold text-lg" style={{ color: "var(--c-text)" }}>{s.unchanged}</span>
+              </div>
+              <span style={{ fontSize: 10, color: "var(--c-muted)", fontWeight: 600, letterSpacing: "0.05em" }}>UNCHANGED</span>
+            </div>
+            <div style={{ width: 1, height: 36, background: "var(--c-border)" }} />
+            <div className="text-center">
+              <span className="font-num font-bold text-lg" style={{ color: "var(--c-text)" }}>
+                {(s.total_volume / 1e9).toFixed(2)}B
+              </span>
+              <div style={{ fontSize: 10, color: "var(--c-muted)", fontWeight: 600, letterSpacing: "0.05em", marginTop: 2 }}>
+                VOLUME
+              </div>
             </div>
           </div>
         </div>
-        <div className="mt-2 flex gap-4 text-xs text-gray-500">
-          <span>Vol: {(summary.total_volume / 1e9).toFixed(2)}B</span>
-          <span className="text-[#10B981]">▲ {summary.advancing}</span>
-          <span className="text-[#EF4444]">▼ {summary.declining}</span>
-          <span>━ {summary.unchanged}</span>
+
+        {/* Breadth bar */}
+        <div className="mt-5">
+          <div style={{ height: 4, borderRadius: 4, background: "var(--c-border)", overflow: "hidden" }}>
+            <div style={{
+              height: "100%",
+              width: `${advPct}%`,
+              borderRadius: 4,
+              background: `linear-gradient(90deg, var(--c-green), ${isUp ? "var(--c-green)" : "var(--c-red)"})`,
+              transition: "width 0.6s ease",
+            }} />
+          </div>
+          <div className="flex justify-between mt-1">
+            <span style={{ fontSize: 10, color: "var(--c-green)" }}>{advPct}% advancing</span>
+            <span style={{ fontSize: 10, color: "var(--c-muted)", textTransform: "capitalize" }}>
+              Market {s.market_mood || "activity"}
+            </span>
+          </div>
         </div>
       </div>
     );
-  } catch (error) {
-    console.error("Market status error:", error);
+  } catch {
     return (
-      <div className="bg-[#111827] rounded-lg p-4">
-        <p className="text-gray-400 text-sm">Market data temporarily unavailable</p>
+      <div className="card" style={{ padding: "24px 28px" }}>
+        <p style={{ color: "var(--c-muted)", fontSize: 13 }}>Market data temporarily unavailable</p>
       </div>
     );
   }
 }
 
-// Top Movers Component
-async function TopMovers() {
+// ── Movers Column ─────────────────────────────────────────────
+async function MoversPanel({ locale }: { locale: string }) {
   try {
-    const [gainers, losers] = await Promise.all([
-      getTopGainers(),
-      getTopLosers(),
-    ]);
+    const [gainers, losers] = await Promise.all([getTopGainers(), getTopLosers()]);
+
+    const MoverRow = ({ s, type }: { s: any; type: "up" | "down" }) => (
+      <Link href={`/${locale}/stock/${s.symbol}`}
+            className="flex items-center justify-between px-4 py-2.5 hover:bg-[var(--c-hover)] transition-colors group"
+            style={{ borderBottom: "1px solid var(--c-border)" }}>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+               style={{ background: type === "up" ? "var(--c-green-bg)" : "var(--c-red-bg)",
+                        border: `1px solid ${type === "up" ? "var(--c-green-ring)" : "var(--c-red-ring)"}` }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: type === "up" ? "var(--c-green)" : "var(--c-red)" }}>
+              {s.symbol.slice(0, 4)}
+            </span>
+          </div>
+          <div>
+            <p className="font-semibold text-sm" style={{ color: "var(--c-text)" }}>{s.symbol}</p>
+            <p className="truncate" style={{ fontSize: 11, color: "var(--c-muted)", maxWidth: 110 }}>
+              {s.name_en || s.name}
+            </p>
+          </div>
+        </div>
+        <div className="text-right">
+          <span className={`badge ${type === "up" ? "badge-up" : "badge-down"}`}>
+            {type === "up" ? "+" : ""}{s.change_percent.toFixed(2)}%
+          </span>
+          <p className="font-num mt-0.5" style={{ fontSize: 12, color: "var(--c-text-sm)" }}>
+            SAR {s.price.toFixed(2)}
+          </p>
+        </div>
+      </Link>
+    );
 
     return (
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="flex flex-col gap-4">
         {/* Gainers */}
-        <div className="bg-[#111827] rounded-lg p-4">
-          <h3 className="text-[#10B981] font-semibold mb-3">Top Gainers</h3>
-          <div className="space-y-2">
-            {gainers.slice(0, 5).map((stock) => (
-              <Link
-                key={stock.symbol}
-                href={`/stock/${stock.symbol}`}
-                className="flex justify-between items-center py-2 border-b border-gray-800 hover:bg-gray-800/50 transition"
-              >
-                <div>
-                  <span className="font-medium text-white">{stock.symbol}</span>
-                  <p className="text-xs text-gray-400 truncate max-w-[120px]">{stock.name_en || stock.name}</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-[#10B981]">+{stock.change_percent.toFixed(2)}%</span>
-                  <p className="text-xs text-gray-400">{stock.price.toFixed(2)}</p>
-                </div>
-              </Link>
-            ))}
+        <div className="card overflow-hidden" style={{ flex: 1 }}>
+          <div className="flex items-center gap-2 px-4 py-3"
+               style={{ borderBottom: "1px solid var(--c-border)", background: "var(--c-elevated)" }}>
+            <TrendingUp size={14} style={{ color: "var(--c-green)" }} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-green)", letterSpacing: "0.05em" }}>
+              TOP GAINERS
+            </span>
           </div>
+          {gainers.slice(0, 5).map((s) => <MoverRow key={s.symbol} s={s} type="up" />)}
         </div>
 
         {/* Losers */}
-        <div className="bg-[#111827] rounded-lg p-4">
-          <h3 className="text-[#EF4444] font-semibold mb-3">Top Losers</h3>
-          <div className="space-y-2">
-            {losers.slice(0, 5).map((stock) => (
-              <Link
-                key={stock.symbol}
-                href={`/stock/${stock.symbol}`}
-                className="flex justify-between items-center py-2 border-b border-gray-800 hover:bg-gray-800/50 transition"
-              >
-                <div>
-                  <span className="font-medium text-white">{stock.symbol}</span>
-                  <p className="text-xs text-gray-400 truncate max-w-[120px]">{stock.name_en || stock.name}</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-[#EF4444]">{stock.change_percent.toFixed(2)}%</span>
-                  <p className="text-xs text-gray-400">{stock.price.toFixed(2)}</p>
-                </div>
-              </Link>
-            ))}
+        <div className="card overflow-hidden" style={{ flex: 1 }}>
+          <div className="flex items-center gap-2 px-4 py-3"
+               style={{ borderBottom: "1px solid var(--c-border)", background: "var(--c-elevated)" }}>
+            <TrendingDown size={14} style={{ color: "var(--c-red)" }} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-red)", letterSpacing: "0.05em" }}>
+              TOP LOSERS
+            </span>
           </div>
+          {losers.slice(0, 5).map((s) => <MoverRow key={s.symbol} s={s} type="down" />)}
         </div>
       </div>
     );
-  } catch (error) {
-    console.error("Movers error:", error);
+  } catch {
     return (
-      <div className="bg-[#111827] rounded-lg p-4">
-        <p className="text-gray-400 text-sm">Movers data temporarily unavailable</p>
+      <div className="card" style={{ padding: 20 }}>
+        <p style={{ color: "var(--c-muted)", fontSize: 13 }}>Movers unavailable</p>
       </div>
     );
   }
 }
 
-// Latest News Component
-async function LatestNews({ locale }: { locale: string }) {
+// ── News Feed ─────────────────────────────────────────────────
+async function NewsPanel({ locale }: { locale: string }) {
   const supabase = createServiceClient();
   const { data: articles } = await supabase
     .from("news")
-    .select("id, title_en, title_ar, source, source_url, published_at")
+    .select("id, title_en, title_ar, source, source_url, published_at, sentiment_score")
     .order("published_at", { ascending: false })
-    .limit(5);
+    .limit(8);
+
+  function timeAgo(d: string) {
+    const h = Math.floor((Date.now() - new Date(d).getTime()) / 3600000);
+    if (h < 1) return "now";
+    if (h < 24) return `${h}h`;
+    return `${Math.floor(h / 24)}d`;
+  }
 
   return (
-    <div className="bg-[#111827] rounded-lg p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="font-semibold text-white">Latest News</h3>
-        <Link href={`/${locale}/news`} className="text-sm text-[#C8A951] hover:underline">
-          View All
+    <div className="card overflow-hidden" style={{ height: "100%" }}>
+      <div className="flex items-center justify-between px-4 py-3"
+           style={{ borderBottom: "1px solid var(--c-border)", background: "var(--c-elevated)" }}>
+        <div className="flex items-center gap-2">
+          <Newspaper size={14} style={{ color: "var(--c-gold)" }} />
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text-sm)", letterSpacing: "0.05em" }}>
+            LATEST NEWS
+          </span>
+        </div>
+        <Link href={`/${locale}/news`}
+              className="text-xs font-semibold transition-colors hover:text-white"
+              style={{ color: "var(--c-gold)" }}>
+          View all →
         </Link>
       </div>
 
       {!articles?.length ? (
-        <p className="text-gray-500 text-sm text-center py-4">No news available</p>
+        <div style={{ padding: "32px 16px", textAlign: "center" }}>
+          <p style={{ color: "var(--c-muted)", fontSize: 13 }}>No news available</p>
+        </div>
       ) : (
-        <div className="space-y-1">
+        <div>
           {articles.map((a) => {
             const title = locale === "ar" && a.title_ar ? a.title_ar : a.title_en;
-            const ago = a.published_at
-              ? (() => {
-                  const diff = Date.now() - new Date(a.published_at).getTime();
-                  const h = Math.floor(diff / 3600000);
-                  if (h < 1) return "just now";
-                  if (h < 24) return `${h}h ago`;
-                  return `${Math.floor(h / 24)}d ago`;
-                })()
-              : "";
+            const score = a.sentiment_score;
+            const sentiment = score === null ? null : score > 0.2 ? "up" : score < -0.2 ? "down" : null;
             return (
-              <a
-                key={a.id}
-                href={a.source_url || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block py-3 border-b border-gray-800/60 hover:bg-gray-800/30 transition -mx-4 px-4 last:border-b-0"
-              >
-                <p className="text-sm text-white leading-snug line-clamp-2">{title}</p>
-                <div className="flex gap-3 mt-1 text-xs text-gray-500">
-                  {a.source && <span className="capitalize">{a.source}</span>}
-                  {ago && <span>{ago}</span>}
+              <a key={a.id} href={a.source_url || "#"} target="_blank" rel="noopener noreferrer"
+                 className="group block px-4 py-3 transition-colors hover:bg-[var(--c-hover)]"
+                 style={{ borderBottom: "1px solid var(--c-border)" }}>
+                <div className="flex items-start gap-2">
+                  {sentiment && (
+                    <span className={`badge ${sentiment === "up" ? "badge-up" : "badge-down"} mt-0.5 shrink-0`}
+                          style={{ padding: "1px 5px", fontSize: 9 }}>
+                      {sentiment === "up" ? "▲" : "▼"}
+                    </span>
+                  )}
+                  <p className="text-sm leading-snug line-clamp-2 group-hover:text-white transition-colors"
+                     style={{ color: "var(--c-text)" }}>
+                    {title || "Untitled"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 mt-1.5">
+                  {a.source && (
+                    <span className="badge badge-neutral" style={{ padding: "1px 6px", fontSize: 10 }}>
+                      {a.source}
+                    </span>
+                  )}
+                  {a.published_at && (
+                    <span style={{ fontSize: 11, color: "var(--c-dim)" }}>{timeAgo(a.published_at)} ago</span>
+                  )}
                 </div>
               </a>
             );
@@ -204,17 +260,7 @@ async function LatestNews({ locale }: { locale: string }) {
   );
 }
 
-// Disclaimer Component
-function Disclaimer() {
-  return (
-    <div className="mt-8 p-4 bg-gray-800/50 rounded-lg">
-      <p className="text-xs text-gray-500 text-center">
-        SŪQAI provides translated market data for informational purposes only. This is not investment advice.
-      </p>
-    </div>
-  );
-}
-
+// ── Page ──────────────────────────────────────────────────────
 export default async function DashboardPage({
   params,
 }: {
@@ -223,25 +269,29 @@ export default async function DashboardPage({
   const { locale } = await params;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
-      {/* Market Status */}
-      <section className="mb-6">
-        <MarketStatusBar />
-      </section>
+    <div className="page-wrap">
+      {/* Hero TASI */}
+      <div className="mb-5">
+        <MarketHero locale={locale} />
+      </div>
 
-      {/* Top Movers */}
-      <section className="mb-6">
-        <h2 className="text-lg font-semibold mb-3 text-white">Market Movers</h2>
-        <TopMovers />
-      </section>
-
-      {/* Latest News */}
-      <section className="mb-6">
-        <LatestNews locale={locale} />
-      </section>
+      {/* 3-panel grid: movers (left) + news (right) */}
+      <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr 1.2fr" }}>
+        {/* Movers takes 2 cols conceptually via flex stacking */}
+        <div className="col-span-2">
+          <MoversPanel locale={locale} />
+        </div>
+        {/* News */}
+        <div>
+          <NewsPanel locale={locale} />
+        </div>
+      </div>
 
       {/* Disclaimer */}
-      <Disclaimer />
+      <hr className="gradient-line my-8" />
+      <p style={{ fontSize: 11, color: "var(--c-dim)", textAlign: "center" }}>
+        SŪQAI provides translated market data for informational purposes only. Not investment advice.
+      </p>
     </div>
   );
 }

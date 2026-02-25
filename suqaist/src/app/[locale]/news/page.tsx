@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { Newspaper, ExternalLink } from "lucide-react";
 
 export default async function NewsPage({
   params,
@@ -15,7 +16,6 @@ export default async function NewsPage({
   const offset = (currentPage - 1) * limit;
 
   const supabase = createServiceClient();
-
   const { data: articles, count } = await supabase
     .from("news")
     .select("id, title_en, title_ar, body_en, body_ar, source, source_url, published_at, sentiment_score", { count: "exact" })
@@ -23,83 +23,78 @@ export default async function NewsPage({
     .range(offset, offset + limit - 1);
 
   const totalPages = Math.ceil((count || 0) / limit);
-  const title = locale === "ar" ? "الأخبار المالية" : "Financial News";
-  const subtitle =
-    locale === "ar"
-      ? "آخر أخبار السوق السعودي"
-      : "Latest Saudi market news";
 
-  function timeAgo(dateStr: string) {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const h = Math.floor(diff / 3600000);
+  function timeAgo(d: string) {
+    const h = Math.floor((Date.now() - new Date(d).getTime()) / 3600000);
     if (h < 1) return "Just now";
     if (h < 24) return `${h}h ago`;
-    const d = Math.floor(h / 24);
-    if (d < 30) return `${d}d ago`;
-    return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  }
-
-  function sentimentBadge(score: number | null) {
-    if (score === null) return null;
-    if (score > 0.2) return { label: "Positive", cls: "bg-emerald-900/40 text-emerald-400 border border-emerald-800/50" };
-    if (score < -0.2) return { label: "Negative", cls: "bg-red-900/40 text-red-400 border border-red-800/50" };
-    return { label: "Neutral", cls: "bg-gray-800 text-gray-400 border border-gray-700" };
+    return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
+    <div className="page-wrap" style={{ maxWidth: 900 }}>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">{title}</h1>
-        <p className="text-gray-400 text-sm mt-1">{subtitle}</p>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+             style={{ background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}>
+          <Newspaper size={16} style={{ color: "var(--c-gold)" }} />
+        </div>
+        <div>
+          <h1 className="font-bold text-xl" style={{ color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
+            {locale === "ar" ? "الأخبار المالية" : "Financial News"}
+          </h1>
+          <p style={{ fontSize: 12, color: "var(--c-muted)" }}>
+            {locale === "ar" ? "آخر أخبار السوق السعودي" : "Saudi market news · updates hourly"}
+          </p>
+        </div>
       </div>
 
-      {/* News List */}
       {!articles?.length ? (
-        <div className="text-center py-16 bg-[#111827] rounded-xl border border-gray-800">
-          <p className="text-gray-500">No news available yet</p>
-          <p className="text-gray-600 text-sm mt-1">Check back soon — news updates hourly</p>
+        <div className="card" style={{ padding: "64px 0", textAlign: "center" }}>
+          <p style={{ color: "var(--c-muted)" }}>No news available yet</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {articles.map((article) => {
-            const title = locale === "ar" && article.title_ar ? article.title_ar : article.title_en;
-            const body = locale === "ar" && article.body_ar ? article.body_ar : article.body_en;
-            const badge = sentimentBadge(article.sentiment_score);
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {articles.map((a) => {
+            const title = locale === "ar" && a.title_ar ? a.title_ar : a.title_en;
+            const body  = locale === "ar" && a.body_ar  ? a.body_ar  : a.body_en;
+            const score = a.sentiment_score;
+            const sentiment = score === null ? null : score > 0.2 ? "up" : score < -0.2 ? "down" : "neutral";
 
             return (
-              <a
-                key={article.id}
-                href={article.source_url || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block bg-[#111827] rounded-xl p-4 border border-gray-800 hover:border-gray-700 hover:bg-[#141f33] transition group"
-              >
-                <div className="flex justify-between items-start gap-3 mb-2">
-                  <h3 className="text-white font-medium text-sm leading-snug group-hover:text-[#C8A951] transition line-clamp-2">
-                    {title || "Untitled"}
-                  </h3>
-                  {badge && (
-                    <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${badge.cls}`}>
-                      {badge.label}
-                    </span>
-                  )}
-                </div>
-                {body && (
-                  <p className="text-gray-400 text-xs leading-relaxed line-clamp-2 mb-2">
-                    {body}
-                  </p>
-                )}
-                <div className="flex gap-3 text-xs text-gray-500">
-                  {article.source && (
-                    <span className="capitalize bg-gray-800 px-2 py-0.5 rounded">
-                      {article.source}
-                    </span>
-                  )}
-                  {article.published_at && <span>{timeAgo(article.published_at)}</span>}
-                  <span className="ml-auto text-gray-600 group-hover:text-gray-400 transition">
-                    Read →
-                  </span>
+              <a key={a.id} href={a.source_url || "#"} target="_blank" rel="noopener noreferrer"
+                 className="card group"
+                 style={{ padding: "16px 18px", display: "block", textDecoration: "none" }}>
+                <div className="flex items-start justify-between gap-4">
+                  <div style={{ flex: 1 }}>
+                    <p className="font-semibold leading-snug group-hover:text-white transition-colors"
+                       style={{ color: "var(--c-text)", fontSize: 14, lineHeight: 1.5,
+                                display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {title || "Untitled"}
+                    </p>
+                    {body && (
+                      <p style={{ color: "var(--c-muted)", fontSize: 12, marginTop: 4, lineHeight: 1.6,
+                                  display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                        {body}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2 mt-3 flex-wrap">
+                      {a.source && (
+                        <span className="badge badge-neutral" style={{ fontSize: 10 }}>{a.source}</span>
+                      )}
+                      {sentiment && (
+                        <span className={`badge ${sentiment === "up" ? "badge-up" : sentiment === "down" ? "badge-down" : "badge-neutral"}`}
+                              style={{ fontSize: 10 }}>
+                          {sentiment === "up" ? "Positive" : sentiment === "down" ? "Negative" : "Neutral"}
+                        </span>
+                      )}
+                      {a.published_at && (
+                        <span style={{ fontSize: 11, color: "var(--c-dim)" }}>{timeAgo(a.published_at)}</span>
+                      )}
+                    </div>
+                  </div>
+                  <ExternalLink size={14} className="shrink-0 mt-1 transition-colors group-hover:text-white"
+                                style={{ color: "var(--c-dim)" }} />
                 </div>
               </a>
             );
@@ -111,34 +106,27 @@ export default async function NewsPage({
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-3 mt-8">
           {currentPage > 1 && (
-            <Link
-              href={`?page=${currentPage - 1}`}
-              className="px-4 py-2 bg-[#111827] border border-gray-800 rounded-lg text-sm text-white hover:border-gray-600 transition"
-            >
+            <Link href={`?page=${currentPage - 1}`}
+                  className="badge badge-neutral" style={{ padding: "6px 14px", fontSize: 12 }}>
               ← Previous
             </Link>
           )}
-          <span className="px-4 py-2 text-gray-400 text-sm">
-            Page {currentPage} of {totalPages}
+          <span style={{ fontSize: 12, color: "var(--c-muted)" }}>
+            {currentPage} / {totalPages}
           </span>
           {currentPage < totalPages && (
-            <Link
-              href={`?page=${currentPage + 1}`}
-              className="px-4 py-2 bg-[#111827] border border-gray-800 rounded-lg text-sm text-white hover:border-gray-600 transition"
-            >
+            <Link href={`?page=${currentPage + 1}`}
+                  className="badge badge-neutral" style={{ padding: "6px 14px", fontSize: 12 }}>
               Next →
             </Link>
           )}
         </div>
       )}
 
-      {/* Disclaimer */}
-      <div className="mt-8 p-4 bg-gray-800/50 rounded-lg">
-        <p className="text-xs text-gray-500 text-center">
-          SŪQAI provides translated market data for informational purposes only. This is not
-          investment advice.
-        </p>
-      </div>
+      <hr className="gradient-line my-8" />
+      <p style={{ fontSize: 11, color: "var(--c-dim)", textAlign: "center" }}>
+        SŪQAI provides translated market data for informational purposes only. Not investment advice.
+      </p>
     </div>
   );
 }

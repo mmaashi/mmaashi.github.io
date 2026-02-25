@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans_Arabic, Inter, Space_Grotesk } from "next/font/google";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+  LayoutDashboard,
+  SlidersHorizontal,
+  Newspaper,
+  CalendarDays,
+  TrendingUp,
+} from "lucide-react";
 import "../globals.css";
 import { getMarketSummary } from "@/lib/sahm";
 
@@ -9,26 +17,15 @@ const ibmPlexArabic = IBM_Plex_Sans_Arabic({
   subsets: ["arabic"],
   variable: "--font-arabic",
 });
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-grotesk",
-});
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-grotesk" });
 
 export const metadata: Metadata = {
   title: "SŪQAI | Saudi Market Intelligence",
   description: "Multilingual AI platform for Saudi stock market intelligence",
-  manifest: "/manifest.json",
 };
 
 const locales = ["en", "ar"];
-const defaultLocale = "en";
-
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
 }
@@ -41,120 +38,120 @@ export default async function LocaleLayout({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-
-  if (!locales.includes(locale)) {
-    notFound();
-  }
-
+  if (!locales.includes(locale)) notFound();
   const isRTL = locale === "ar";
 
-  // Fetch live TASI data — fall back gracefully if API is unavailable
-  let tasi: { value: string; change: string; isPositive: boolean; status: string } = {
-    value: "--",
-    change: "--",
-    isPositive: true,
-    status: "Market Closed",
-  };
-
+  let tasi = { value: "--", change: "--", isPositive: true, isOpen: false };
   try {
-    const summary = await getMarketSummary();
-    const isPositive = summary.index_change >= 0;
-    const sign = isPositive ? "+" : "";
-
-    // Determine market status based on Riyadh time (UTC+3)
+    const s = await getMarketSummary();
+    const isPositive = s.index_change >= 0;
     const riyadh = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Riyadh" }));
-    const day = riyadh.getDay(); // 0=Sun … 6=Sat
-    const minuteOfDay = riyadh.getHours() * 60 + riyadh.getMinutes();
-    const isOpen = day >= 0 && day <= 4 && minuteOfDay >= 600 && minuteOfDay <= 900;
-
+    const day = riyadh.getDay();
+    const min = riyadh.getHours() * 60 + riyadh.getMinutes();
     tasi = {
-      value: summary.index_value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      change: `${sign}${summary.index_change_percent.toFixed(2)}%`,
+      value: s.index_value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      change: `${isPositive ? "+" : ""}${s.index_change_percent.toFixed(2)}%`,
       isPositive,
-      status: isOpen ? "Market Open" : "Market Closed",
+      isOpen: day >= 0 && day <= 4 && min >= 600 && min <= 900,
     };
-  } catch {
-    // API unavailable — keep fallback values
-  }
+  } catch {}
+
+  const navLinks = [
+    { href: `/${locale}`,          label: locale === "ar" ? "الرئيسية" : "Dashboard", Icon: LayoutDashboard },
+    { href: `/${locale}/screener`, label: locale === "ar" ? "المصفاة"  : "Screener",  Icon: SlidersHorizontal },
+    { href: `/${locale}/news`,     label: locale === "ar" ? "الأخبار"  : "News",      Icon: Newspaper },
+    { href: `/${locale}/calendar`, label: locale === "ar" ? "التقويم"  : "Calendar",  Icon: CalendarDays },
+  ];
 
   return (
     <html lang={locale} dir={isRTL ? "rtl" : "ltr"}>
-      <body
-        className={`${ibmPlexArabic.variable} ${inter.variable} ${spaceGrotesk.variable} antialiased bg-[#0A0F1C] text-[#F9FAFB] min-h-screen`}
-      >
-        {/* Header */}
-        <header className="fixed top-0 left-0 right-0 z-50 bg-[#111827] border-b border-gray-800">
-          <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+      <body className={`${ibmPlexArabic.variable} ${inter.variable} ${spaceGrotesk.variable} antialiased min-h-screen`}
+            style={{ backgroundColor: "var(--c-base)", color: "var(--c-text)" }}>
+
+        {/* ── Header ── */}
+        <header className="fixed top-0 left-0 right-0 z-50"
+                style={{ background: "rgba(7,15,28,0.94)", backdropFilter: "blur(20px)",
+                         WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid var(--c-border)" }}>
+          <div className="max-w-[1280px] mx-auto px-4 flex items-center justify-between gap-4"
+               style={{ height: 60 }}>
+
             {/* Logo */}
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-bold text-[#C8A951]">SŪQAI</span>
-            </div>
+            <Link href={`/${locale}`} className="flex items-center gap-2 shrink-0">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+                   style={{ background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}>
+                <TrendingUp size={14} style={{ color: "var(--c-gold)" }} />
+              </div>
+              <span className="text-lg font-bold tracking-tight"
+                    style={{ color: "var(--c-gold)", fontFamily: "var(--font-grotesk)" }}>
+                SŪQAI
+              </span>
+            </Link>
 
-            {/* Market Status Bar — Live TASI */}
-            <div className="hidden md:flex items-center gap-4 text-sm">
-              <span className="text-gray-400">TASI</span>
-              <span className={tasi.isPositive ? "text-[#10B981] font-semibold" : "text-[#EF4444] font-semibold"}>
-                {tasi.value}
-              </span>
-              <span className={tasi.isPositive ? "text-[#10B981]" : "text-[#EF4444]"}>
-                {tasi.change}
-              </span>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                tasi.status === "Market Open"
-                  ? "bg-green-900/50 text-green-400"
-                  : "bg-gray-800 text-gray-500"
-              }`}>
-                {tasi.status}
-              </span>
-            </div>
+            {/* Desktop nav links */}
+            <nav className="hidden md:flex items-center gap-0.5">
+              {navLinks.map(({ href, label, Icon }) => (
+                <Link key={href} href={href}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 hover:text-white"
+                      style={{ color: "var(--c-text-sm)" }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--c-elevated)"}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                  <Icon size={13} />
+                  {label}
+                </Link>
+              ))}
+            </nav>
 
-            {/* Language Toggle */}
-            <div className="flex items-center gap-2">
-              <a
-                href="/ar"
-                className={`px-3 py-1 text-sm font-medium ${locale === "ar" ? "text-[#C8A951]" : "text-gray-400 hover:text-white"}`}
-              >
-                AR
-              </a>
-              <span className="text-gray-600">|</span>
-              <a
-                href="/en"
-                className={`px-3 py-1 text-sm font-medium ${locale === "en" ? "text-[#C8A951]" : "text-gray-400 hover:text-white"}`}
-              >
-                EN
-              </a>
+            {/* Right: TASI + Lang */}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* TASI chip */}
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg"
+                   style={{ background: "var(--c-elevated)", border: "1px solid var(--c-border-md)" }}>
+                <span style={{ color: "var(--c-muted)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em" }}>TASI</span>
+                <span className="font-num font-semibold text-sm" style={{ color: "var(--c-text)" }}>{tasi.value}</span>
+                <span className="font-num text-sm font-semibold"
+                      style={{ color: tasi.isPositive ? "var(--c-green)" : "var(--c-red)" }}>
+                  {tasi.change}
+                </span>
+                <span className={tasi.isOpen ? "badge badge-open" : "badge badge-closed"}
+                      style={{ fontSize: 10, padding: "1px 7px", gap: 4 }}>
+                  {tasi.isOpen ? <><span className="live-dot" style={{ width: 5, height: 5 }} />Open</> : "Closed"}
+                </span>
+              </div>
+
+              {/* Language toggle */}
+              <div className="flex items-center rounded-lg overflow-hidden"
+                   style={{ border: "1px solid var(--c-border-md)", background: "var(--c-elevated)" }}>
+                {[{ code: "ar", label: "AR" }, { code: "en", label: "EN" }].map(({ code, label }) => (
+                  <Link key={code} href={`/${code}`}
+                        className="px-3 py-1.5 text-xs font-bold transition-all"
+                        style={{
+                          color: locale === code ? "var(--c-base)" : "var(--c-muted)",
+                          background: locale === code ? "var(--c-gold)" : "transparent",
+                        }}>
+                    {label}
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
         </header>
 
-        {/* Main Content */}
-        <main className="pt-14 pb-20 md:pb-0">
-          {children}
-        </main>
+        {/* ── Main ── */}
+        <main style={{ paddingTop: 60, paddingBottom: 72 }}>{children}</main>
 
-        {/* Mobile Bottom Nav */}
-        <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-[#111827] border-t border-gray-800 z-50">
-          <div className="flex justify-around items-center h-14">
-            <a href="/?lang=en" className="flex flex-col items-center justify-center p-2 text-[#C8A951]">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
-              <span className="text-xs mt-1">Home</span>
-            </a>
-            <a href="/en/screener" className="flex flex-col items-center justify-center p-2 text-gray-400">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
-              <span className="text-xs mt-1">Screener</span>
-            </a>
-            <a href="/en/watchlist" className="flex flex-col items-center justify-center p-2 text-gray-400">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-              <span className="text-xs mt-1">Watchlist</span>
-            </a>
-            <a href="/en/news" className="flex flex-col items-center justify-center p-2 text-gray-400">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>
-              <span className="text-xs mt-1">News</span>
-            </a>
-            <a href="/en/calendar" className="flex flex-col items-center justify-center p-2 text-gray-400">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16"/></svg>
-              <span className="text-xs mt-1">More</span>
-            </a>
+        {/* ── Mobile bottom nav ── */}
+        <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
+             style={{ background: "rgba(7,15,28,0.96)", backdropFilter: "blur(20px)",
+                      WebkitBackdropFilter: "blur(20px)", borderTop: "1px solid var(--c-border)" }}>
+          <div className="flex justify-around items-center" style={{ height: 56 }}>
+            {navLinks.map(({ href, label, Icon }) => (
+              <Link key={href} href={href}
+                    className="flex flex-col items-center justify-center gap-0.5 px-3 py-1"
+                    style={{ color: "var(--c-muted)", minWidth: 56 }}>
+                <Icon size={18} />
+                <span style={{ fontSize: 10, fontWeight: 600 }}>{label}</span>
+              </Link>
+            ))}
           </div>
         </nav>
       </body>
