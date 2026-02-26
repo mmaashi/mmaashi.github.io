@@ -76,34 +76,41 @@ export default async function LocaleLayout({
         <header
           className="fixed top-0 left-0 right-0 z-50"
           style={{
-            background: "rgba(7,15,28,0.94)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
+            background: "rgba(6,13,24,0.92)",
+            backdropFilter: "blur(24px) saturate(1.2)",
+            WebkitBackdropFilter: "blur(24px) saturate(1.2)",
             borderBottom: "1px solid var(--c-border)",
           }}
         >
           <div
-            className="max-w-[1280px] mx-auto px-4 flex items-center justify-between gap-4"
-            style={{ height: 60 }}
+            className="max-w-[1280px] mx-auto px-4 md:px-6 flex items-center justify-between gap-4"
+            style={{ height: 56 }}
           >
             {/* Logo */}
-            <Link href={`/${locale}`} className="flex items-center gap-2 shrink-0" style={{ textDecoration: "none" }}>
+            <Link href={`/${locale}`} className="flex items-center gap-2.5 shrink-0 group" style={{ textDecoration: "none" }}>
               <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center"
-                style={{ background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{
+                  background: "linear-gradient(135deg, var(--c-gold-dim), rgba(200,169,81,0.15))",
+                  border: "1px solid var(--c-gold-ring)",
+                  transition: "box-shadow 0.2s",
+                }}
               >
                 <TrendingUp size={14} style={{ color: "var(--c-gold)" }} />
               </div>
               <span
                 className="text-lg font-bold tracking-tight"
-                style={{ color: "var(--c-gold)", fontFamily: "var(--font-grotesk)" }}
+                style={{
+                  color: "var(--c-gold)",
+                  fontFamily: "var(--font-grotesk)",
+                }}
               >
                 SŪQAI
               </span>
             </Link>
 
-            {/* Desktop nav — pure CSS hover via .nav-link class */}
-            <nav className="hidden md:flex items-center gap-0.5">
+            {/* Desktop nav */}
+            <nav className="hidden md:flex items-center gap-1">
               {navLinks.map(({ href, label, Icon }) => (
                 <Link key={href} href={href} className="nav-link">
                   <Icon size={13} />
@@ -113,27 +120,30 @@ export default async function LocaleLayout({
             </nav>
 
             {/* Right: TASI chip + lang toggle */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2.5 shrink-0">
               {/* TASI chip */}
               <div
                 className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg"
-                style={{ background: "var(--c-elevated)", border: "1px solid var(--c-border-md)" }}
+                style={{
+                  background: "var(--c-elevated)",
+                  border: "1px solid var(--c-border)",
+                }}
               >
-                <span style={{ color: "var(--c-muted)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em" }}>
+                <span style={{ color: "var(--c-muted)", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em" }}>
                   TASI
                 </span>
-                <span className="font-num font-semibold text-sm" style={{ color: "var(--c-text)" }}>
+                <span className="font-num font-semibold" style={{ color: "var(--c-text)", fontSize: 13 }}>
                   {tasi.value}
                 </span>
                 <span
-                  className="font-num text-sm font-semibold"
-                  style={{ color: tasi.isPositive ? "var(--c-green)" : "var(--c-red)" }}
+                  className="font-num font-semibold"
+                  style={{ color: tasi.isPositive ? "var(--c-green)" : "var(--c-red)", fontSize: 13 }}
                 >
                   {tasi.change}
                 </span>
                 <span
                   className={tasi.isOpen ? "badge badge-open" : "badge badge-closed"}
-                  style={{ fontSize: 10, padding: "1px 7px", gap: 4 }}
+                  style={{ fontSize: 9, padding: "1px 7px", gap: 4 }}
                 >
                   {tasi.isOpen ? (
                     <><span className="live-dot" style={{ width: 5, height: 5 }} />{t(locale, "open")}</>
@@ -148,15 +158,17 @@ export default async function LocaleLayout({
                 className="flex items-center rounded-lg overflow-hidden"
                 style={{ border: "1px solid var(--c-border-md)", background: "var(--c-elevated)" }}
               >
-                {[{ code: "ar", label: "AR" }, { code: "en", label: "EN" }].map(({ code, label }) => (
+                {[{ code: "ar", label: "عر" }, { code: "en", label: "EN" }].map(({ code, label }) => (
                   <Link
                     key={code}
                     href={`/${code}`}
-                    className="px-3 py-1.5 text-xs font-bold transition-all"
+                    className="px-3 py-1.5 text-xs font-bold"
                     style={{
                       color: locale === code ? "var(--c-base)" : "var(--c-muted)",
                       background: locale === code ? "var(--c-gold)" : "transparent",
                       textDecoration: "none",
+                      transition: "all 0.15s ease",
+                      fontSize: 11,
                     }}
                   >
                     {label}
@@ -168,28 +180,28 @@ export default async function LocaleLayout({
         </header>
 
         {/* ── Main ── */}
-        <main style={{ paddingTop: 60, paddingBottom: 72 }}>{children}</main>
+        <main style={{ paddingTop: 56, paddingBottom: 72 }}>{children}</main>
 
         {/* ── Mobile bottom nav ── */}
         <nav
           className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
           style={{
-            background: "rgba(7,15,28,0.96)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
+            background: "rgba(6,13,24,0.95)",
+            backdropFilter: "blur(24px) saturate(1.2)",
+            WebkitBackdropFilter: "blur(24px) saturate(1.2)",
             borderTop: "1px solid var(--c-border)",
           }}
         >
-          <div className="flex justify-around items-center" style={{ height: 56 }}>
-            {navLinks.map(({ href, label, Icon }) => (
+          <div className="flex justify-around items-center" style={{ height: 54 }}>
+            {navLinks.slice(0, 5).map(({ href, label, Icon }) => (
               <Link
                 key={href}
                 href={href}
-                className="flex flex-col items-center justify-center gap-0.5 px-3 py-1"
-                style={{ color: "var(--c-muted)", minWidth: 56, textDecoration: "none" }}
+                className="flex flex-col items-center justify-center gap-0.5 px-2 py-1"
+                style={{ color: "var(--c-muted)", minWidth: 48, textDecoration: "none" }}
               >
-                <Icon size={18} />
-                <span style={{ fontSize: 10, fontWeight: 600 }}>{label}</span>
+                <Icon size={17} strokeWidth={1.8} />
+                <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.02em" }}>{label}</span>
               </Link>
             ))}
           </div>

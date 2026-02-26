@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { getCompanyQuote } from "@/lib/data-sources";
 import PriceChart from "@/components/PriceChart";
+import SuqaiScore, { calculateScores } from "@/components/SuqaiScore";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -134,6 +135,21 @@ export default async function StockPage({
 
   const displayName = locale === "ar" && company.name_ar ? company.name_ar : company.name_en;
   const isLive = !!liveQuote;
+  const sar = t(locale, "common.sar");
+
+  // SŪQAI Score calculation
+  const divYieldNum = currentPrice && annualDiv > 0 ? (annualDiv / currentPrice) * 100 : null;
+  const scores = calculateScores({
+    pe: pe ? parseFloat(pe) : null,
+    eps,
+    divYield: divYieldNum,
+    revenue,
+    netIncome,
+    changePct,
+    currentPrice,
+    fiftyTwoHigh: fiftyTwoHigh ? parseFloat(fiftyTwoHigh) : null,
+    fiftyTwoLow: fiftyTwoLow ? parseFloat(fiftyTwoLow) : null,
+  });
 
   const chartData = priceHistory.map((p) => ({
     date: p.date as string,
@@ -156,18 +172,18 @@ export default async function StockPage({
       </Link>
 
       {/* ── Header Card ── */}
-      <div className="card mb-4" style={{ padding: "24px 28px", position: "relative", overflow: "hidden" }}>
+      <div className="card-gold fade-up mb-5" style={{ padding: "26px 28px" }}>
         {/* Subtle glow */}
         <div
           style={{
             position: "absolute",
-            top: -60,
-            right: -40,
-            width: 280,
-            height: 280,
+            top: -80,
+            right: -60,
+            width: 320,
+            height: 320,
             borderRadius: "50%",
-            background: isPositive ? "rgba(14,203,129,0.04)" : "rgba(246,70,93,0.04)",
-            filter: "blur(40px)",
+            background: isPositive ? "rgba(14,203,129,0.05)" : "rgba(246,70,93,0.05)",
+            filter: "blur(60px)",
             pointerEvents: "none",
           }}
         />
@@ -255,7 +271,7 @@ export default async function StockPage({
                       ? val >= 1e6
                         ? `${(val / 1e6).toFixed(1)}M`
                         : `${(val / 1e3).toFixed(0)}K`
-                      : `SAR ${val.toFixed(2)}`
+                      : `${sar} ${val.toFixed(2)}`
                     : "N/A"}
                 </span>
               </div>
@@ -268,28 +284,76 @@ export default async function StockPage({
         )}
       </div>
 
-      {/* ── Key Metrics Grid ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      {/* ── SŪQAI Score + Key Metrics ── */}
+      <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-4 mb-5">
+        {/* Snowflake Score */}
+        <div className="card" style={{ padding: "20px 22px" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center"
+                 style={{ background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}>
+              <TrendingUp size={12} style={{ color: "var(--c-gold)" }} />
+            </div>
+            <div>
+              <h2 className="font-bold" style={{ fontSize: 14, color: "var(--c-text)" }}>
+                {t(locale, "score.title")}
+              </h2>
+              <p style={{ fontSize: 10, color: "var(--c-muted)" }}>{t(locale, "score.subtitle")}</p>
+            </div>
+          </div>
+          <SuqaiScore
+            value={scores.value}
+            growth={scores.growth}
+            dividend={scores.dividend}
+            health={scores.health}
+            momentum={scores.momentum}
+            locale={locale}
+            size={200}
+          />
+          {/* Value assessment */}
+          {pe && (
+            <div className="mt-3 text-center">
+              <span
+                className="badge font-semibold"
+                style={{
+                  fontSize: 11,
+                  padding: "4px 12px",
+                  background: parseFloat(pe) < 15 ? "var(--c-green-bg)" : parseFloat(pe) < 25 ? "var(--c-gold-dim)" : "var(--c-red-bg)",
+                  color: parseFloat(pe) < 15 ? "var(--c-green)" : parseFloat(pe) < 25 ? "var(--c-gold)" : "var(--c-red)",
+                  borderColor: parseFloat(pe) < 15 ? "var(--c-green-ring)" : parseFloat(pe) < 25 ? "var(--c-gold-ring)" : "var(--c-red-ring)",
+                }}
+              >
+                {parseFloat(pe) < 15
+                  ? t(locale, "score.undervalued")
+                  : parseFloat(pe) < 25
+                  ? t(locale, "score.fair")
+                  : t(locale, "score.overvalued")}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Key Metrics Grid */}
+        <div className="grid grid-cols-2 gap-3 content-start">
         {[
           {
             icon: BarChart3,
             label: t(locale, "stock.pe"),
             value: pe ?? t(locale, "common.na"),
-            sub: eps ? `EPS: SAR ${eps.toFixed(2)}` : undefined,
+            sub: eps ? `${t(locale, "stock.eps_short")}: ${sar} ${eps.toFixed(2)}` : undefined,
             color: pe ? "var(--c-text)" : "var(--c-dim)",
           },
           {
             icon: DollarSign,
             label: t(locale, "stock.eps"),
             value: eps ? eps.toFixed(2) : t(locale, "common.na"),
-            sub: financial ? `${financial.period} ${financial.year}` : undefined,
+            sub: financial ? `${t(locale, `stock.period.${financial.period?.toLowerCase() || "annual"}`)} ${financial.year}` : undefined,
             color: eps ? "var(--c-text)" : "var(--c-dim)",
           },
           {
             icon: Calendar,
             label: t(locale, "stock.div_yield"),
             value: divYield ?? t(locale, "common.na"),
-            sub: annualDiv > 0 ? `SAR ${annualDiv.toFixed(2)}/yr` : undefined,
+            sub: annualDiv > 0 ? `${sar} ${annualDiv.toFixed(2)}/${t(locale, "stock.per_year")}` : undefined,
             color: divYield ? "var(--c-green)" : "var(--c-dim)",
           },
           {
@@ -317,15 +381,16 @@ export default async function StockPage({
             )}
           </div>
         ))}
+        </div>
       </div>
 
       {/* ── Price Chart ── */}
-      <section className="mb-4">
-        <div className="card" style={{ padding: "20px 22px" }}>
+      <section className="mb-5">
+        <div className="card" style={{ padding: "22px 24px" }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Activity size={14} style={{ color: "var(--c-gold)" }} />
-              <h2 className="font-bold" style={{ fontSize: 15, color: "var(--c-text)" }}>
+              <h2 className="font-bold" style={{ fontSize: 15, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
                 {t(locale, "stock.price_history")}
               </h2>
             </div>
@@ -346,7 +411,7 @@ export default async function StockPage({
             <div className="flex items-center gap-2 mb-4">
               <Building2 size={14} style={{ color: "var(--c-gold)" }} />
               <h2 className="font-bold" style={{ fontSize: 15, color: "var(--c-text)" }}>
-                {t(locale, "stock.financials")} — {financial.period} {financial.year}
+                {t(locale, "stock.financials")} — {t(locale, `stock.period.${financial.period?.toLowerCase() || "annual"}`)} {financial.year}
               </h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -355,7 +420,7 @@ export default async function StockPage({
                   {t(locale, "stock.revenue")}
                 </p>
                 <span className="font-num font-bold text-lg" style={{ color: revenue && revenue > 0 ? "var(--c-text)" : "var(--c-dim)" }}>
-                  {revenue && revenue > 0 ? `SAR ${(revenue / 1e9).toFixed(2)}B` : t(locale, "common.na")}
+                  {revenue && revenue > 0 ? `${sar} ${(revenue / 1e9).toFixed(2)}B` : t(locale, "common.na")}
                 </span>
               </div>
               <div style={{ padding: "12px 0" }}>
@@ -363,15 +428,15 @@ export default async function StockPage({
                   {t(locale, "stock.net_income")}
                 </p>
                 <span className="font-num font-bold text-lg" style={{ color: netIncome && netIncome > 0 ? "var(--c-text)" : "var(--c-dim)" }}>
-                  {netIncome && netIncome !== 0 ? `SAR ${(netIncome / 1e9).toFixed(2)}B` : t(locale, "common.na")}
+                  {netIncome && netIncome !== 0 ? `${sar} ${(netIncome / 1e9).toFixed(2)}B` : t(locale, "common.na")}
                 </span>
               </div>
               <div style={{ padding: "12px 0" }}>
                 <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>
-                  EPS
+                  {t(locale, "stock.eps_short")}
                 </p>
                 <span className="font-num font-bold text-lg" style={{ color: eps ? "var(--c-text)" : "var(--c-dim)" }}>
-                  {eps ? `SAR ${eps.toFixed(2)}` : t(locale, "common.na")}
+                  {eps ? `${sar} ${eps.toFixed(2)}` : t(locale, "common.na")}
                 </span>
               </div>
             </div>
@@ -414,7 +479,7 @@ export default async function StockPage({
                     </td>
                     <td style={{ textAlign: "right" }}>
                       <span className="font-num font-semibold" style={{ color: "var(--c-green)" }}>
-                        SAR {Number(d.amount_per_share).toFixed(2)}
+                        {sar} {Number(d.amount_per_share).toFixed(2)}
                       </span>
                     </td>
                     <td style={{ textAlign: "right" }}>
@@ -515,23 +580,19 @@ export default async function StockPage({
       )}
 
       {/* Back link */}
-      <div className="mb-4 mt-6">
+      <div className="mb-4 mt-8">
         <Link
           href={`/${locale}/screener`}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all"
-          style={{
-            background: "var(--c-gold)",
-            color: "var(--c-base)",
-            textDecoration: "none",
-          }}
+          className="btn btn-primary"
+          style={{ textDecoration: "none" }}
         >
           <ArrowLeft size={14} />
           {t(locale, "stock.back_btn")}
         </Link>
       </div>
 
-      <hr className="gradient-line my-8" />
-      <p style={{ fontSize: 11, color: "var(--c-dim)", textAlign: "center" }}>
+      <hr className="gold-line my-10" />
+      <p style={{ fontSize: 11, color: "var(--c-dim)", textAlign: "center", letterSpacing: "0.02em" }}>
         {t(locale, "common.disclaimer")}
       </p>
     </div>

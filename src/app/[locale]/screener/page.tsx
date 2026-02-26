@@ -74,20 +74,18 @@ export default async function ScreenerPage({
         </div>
         <div>
           <h1 className="font-bold text-xl" style={{ color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
-            {locale === "ar" ? "مصفاة الأسهم" : "Stock Screener"}
+            {t(locale, "screener.title")}
           </h1>
           <p style={{ fontSize: 12, color: "var(--c-muted)" }}>
-            {locale === "ar"
-              ? "تصفية وفرز جميع الأسهم المدرجة في تداول"
-              : "Filter and sort all Tadawul-listed companies"}
+            {t(locale, "screener.subtitle")}
           </p>
         </div>
       </div>
 
       <ScreenerTable companies={enriched} sectors={sectors as string[]} locale={locale} />
 
-      <hr className="gradient-line my-8" />
-      <p style={{ fontSize: 11, color: "var(--c-dim)", textAlign: "center" }}>
+      <hr className="gold-line my-10" />
+      <p style={{ fontSize: 11, color: "var(--c-dim)", textAlign: "center", letterSpacing: "0.02em" }}>
         {t(locale, "common.disclaimer")}
       </p>
     </div>

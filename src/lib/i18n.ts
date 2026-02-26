@@ -89,6 +89,13 @@ const translations: Record<string, Record<string, string>> = {
     "stock.founded": "Founded",
     "stock.employees": "Employees",
     "stock.website": "Website",
+    "stock.eps_short": "EPS",
+    "stock.per_year": "yr",
+    "stock.period.annual": "Annual",
+    "stock.period.q1": "Q1",
+    "stock.period.q2": "Q2",
+    "stock.period.q3": "Q3",
+    "stock.period.q4": "Q4",
 
     // Calendar
     "calendar.title": "Dividend Calendar",
@@ -151,6 +158,19 @@ const translations: Record<string, Record<string, string>> = {
     "about.coming_score": "SŪQAI Score (Value/Health/Dividend)",
     "about.coming_ai": "AI-Powered Chat Assistant",
     "about.disclaimer": "SŪQAI is not a licensed financial advisor. All data is provided for informational purposes only.",
+
+    // SŪQAI Score
+    "score.label": "SŪQAI Score",
+    "score.value": "Value",
+    "score.growth": "Growth",
+    "score.dividend": "Dividend",
+    "score.health": "Health",
+    "score.momentum": "Momentum",
+    "score.title": "SŪQAI Score",
+    "score.subtitle": "AI-powered stock health analysis",
+    "score.undervalued": "Potentially Undervalued",
+    "score.fair": "Fair Value",
+    "score.overvalued": "Potentially Overvalued",
 
     // Common
     "common.sar": "SAR",
@@ -244,6 +264,13 @@ const translations: Record<string, Record<string, string>> = {
     "stock.founded": "سنة التأسيس",
     "stock.employees": "عدد الموظفين",
     "stock.website": "الموقع الإلكتروني",
+    "stock.eps_short": "ربح السهم",
+    "stock.per_year": "سنوياً",
+    "stock.period.annual": "سنوي",
+    "stock.period.q1": "ر1",
+    "stock.period.q2": "ر2",
+    "stock.period.q3": "ر3",
+    "stock.period.q4": "ر4",
 
     // Calendar
     "calendar.title": "تقويم الأرباح الموزعة",
@@ -306,6 +333,19 @@ const translations: Record<string, Record<string, string>> = {
     "about.coming_score": "تقييم SŪQAI (القيمة / الصحة المالية / التوزيعات)",
     "about.coming_ai": "مساعد ذكاء اصطناعي للمحادثة",
     "about.disclaimer": "SŪQAI ليست مستشاراً مالياً مرخصاً. جميع البيانات مقدّمة لأغراض إعلامية فقط.",
+
+    // SŪQAI Score
+    "score.label": "تقييم SŪQAI",
+    "score.value": "القيمة",
+    "score.growth": "النمو",
+    "score.dividend": "التوزيعات",
+    "score.health": "الصحة",
+    "score.momentum": "الزخم",
+    "score.title": "تقييم SŪQAI",
+    "score.subtitle": "تحليل ذكي لصحة السهم",
+    "score.undervalued": "مقوّم بأقل من قيمته",
+    "score.fair": "قيمة عادلة",
+    "score.overvalued": "مقوّم بأعلى من قيمته",
 
     // Common
     "common.sar": "ر.س",

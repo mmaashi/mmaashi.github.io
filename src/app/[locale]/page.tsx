@@ -11,20 +11,21 @@ import { t, tMood } from "@/lib/i18n";
 // ── Hero Section with Tagline ────────────────────────────────
 function HeroTagline({ locale }: { locale: string }) {
   return (
-    <div className="text-center mb-6 fade-up" style={{ paddingTop: 16 }}>
+    <div className="text-center mb-8 fade-up" style={{ paddingTop: 20 }}>
       <h1
         className="font-bold tracking-tight"
         style={{
-          fontSize: 28,
+          fontSize: 32,
           color: "var(--c-gold)",
           fontFamily: "var(--font-grotesk)",
-          letterSpacing: "-0.02em",
-          marginBottom: 6,
+          letterSpacing: "-0.03em",
+          marginBottom: 8,
+          textShadow: "0 0 40px rgba(200,169,81,0.15)",
         }}
       >
         SŪQAI
       </h1>
-      <p style={{ fontSize: 15, color: "var(--c-muted)", maxWidth: 420, margin: "0 auto", lineHeight: 1.5 }}>
+      <p style={{ fontSize: 14, color: "var(--c-muted)", maxWidth: 440, margin: "0 auto", lineHeight: 1.6 }}>
         {t(locale, "market.tagline")}
       </p>
     </div>
@@ -47,12 +48,12 @@ async function MarketHero({ locale }: { locale: string }) {
       .replace("{dec}", String(s.declining || 0));
 
     return (
-      <div className="card fade-up" style={{ padding: "24px 28px", position: "relative", overflow: "hidden" }}>
+      <div className="card-gold fade-up" style={{ padding: "26px 28px" }}>
         <div style={{
-          position: "absolute", top: -60, right: -40,
-          width: 280, height: 280, borderRadius: "50%",
-          background: isUp ? "rgba(14,203,129,0.04)" : "rgba(246,70,93,0.04)",
-          filter: "blur(40px)", pointerEvents: "none",
+          position: "absolute", top: -80, right: -60,
+          width: 320, height: 320, borderRadius: "50%",
+          background: isUp ? "rgba(14,203,129,0.05)" : "rgba(246,70,93,0.05)",
+          filter: "blur(60px)", pointerEvents: "none",
         }} />
 
         <div className="flex flex-wrap items-start justify-between gap-6">
@@ -189,24 +190,24 @@ function QuickActions({ locale }: { locale: string }) {
   ];
 
   return (
-    <div className="grid gap-3 fade-up grid-cols-1 md:grid-cols-3">
+    <div className="grid gap-3 stagger grid-cols-1 md:grid-cols-3">
       {actions.map(({ href, icon: Icon, title, desc, color, bg, ring }) => (
         <Link
           key={href}
           href={href}
-          className="card group transition-all hover:scale-[1.02]"
-          style={{ padding: "20px", textDecoration: "none", borderColor: ring }}
+          className="card group"
+          style={{ padding: "20px 22px", textDecoration: "none", borderColor: ring, transition: "all 0.25s cubic-bezier(0.16,1,0.3,1)" }}
         >
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+            className="w-9 h-9 rounded-xl flex items-center justify-center mb-3"
             style={{ background: bg, border: `1px solid ${ring}` }}
           >
-            <Icon size={18} style={{ color }} />
+            <Icon size={16} style={{ color }} />
           </div>
-          <h3 className="font-semibold text-sm mb-1" style={{ color: "var(--c-text)" }}>
+          <h3 className="font-semibold text-sm mb-1" style={{ color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
             {title}
           </h3>
-          <p style={{ fontSize: 12, color: "var(--c-muted)", lineHeight: 1.4 }}>
+          <p style={{ fontSize: 12, color: "var(--c-muted)", lineHeight: 1.45 }}>
             {desc}
           </p>
         </Link>
@@ -383,27 +384,27 @@ export default async function DashboardPage({
       <HeroTagline locale={locale} />
 
       {/* Market index card */}
-      <div className="mb-5">
+      <div className="mb-6">
         <MarketHero locale={locale} />
       </div>
 
       {/* Quick action cards */}
-      <div className="mb-5">
+      <div className="mb-6">
         <QuickActions locale={locale} />
       </div>
 
       {/* Gainers & Losers side by side */}
-      <div className="mb-5">
+      <div className="mb-6">
         <MoversPanel locale={locale} />
       </div>
 
       {/* News at the bottom */}
-      <div className="mb-5">
+      <div className="mb-6">
         <NewsPanel locale={locale} />
       </div>
 
-      <hr className="gradient-line my-8" />
-      <p style={{ fontSize: 11, color: "var(--c-dim)", textAlign: "center" }}>
+      <hr className="gold-line my-10" />
+      <p style={{ fontSize: 11, color: "var(--c-dim)", textAlign: "center", letterSpacing: "0.02em" }}>
         {t(locale, "common.disclaimer")}
       </p>
     </div>

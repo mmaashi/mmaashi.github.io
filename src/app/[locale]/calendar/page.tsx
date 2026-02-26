@@ -159,8 +159,8 @@ export default async function CalendarPage({
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div className="card" style={{ padding: "16px 18px" }}>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 stagger">
+        <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
             <CalendarDays size={13} style={{ color: "var(--c-muted)" }} />
             <span style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>
@@ -171,7 +171,7 @@ export default async function CalendarPage({
             {enriched.length}
           </span>
         </div>
-        <div className="card" style={{ padding: "16px 18px" }}>
+        <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp size={13} style={{ color: upcoming.length > 0 ? "var(--c-green)" : "var(--c-muted)" }} />
             <span style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>
@@ -182,7 +182,7 @@ export default async function CalendarPage({
             {upcoming.length > 0 ? upcoming.length : past.length > 0 ? past.length : "—"}
           </span>
         </div>
-        <div className="card" style={{ padding: "16px 18px" }}>
+        <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
             <Building2 size={13} style={{ color: "var(--c-muted)" }} />
             <span style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>
@@ -193,7 +193,7 @@ export default async function CalendarPage({
             {latestByCompany.size}
           </span>
         </div>
-        <div className="card" style={{ padding: "16px 18px" }}>
+        <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
             <BarChart3 size={13} style={{ color: "var(--c-gold)" }} />
             <span style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>
@@ -328,12 +328,12 @@ export default async function CalendarPage({
                       </td>
                       <td style={{ textAlign: "right" }}>
                         <span className="font-num" style={{ color: "var(--c-text)", fontSize: 13 }}>
-                          SAR {d.amount.toFixed(2)}
+                          {t(locale, "common.sar")} {d.amount.toFixed(2)}
                         </span>
                       </td>
                       <td style={{ textAlign: "right" }}>
                         <span className="font-num" style={{ color: "var(--c-muted)", fontSize: 13 }}>
-                          {d.price ? `SAR ${d.price.toFixed(2)}` : t(locale, "common.na")}
+                          {d.price ? `${t(locale, "common.sar")} ${d.price.toFixed(2)}` : t(locale, "common.na")}
                         </span>
                       </td>
                     </tr>
@@ -345,8 +345,8 @@ export default async function CalendarPage({
         </section>
       )}
 
-      <hr className="gradient-line my-8" />
-      <p style={{ fontSize: 11, color: "var(--c-dim)", textAlign: "center" }}>
+      <hr className="gold-line my-10" />
+      <p style={{ fontSize: 11, color: "var(--c-dim)", textAlign: "center", letterSpacing: "0.02em" }}>
         {t(locale, "common.disclaimer")}
       </p>
     </div>

@@ -36,8 +36,9 @@ const PERIODS = [
   { key: "ALL", days: 0 },
 ] as const;
 
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label, locale }: any) {
   if (!active || !payload?.length) return null;
+  const sar = t(locale || "en", "common.sar");
   return (
     <div
       style={{
@@ -50,7 +51,7 @@ function CustomTooltip({ active, payload, label }: any) {
     >
       <p style={{ color: "var(--c-muted)", fontSize: 11, marginBottom: 4 }}>{label}</p>
       <p className="font-num" style={{ color: "var(--c-text)", fontSize: 14, fontWeight: 700 }}>
-        SAR {Number(payload[0].value).toFixed(2)}
+        {sar} {Number(payload[0].value).toFixed(2)}
       </p>
     </div>
   );
@@ -111,13 +112,13 @@ export default function PriceChart({ data, ticker, locale = "en" }: Props) {
       >
         <p style={{ color: "var(--c-muted)", fontSize: 12, marginBottom: 8 }}>{t(locale, "chart.today")}</p>
         <p className="font-num" style={{ fontSize: 28, fontWeight: 700, color: "var(--c-text)" }}>
-          SAR {data[0].close.toFixed(2)}
+          {t(locale, "common.sar")} {data[0].close.toFixed(2)}
         </p>
         {data[0].open && (
           <div className="flex gap-4 mt-3" style={{ fontSize: 11, color: "var(--c-muted)" }}>
-            <span>Open {data[0].open.toFixed(2)}</span>
-            {data[0].high && <span>High {data[0].high.toFixed(2)}</span>}
-            {data[0].low && <span>Low {data[0].low.toFixed(2)}</span>}
+            <span>{t(locale, "stock.open")} {data[0].open.toFixed(2)}</span>
+            {data[0].high && <span>{t(locale, "stock.high")} {data[0].high.toFixed(2)}</span>}
+            {data[0].low && <span>{t(locale, "stock.low")} {data[0].low.toFixed(2)}</span>}
           </div>
         )}
         <p style={{ color: "var(--c-dim)", fontSize: 11, marginTop: 12 }}>
@@ -199,7 +200,7 @@ export default function PriceChart({ data, ticker, locale = "en" }: Props) {
               tickFormatter={(v) => v.toFixed(2)}
               width={55}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip locale={locale} />} />
             <Area
               type="monotone"
               dataKey="close"
