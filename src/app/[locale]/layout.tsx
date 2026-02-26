@@ -9,6 +9,7 @@ import {
   CalendarDays,
   TrendingUp,
   Info,
+  Briefcase,
 } from "lucide-react";
 import "../globals.css";
 import { getMarketSummary } from "@/lib/sahm";
@@ -63,6 +64,7 @@ export default async function LocaleLayout({
     { href: `/${locale}/screener`, label: t(locale, "screener"), Icon: SlidersHorizontal },
     { href: `/${locale}/news`,     label: t(locale, "news"),     Icon: Newspaper },
     { href: `/${locale}/calendar`, label: t(locale, "calendar"), Icon: CalendarDays },
+    { href: `/${locale}/portfolio`, label: t(locale, "portfolio"), Icon: Briefcase },
     { href: `/${locale}/about`,    label: t(locale, "about"),    Icon: Info },
   ];
 
