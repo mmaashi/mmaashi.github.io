@@ -448,7 +448,7 @@ export default async function StockPage({
       )}
 
       {/* ── Liquidity Flow ── */}
-      {liveQuote?.liquidity && (
+      {liveQuote?.liquidity && liveQuote.liquidity.inflow_value != null && (
         <section className="mb-5">
           <div className="card" style={{ padding: "22px 24px" }}>
             <div className="flex items-center gap-2 mb-4">
@@ -538,19 +538,19 @@ export default async function StockPage({
               <div>
                 <p className="metric-label">{t(locale, "stock.bid")}</p>
                 <span className="font-num font-bold" style={{ color: "var(--c-text)", fontSize: 15 }}>
-                  {sar} {liveQuote.bid.toFixed(2)}
+                  {sar} {(liveQuote.bid ?? 0).toFixed(2)}
                 </span>
               </div>
               <div>
                 <p className="metric-label">{t(locale, "stock.ask")}</p>
                 <span className="font-num font-bold" style={{ color: "var(--c-text)", fontSize: 15 }}>
-                  {sar} {liveQuote.ask.toFixed(2)}
+                  {sar} {(liveQuote.ask ?? 0).toFixed(2)}
                 </span>
               </div>
               <div>
                 <p className="metric-label">{t(locale, "stock.prev_close")}</p>
                 <span className="font-num font-bold" style={{ color: "var(--c-muted)", fontSize: 15 }}>
-                  {sar} {liveQuote.previous_close.toFixed(2)}
+                  {sar} {(liveQuote.previous_close ?? 0).toFixed(2)}
                 </span>
               </div>
             </div>
@@ -698,12 +698,20 @@ export default async function StockPage({
                   <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, marginBottom: 4 }}>
                     {t(locale, "stock.website")}
                   </p>
-                  <a href={company.website_url} target="_blank" rel="noopener noreferrer"
-                     className="flex items-center gap-1 text-sm transition-colors hover:text-white"
-                     style={{ color: "var(--c-gold)", textDecoration: "none" }}>
-                    <Globe size={12} />
-                    {new URL(company.website_url).hostname.replace("www.", "")}
-                  </a>
+                  {(() => {
+                    const rawUrl = company.website_url!;
+                    const fullUrl = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
+                    let displayHost = rawUrl;
+                    try { displayHost = new URL(fullUrl).hostname.replace("www.", ""); } catch {}
+                    return (
+                      <a href={fullUrl} target="_blank" rel="noopener noreferrer"
+                         className="flex items-center gap-1 text-sm transition-colors hover:text-white"
+                         style={{ color: "var(--c-gold)", textDecoration: "none" }}>
+                        <Globe size={12} />
+                        {displayHost}
+                      </a>
+                    );
+                  })()}
                 </div>
               )}
             </div>
