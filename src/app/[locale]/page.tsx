@@ -80,7 +80,7 @@ async function MarketHero({ locale }: { locale: string }) {
           </div>
 
           {/* Market breadth */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 md:gap-6 flex-wrap">
             <div className="text-center">
               <div className="flex items-center gap-1 justify-center mb-1">
                 <ArrowUpRight size={13} style={{ color: "var(--c-green)" }} />
@@ -150,7 +150,7 @@ async function MarketHero({ locale }: { locale: string }) {
   } catch {
     return (
       <div className="card" style={{ padding: "24px 28px" }}>
-        <p style={{ color: "var(--c-muted)", fontSize: 13 }}>{t("en", "market.unavailable")}</p>
+        <p style={{ color: "var(--c-muted)", fontSize: 13 }}>{t(locale, "market.unavailable")}</p>
       </div>
     );
   }
@@ -189,7 +189,7 @@ function QuickActions({ locale }: { locale: string }) {
   ];
 
   return (
-    <div className="grid gap-3 fade-up" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+    <div className="grid gap-3 fade-up grid-cols-1 md:grid-cols-3">
       {actions.map(({ href, icon: Icon, title, desc, color, bg, ring }) => (
         <Link
           key={href}
@@ -251,7 +251,7 @@ async function MoversPanel({ locale }: { locale: string }) {
     );
 
     return (
-      <div className="grid gap-4 fade-up" style={{ gridTemplateColumns: "1fr 1fr" }}>
+      <div className="grid gap-4 fade-up grid-cols-1 md:grid-cols-2">
         {/* Gainers */}
         <div className="card overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3"
@@ -280,7 +280,7 @@ async function MoversPanel({ locale }: { locale: string }) {
   } catch {
     return (
       <div className="card" style={{ padding: 20 }}>
-        <p style={{ color: "var(--c-muted)", fontSize: 13 }}>{t("en", "market.movers_unavail")}</p>
+        <p style={{ color: "var(--c-muted)", fontSize: 13 }}>{t(locale, "market.movers_unavail")}</p>
       </div>
     );
   }
@@ -326,7 +326,7 @@ async function NewsPanel({ locale }: { locale: string }) {
           </p>
         </div>
       ) : (
-        <div className="grid gap-0" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <div className="grid gap-0 grid-cols-1 md:grid-cols-2">
           {articles.map((a) => {
             const title = (locale === "ar" && a.title_ar) ? a.title_ar : a.title_en;
             const score = a.sentiment_score;

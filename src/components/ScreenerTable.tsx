@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Filter } from "lucide-react";
 import { t, tSector } from "@/lib/i18n";
 
@@ -31,6 +31,7 @@ export default function ScreenerTable({
   sectors: string[];
   locale: string;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [sector, setSector] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("ticker");
@@ -148,7 +149,7 @@ export default function ScreenerTable({
       <div className="card overflow-hidden">
         {filtered.length === 0 ? (
           <div style={{ padding: "48px 0", textAlign: "center" }}>
-            <p style={{ color: "var(--c-muted)", fontSize: 14 }}>No companies match your filters</p>
+            <p style={{ color: "var(--c-muted)", fontSize: 14 }}>{t(locale, "screener.no_results")}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -166,7 +167,6 @@ export default function ScreenerTable({
                                borderBottom: "1px solid var(--c-border-md)" }}>
                     {t(locale, "screener.col.sector")}
                   </th>
-                  <th style={{ background: "var(--c-elevated)", borderBottom: "1px solid var(--c-border-md)" }} />
                 </tr>
               </thead>
               <tbody>
@@ -174,22 +174,28 @@ export default function ScreenerTable({
                   const isUp = (c.change_pct ?? 0) >= 0;
                   const name = locale === "ar" && c.name_ar ? c.name_ar : c.name_en;
                   return (
-                    <tr key={c.ticker}>
+                    <tr
+                      key={c.ticker}
+                      onClick={() => router.push(`/${locale}/stock/${c.ticker}`)}
+                      className="cursor-pointer transition-colors"
+                      style={{ borderBottom: "1px solid var(--c-border)" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-hover)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "")}
+                    >
                       {/* Ticker */}
-                      <td>
-                        <Link href={`/${locale}/stock/${c.ticker}`}
-                              className="flex items-center gap-2 group">
+                      <td style={{ padding: "10px 14px" }}>
+                        <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                                style={{ background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}>
                             <span style={{ fontSize: 8, fontWeight: 800, color: "var(--c-gold)" }}>
                               {c.ticker.slice(0, 4)}
                             </span>
                           </div>
-                          <span className="ticker-tag group-hover:underline">{c.ticker}</span>
-                        </Link>
+                          <span className="ticker-tag">{c.ticker}</span>
+                        </div>
                       </td>
                       {/* Name */}
-                      <td>
+                      <td style={{ padding: "10px 14px" }}>
                         <div className="flex items-center gap-2">
                           <span style={{ color: "var(--c-text)", fontSize: 13 }}>{name}</span>
                           {c.is_shariah_compliant && (
@@ -198,7 +204,7 @@ export default function ScreenerTable({
                         </div>
                       </td>
                       {/* Price */}
-                      <td style={{ textAlign: "right" }}>
+                      <td style={{ textAlign: "right", padding: "10px 14px" }}>
                         {c.price !== null ? (
                           <span className="font-num font-semibold" style={{ color: "var(--c-text)" }}>
                             {c.price.toFixed(2)}
@@ -206,7 +212,7 @@ export default function ScreenerTable({
                         ) : <span style={{ color: "var(--c-dim)" }}>—</span>}
                       </td>
                       {/* Change */}
-                      <td style={{ textAlign: "right" }}>
+                      <td style={{ textAlign: "right", padding: "10px 14px" }}>
                         {c.change_pct !== null ? (
                           <span className={`badge font-num ${isUp ? "badge-up" : "badge-down"}`}>
                             {isUp ? "+" : ""}{c.change_pct.toFixed(2)}%
@@ -214,7 +220,7 @@ export default function ScreenerTable({
                         ) : <span style={{ color: "var(--c-dim)" }}>—</span>}
                       </td>
                       {/* Volume */}
-                      <td style={{ textAlign: "right" }}>
+                      <td style={{ textAlign: "right", padding: "10px 14px" }}>
                         <span className="font-num" style={{ color: "var(--c-text-sm)", fontSize: 12 }}>
                           {c.volume
                             ? c.volume >= 1e6
@@ -224,16 +230,8 @@ export default function ScreenerTable({
                         </span>
                       </td>
                       {/* Sector */}
-                      <td>
+                      <td style={{ padding: "10px 14px" }}>
                         <span className="badge badge-neutral" style={{ fontSize: 10 }}>{tSector(locale, c.sector)}</span>
-                      </td>
-                      {/* Link */}
-                      <td style={{ textAlign: "right" }}>
-                        <Link href={`/${locale}/stock/${c.ticker}`}
-                              className="text-xs font-semibold transition-colors hover:text-white"
-                              style={{ color: "var(--c-gold)" }}>
-                          {t(locale, "screener.view")} →
-                        </Link>
                       </td>
                     </tr>
                   );
