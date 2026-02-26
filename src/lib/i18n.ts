@@ -97,6 +97,20 @@ const translations: Record<string, Record<string, string>> = {
     "stock.period.q3": "Q3",
     "stock.period.q4": "Q4",
 
+    // Liquidity
+    "stock.liquidity": "Liquidity Flow",
+    "stock.liquidity_subtitle": "Real-time money flow analysis",
+    "stock.inflow": "Inflow",
+    "stock.outflow": "Outflow",
+    "stock.net_flow": "Net Flow",
+    "stock.trades": "trades",
+    "stock.value": "Value",
+    "stock.flow_volume": "Volume",
+    "stock.bid": "Bid",
+    "stock.ask": "Ask",
+    "stock.spread": "Spread",
+    "stock.prev_close": "Prev. Close",
+
     // Calendar
     "calendar.title": "Dividend Calendar",
     "calendar.subtitle_records": "records",
@@ -271,6 +285,20 @@ const translations: Record<string, Record<string, string>> = {
     "stock.period.q2": "ر2",
     "stock.period.q3": "ر3",
     "stock.period.q4": "ر4",
+
+    // Liquidity
+    "stock.liquidity": "تدفق السيولة",
+    "stock.liquidity_subtitle": "تحليل تدفق الأموال الحي",
+    "stock.inflow": "تدفق داخل",
+    "stock.outflow": "تدفق خارج",
+    "stock.net_flow": "صافي التدفق",
+    "stock.trades": "صفقة",
+    "stock.value": "القيمة",
+    "stock.flow_volume": "الكمية",
+    "stock.bid": "طلب",
+    "stock.ask": "عرض",
+    "stock.spread": "الفارق",
+    "stock.prev_close": "الإغلاق السابق",
 
     // Calendar
     "calendar.title": "تقويم الأرباح الموزعة",

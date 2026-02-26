@@ -16,6 +16,9 @@ import {
   Globe,
   Users,
   Info,
+  Droplets,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react";
 import { t, tSector } from "@/lib/i18n";
 
@@ -444,9 +447,138 @@ export default async function StockPage({
         </section>
       )}
 
+      {/* ── Liquidity Flow ── */}
+      {liveQuote?.liquidity && (
+        <section className="mb-5">
+          <div className="card" style={{ padding: "22px 24px" }}>
+            <div className="flex items-center gap-2 mb-4">
+              <Droplets size={14} style={{ color: "var(--c-gold)" }} />
+              <div>
+                <h2 className="font-bold" style={{ fontSize: 15, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
+                  {t(locale, "stock.liquidity")}
+                </h2>
+                <p style={{ fontSize: 11, color: "var(--c-muted)" }}>{t(locale, "stock.liquidity_subtitle")}</p>
+              </div>
+            </div>
+
+            {/* Inflow / Outflow bars */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              {/* Inflow */}
+              <div style={{ padding: "14px 16px", background: "var(--c-green-bg)", borderRadius: "var(--radius-md)", border: "1px solid var(--c-green-ring)" }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <ArrowUpRight size={14} style={{ color: "var(--c-green)" }} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-green)", letterSpacing: "0.05em" }}>
+                    {t(locale, "stock.inflow")}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="metric-label">{t(locale, "stock.value")}</p>
+                    <span className="font-num font-bold" style={{ color: "var(--c-green)", fontSize: 14 }}>
+                      {(liveQuote.liquidity.inflow_value / 1e6).toFixed(1)}M
+                    </span>
+                  </div>
+                  <div>
+                    <p className="metric-label">{t(locale, "stock.flow_volume")}</p>
+                    <span className="font-num font-bold" style={{ color: "var(--c-green)", fontSize: 14 }}>
+                      {(liveQuote.liquidity.inflow_volume / 1e3).toFixed(0)}K
+                    </span>
+                  </div>
+                  <div>
+                    <p className="metric-label">{t(locale, "stock.trades")}</p>
+                    <span className="font-num font-bold" style={{ color: "var(--c-green)", fontSize: 14 }}>
+                      {liveQuote.liquidity.inflow_trades.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Outflow */}
+              <div style={{ padding: "14px 16px", background: "var(--c-red-bg)", borderRadius: "var(--radius-md)", border: "1px solid var(--c-red-ring)" }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <ArrowDownRight size={14} style={{ color: "var(--c-red)" }} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-red)", letterSpacing: "0.05em" }}>
+                    {t(locale, "stock.outflow")}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="metric-label">{t(locale, "stock.value")}</p>
+                    <span className="font-num font-bold" style={{ color: "var(--c-red)", fontSize: 14 }}>
+                      {(liveQuote.liquidity.outflow_value / 1e6).toFixed(1)}M
+                    </span>
+                  </div>
+                  <div>
+                    <p className="metric-label">{t(locale, "stock.flow_volume")}</p>
+                    <span className="font-num font-bold" style={{ color: "var(--c-red)", fontSize: 14 }}>
+                      {(liveQuote.liquidity.outflow_volume / 1e3).toFixed(0)}K
+                    </span>
+                  </div>
+                  <div>
+                    <p className="metric-label">{t(locale, "stock.trades")}</p>
+                    <span className="font-num font-bold" style={{ color: "var(--c-red)", fontSize: 14 }}>
+                      {liveQuote.liquidity.outflow_trades.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Net flow + Bid/Ask */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3" style={{ borderTop: "1px solid var(--c-border)", paddingTop: 14 }}>
+              <div>
+                <p className="metric-label">{t(locale, "stock.net_flow")}</p>
+                <span className="font-num font-bold" style={{
+                  fontSize: 15,
+                  color: liveQuote.liquidity.net_value >= 0 ? "var(--c-green)" : "var(--c-red)",
+                }}>
+                  {liveQuote.liquidity.net_value >= 0 ? "+" : ""}{(liveQuote.liquidity.net_value / 1e6).toFixed(1)}M
+                </span>
+              </div>
+              <div>
+                <p className="metric-label">{t(locale, "stock.bid")}</p>
+                <span className="font-num font-bold" style={{ color: "var(--c-text)", fontSize: 15 }}>
+                  {sar} {liveQuote.bid.toFixed(2)}
+                </span>
+              </div>
+              <div>
+                <p className="metric-label">{t(locale, "stock.ask")}</p>
+                <span className="font-num font-bold" style={{ color: "var(--c-text)", fontSize: 15 }}>
+                  {sar} {liveQuote.ask.toFixed(2)}
+                </span>
+              </div>
+              <div>
+                <p className="metric-label">{t(locale, "stock.prev_close")}</p>
+                <span className="font-num font-bold" style={{ color: "var(--c-muted)", fontSize: 15 }}>
+                  {sar} {liveQuote.previous_close.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            {/* Flow bar visualization */}
+            {(() => {
+              const total = liveQuote.liquidity.inflow_value + liveQuote.liquidity.outflow_value;
+              const inflowPct = total > 0 ? (liveQuote.liquidity.inflow_value / total) * 100 : 50;
+              return (
+                <div className="mt-4">
+                  <div style={{ height: 6, borderRadius: 6, background: "var(--c-border)", overflow: "hidden", display: "flex" }}>
+                    <div style={{ width: `${inflowPct}%`, height: "100%", background: "var(--c-green)", transition: "width 0.6s ease", borderRadius: "6px 0 0 6px" }} />
+                    <div style={{ flex: 1, height: "100%", background: "var(--c-red)", borderRadius: "0 6px 6px 0" }} />
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="font-num" style={{ fontSize: 10, color: "var(--c-green)" }}>{inflowPct.toFixed(0)}% {t(locale, "stock.inflow")}</span>
+                    <span className="font-num" style={{ fontSize: 10, color: "var(--c-red)" }}>{(100 - inflowPct).toFixed(0)}% {t(locale, "stock.outflow")}</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </section>
+      )}
+
       {/* ── Dividend History ── */}
       {allDivs.length > 0 && (
-        <section className="mb-4">
+        <section className="mb-5">
           <div className="card overflow-hidden">
             <div
               className="flex items-center gap-2 px-5 py-3"
