@@ -1,16 +1,50 @@
 import { getMarketSummary, getTopGainers, getTopLosers } from "@/lib/data-sources";
 import { createServiceClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { TrendingUp, TrendingDown, Minus, Activity, ArrowUpRight, ArrowDownRight, Newspaper } from "lucide-react";
+import {
+  TrendingUp, TrendingDown, Minus, Activity,
+  ArrowUpRight, ArrowDownRight, Newspaper,
+  SlidersHorizontal, CalendarDays, Zap,
+} from "lucide-react";
 import { t, tMood } from "@/lib/i18n";
 
-// ── Hero Market Card ──────────────────────────────────────────
+// ── Hero Section with Tagline ────────────────────────────────
+function HeroTagline({ locale }: { locale: string }) {
+  return (
+    <div className="text-center mb-6 fade-up" style={{ paddingTop: 16 }}>
+      <h1
+        className="font-bold tracking-tight"
+        style={{
+          fontSize: 28,
+          color: "var(--c-gold)",
+          fontFamily: "var(--font-grotesk)",
+          letterSpacing: "-0.02em",
+          marginBottom: 6,
+        }}
+      >
+        SŪQAI
+      </h1>
+      <p style={{ fontSize: 15, color: "var(--c-muted)", maxWidth: 420, margin: "0 auto", lineHeight: 1.5 }}>
+        {t(locale, "market.tagline")}
+      </p>
+    </div>
+  );
+}
+
+// ── Market Index Card ────────────────────────────────────────
 async function MarketHero({ locale }: { locale: string }) {
   try {
     const s = await getMarketSummary();
     const isUp = s.index_change >= 0;
     const total = (s.advancing || 0) + (s.declining || 0) + (s.unchanged || 0);
     const advPct = total > 0 ? ((s.advancing / total) * 100).toFixed(0) : "0";
+
+    // Build summary sentence
+    const summaryKey = isUp ? "market.summary_up" : "market.summary_down";
+    const summary = t(locale, summaryKey)
+      .replace("{pct}", Math.abs(s.index_change_percent).toFixed(2))
+      .replace("{adv}", String(s.advancing || 0))
+      .replace("{dec}", String(s.declining || 0));
 
     return (
       <div className="card fade-up" style={{ padding: "24px 28px", position: "relative", overflow: "hidden" }}>
@@ -106,18 +140,82 @@ async function MarketHero({ locale }: { locale: string }) {
             </span>
           </div>
         </div>
+
+        {/* Summary sentence */}
+        <p className="mt-3" style={{ fontSize: 13, color: "var(--c-text-sm)", lineHeight: 1.5 }}>
+          {summary}
+        </p>
       </div>
     );
   } catch {
     return (
       <div className="card" style={{ padding: "24px 28px" }}>
-        <p style={{ color: "var(--c-muted)", fontSize: 13 }}>Market data temporarily unavailable</p>
+        <p style={{ color: "var(--c-muted)", fontSize: 13 }}>{t("en", "market.unavailable")}</p>
       </div>
     );
   }
 }
 
-// ── Movers Column ─────────────────────────────────────────────
+// ── Quick Action Cards ───────────────────────────────────────
+function QuickActions({ locale }: { locale: string }) {
+  const actions = [
+    {
+      href: `/${locale}/screener`,
+      icon: SlidersHorizontal,
+      title: t(locale, "market.action.screener"),
+      desc: t(locale, "market.action.screener_desc"),
+      color: "var(--c-gold)",
+      bg: "var(--c-gold-dim)",
+      ring: "var(--c-gold-ring)",
+    },
+    {
+      href: `/${locale}/calendar`,
+      icon: CalendarDays,
+      title: t(locale, "market.action.calendar"),
+      desc: t(locale, "market.action.calendar_desc"),
+      color: "var(--c-green)",
+      bg: "var(--c-green-bg)",
+      ring: "var(--c-green-ring)",
+    },
+    {
+      href: `/${locale}/news`,
+      icon: Newspaper,
+      title: t(locale, "market.action.news"),
+      desc: t(locale, "market.action.news_desc"),
+      color: "var(--c-blue, #60a5fa)",
+      bg: "rgba(96,165,250,0.08)",
+      ring: "rgba(96,165,250,0.2)",
+    },
+  ];
+
+  return (
+    <div className="grid gap-3 fade-up" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+      {actions.map(({ href, icon: Icon, title, desc, color, bg, ring }) => (
+        <Link
+          key={href}
+          href={href}
+          className="card group transition-all hover:scale-[1.02]"
+          style={{ padding: "20px", textDecoration: "none", borderColor: ring }}
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+            style={{ background: bg, border: `1px solid ${ring}` }}
+          >
+            <Icon size={18} style={{ color }} />
+          </div>
+          <h3 className="font-semibold text-sm mb-1" style={{ color: "var(--c-text)" }}>
+            {title}
+          </h3>
+          <p style={{ fontSize: 12, color: "var(--c-muted)", lineHeight: 1.4 }}>
+            {desc}
+          </p>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+// ── Movers Panel ─────────────────────────────────────────────
 async function MoversPanel({ locale }: { locale: string }) {
   try {
     const [gainers, losers] = await Promise.all([getTopGainers(), getTopLosers()]);
@@ -146,16 +244,16 @@ async function MoversPanel({ locale }: { locale: string }) {
             {type === "up" ? "+" : ""}{s.change_percent.toFixed(2)}%
           </span>
           <p className="font-num mt-0.5" style={{ fontSize: 12, color: "var(--c-text-sm)" }}>
-            SAR {s.price.toFixed(2)}
+            {t(locale, "common.sar")} {s.price.toFixed(2)}
           </p>
         </div>
       </Link>
     );
 
     return (
-      <div className="flex flex-col gap-4">
+      <div className="grid gap-4 fade-up" style={{ gridTemplateColumns: "1fr 1fr" }}>
         {/* Gainers */}
-        <div className="card overflow-hidden" style={{ flex: 1 }}>
+        <div className="card overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3"
                style={{ borderBottom: "1px solid var(--c-border)", background: "var(--c-elevated)" }}>
             <TrendingUp size={14} style={{ color: "var(--c-green)" }} />
@@ -167,7 +265,7 @@ async function MoversPanel({ locale }: { locale: string }) {
         </div>
 
         {/* Losers */}
-        <div className="card overflow-hidden" style={{ flex: 1 }}>
+        <div className="card overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3"
                style={{ borderBottom: "1px solid var(--c-border)", background: "var(--c-elevated)" }}>
             <TrendingDown size={14} style={{ color: "var(--c-red)" }} />
@@ -182,20 +280,20 @@ async function MoversPanel({ locale }: { locale: string }) {
   } catch {
     return (
       <div className="card" style={{ padding: 20 }}>
-        <p style={{ color: "var(--c-muted)", fontSize: 13 }}>Movers unavailable</p>
+        <p style={{ color: "var(--c-muted)", fontSize: 13 }}>{t("en", "market.movers_unavail")}</p>
       </div>
     );
   }
 }
 
-// ── News Feed ─────────────────────────────────────────────────
+// ── News Feed (compact, bottom) ──────────────────────────────
 async function NewsPanel({ locale }: { locale: string }) {
   const supabase = createServiceClient();
   const { data: articles } = await supabase
     .from("news")
     .select("id, title_en, title_ar, source, source_url, published_at, sentiment_score")
     .order("published_at", { ascending: false })
-    .limit(8);
+    .limit(4);
 
   function timeAgo(d: string) {
     const h = Math.floor((Date.now() - new Date(d).getTime()) / 3600000);
@@ -205,7 +303,7 @@ async function NewsPanel({ locale }: { locale: string }) {
   }
 
   return (
-    <div className="card overflow-hidden" style={{ height: "100%" }}>
+    <div className="card overflow-hidden fade-up">
       <div className="flex items-center justify-between px-4 py-3"
            style={{ borderBottom: "1px solid var(--c-border)", background: "var(--c-elevated)" }}>
         <div className="flex items-center gap-2">
@@ -224,23 +322,22 @@ async function NewsPanel({ locale }: { locale: string }) {
       {!articles?.length ? (
         <div style={{ padding: "32px 16px", textAlign: "center" }}>
           <p style={{ color: "var(--c-muted)", fontSize: 13 }}>
-            {locale === "ar" ? "لا توجد أخبار" : "No news available"}
+            {t(locale, "market.no_news")}
           </p>
         </div>
       ) : (
-        <div>
+        <div className="grid gap-0" style={{ gridTemplateColumns: "1fr 1fr" }}>
           {articles.map((a) => {
             const title = (locale === "ar" && a.title_ar) ? a.title_ar : a.title_en;
             const score = a.sentiment_score;
             const sentiment = score === null ? null : score > 0.2 ? "up" : score < -0.2 ? "down" : null;
-            // First "Announcements" item: translate label
             const displayTitle = title === "Announcements" && locale === "ar"
               ? t(locale, "news.announcements")
               : title;
             return (
               <Link key={a.id} href={`/${locale}/news/${a.id}`}
                  className="group block px-4 py-3 transition-colors hover:bg-[var(--c-hover)]"
-                 style={{ borderBottom: "1px solid var(--c-border)", textDecoration: "none" }}>
+                 style={{ borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)", textDecoration: "none" }}>
                 <div className="flex items-start gap-2">
                   {sentiment && (
                     <span className={`badge ${sentiment === "up" ? "badge-up" : "badge-down"} mt-0.5 shrink-0`}
@@ -282,17 +379,27 @@ export default async function DashboardPage({
 
   return (
     <div className="page-wrap">
+      {/* Hero tagline */}
+      <HeroTagline locale={locale} />
+
+      {/* Market index card */}
       <div className="mb-5">
         <MarketHero locale={locale} />
       </div>
 
-      <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr 1.2fr" }}>
-        <div className="col-span-2">
-          <MoversPanel locale={locale} />
-        </div>
-        <div>
-          <NewsPanel locale={locale} />
-        </div>
+      {/* Quick action cards */}
+      <div className="mb-5">
+        <QuickActions locale={locale} />
+      </div>
+
+      {/* Gainers & Losers side by side */}
+      <div className="mb-5">
+        <MoversPanel locale={locale} />
+      </div>
+
+      {/* News at the bottom */}
+      <div className="mb-5">
+        <NewsPanel locale={locale} />
       </div>
 
       <hr className="gradient-line my-8" />

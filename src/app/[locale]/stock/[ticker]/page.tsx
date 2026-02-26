@@ -12,6 +12,9 @@ import {
   Calendar,
   Building2,
   Shield,
+  Globe,
+  Users,
+  Info,
 } from "lucide-react";
 import { t, tSector } from "@/lib/i18n";
 
@@ -27,7 +30,7 @@ export default async function StockPage({
   // ── 1. Get company from DB ──────────────────────────────────
   const { data: company } = await supabase
     .from("companies")
-    .select("id, ticker, name_en, name_ar, sector, market, is_shariah_compliant")
+    .select("id, ticker, name_en, name_ar, sector, market, is_shariah_compliant, description_en, description_ar, website_url, employee_count, founded_year, ceo_name_en, ceo_name_ar")
     .eq("ticker", upperTicker)
     .single();
 
@@ -214,7 +217,7 @@ export default async function StockPage({
           {currentPrice !== null && (
             <div style={{ textAlign: "right" }}>
               <span className="font-num" style={{ fontSize: 36, fontWeight: 700, color: "var(--c-text)", lineHeight: 1, letterSpacing: "-0.02em" }}>
-                SAR {currentPrice.toFixed(2)}
+                {t(locale, "common.sar")} {currentPrice.toFixed(2)}
               </span>
               {changePct !== null && (
                 <div className="flex items-center gap-2 justify-end mt-1">
@@ -428,6 +431,85 @@ export default async function StockPage({
                 ))}
               </tbody>
             </table>
+          </div>
+        </section>
+      )}
+
+      {/* ── Company Info ── */}
+      {(company.description_en || company.description_ar || company.ceo_name_en || company.website_url || company.employee_count || company.founded_year) && (
+        <section className="mb-4">
+          <div className="card" style={{ padding: "20px 22px" }}>
+            <div className="flex items-center gap-2 mb-4">
+              <Info size={14} style={{ color: "var(--c-gold)" }} />
+              <h2 className="font-bold" style={{ fontSize: 15, color: "var(--c-text)" }}>
+                {t(locale, "stock.company_info")}
+              </h2>
+            </div>
+
+            {/* Description */}
+            {(locale === "ar" ? company.description_ar : company.description_en) && (
+              <div className="mb-4">
+                <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>
+                  {t(locale, "stock.about_company")}
+                </p>
+                <p style={{ fontSize: 13, color: "var(--c-text-sm)", lineHeight: 1.6 }}>
+                  {locale === "ar" ? company.description_ar : company.description_en}
+                </p>
+              </div>
+            )}
+
+            {/* Details grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4" style={{ borderTop: "1px solid var(--c-border)", paddingTop: 16 }}>
+              {company.sector && (
+                <div>
+                  <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, marginBottom: 4 }}>
+                    {t(locale, "screener.col.sector")}
+                  </p>
+                  <span style={{ fontSize: 13, color: "var(--c-text)" }}>{tSector(locale, company.sector)}</span>
+                </div>
+              )}
+              {(locale === "ar" ? company.ceo_name_ar : company.ceo_name_en) && (
+                <div>
+                  <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, marginBottom: 4 }}>
+                    {t(locale, "stock.ceo")}
+                  </p>
+                  <span style={{ fontSize: 13, color: "var(--c-text)" }}>
+                    {locale === "ar" ? company.ceo_name_ar : company.ceo_name_en}
+                  </span>
+                </div>
+              )}
+              {company.founded_year && (
+                <div>
+                  <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, marginBottom: 4 }}>
+                    {t(locale, "stock.founded")}
+                  </p>
+                  <span className="font-num" style={{ fontSize: 13, color: "var(--c-text)" }}>{company.founded_year}</span>
+                </div>
+              )}
+              {company.employee_count && (
+                <div>
+                  <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, marginBottom: 4 }}>
+                    {t(locale, "stock.employees")}
+                  </p>
+                  <span className="font-num" style={{ fontSize: 13, color: "var(--c-text)" }}>
+                    {Number(company.employee_count).toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {company.website_url && (
+                <div>
+                  <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, marginBottom: 4 }}>
+                    {t(locale, "stock.website")}
+                  </p>
+                  <a href={company.website_url} target="_blank" rel="noopener noreferrer"
+                     className="flex items-center gap-1 text-sm transition-colors hover:text-white"
+                     style={{ color: "var(--c-gold)", textDecoration: "none" }}>
+                    <Globe size={12} />
+                    {new URL(company.website_url).hostname.replace("www.", "")}
+                  </a>
+                </div>
+              )}
+            </div>
           </div>
         </section>
       )}

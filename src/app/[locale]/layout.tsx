@@ -8,6 +8,7 @@ import {
   Newspaper,
   CalendarDays,
   TrendingUp,
+  Info,
 } from "lucide-react";
 import "../globals.css";
 import { getMarketSummary } from "@/lib/sahm";
@@ -58,10 +59,11 @@ export default async function LocaleLayout({
   } catch {}
 
   const navLinks = [
-    { href: `/${locale}`,          label: locale === "ar" ? "الرئيسية" : "Dashboard", Icon: LayoutDashboard },
-    { href: `/${locale}/screener`, label: locale === "ar" ? "المصفاة"  : "Screener",  Icon: SlidersHorizontal },
-    { href: `/${locale}/news`,     label: locale === "ar" ? "الأخبار"  : "News",      Icon: Newspaper },
-    { href: `/${locale}/calendar`, label: locale === "ar" ? "التقويم"  : "Calendar",  Icon: CalendarDays },
+    { href: `/${locale}`,          label: t(locale, "home"),     Icon: LayoutDashboard },
+    { href: `/${locale}/screener`, label: t(locale, "screener"), Icon: SlidersHorizontal },
+    { href: `/${locale}/news`,     label: t(locale, "news"),     Icon: Newspaper },
+    { href: `/${locale}/calendar`, label: t(locale, "calendar"), Icon: CalendarDays },
+    { href: `/${locale}/about`,    label: t(locale, "about"),    Icon: Info },
   ];
 
   return (
