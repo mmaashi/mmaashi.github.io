@@ -4,24 +4,50 @@ import { fetchArgaamNews } from '@/lib/data-sources/argaam'
 import { fetchAllAnnouncements } from '@/lib/data-sources/cma'
 
 /**
- * Cron: Fetch and store news articles
+ * Cron: Fetch and store news articles with company linking.
  *
  * Schedule: Every hour
  * Vercel Cron: "0 * * * *"
  *
- * vercel.json:
- * {
- *   "crons": [{
- *     "path": "/api/cron/news",
- *     "schedule": "0 * * * *"
- *   }]
- * }
+ * Company linking logic:
+ *   1. argaam.ts extracts 4-digit Tadawul tickers from article text
+ *      (both via keyword map and regex: "2222", "7010", etc.)
+ *   2. We look up the FIRST matched ticker in companies.ticker
+ *   3. If found, the news row gets company_id set → appears on the stock page
+ *   4. If no match, company_id = null → appears only in the general news feed
+ *
+ * Deduplication: upsert with onConflict: 'source_url' — safe to re-run.
  */
 
 const CRON_SECRET = process.env.CRON_SECRET
 
+/**
+ * Look up a company ID from a list of extracted ticker strings.
+ * Returns the first matching company's UUID, or null.
+ */
+async function resolveCompanyId(
+  supabase: ReturnType<typeof createServiceClient>,
+  tickers: string[]
+): Promise<string | null> {
+  if (tickers.length === 0) return null
+
+  // Try each ticker in order — return first match
+  for (const ticker of tickers) {
+    const { data } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('ticker', ticker)
+      .limit(1)
+      .single()
+
+    if (data?.id) return data.id
+  }
+
+  return null
+}
+
 export async function GET(request: NextRequest) {
-  // Verify cron secret
+  // Verify cron secret (Vercel sends this automatically via CRON_SECRET env var)
   const authHeader = request.headers.get('authorization')
   if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -36,89 +62,76 @@ export async function GET(request: NextRequest) {
   const errors: string[] = []
 
   try {
-    // 1. Fetch Argaam news
-    const argaamArticles = await fetchArgaamNews(30)
+    // ── 1. Fetch Argaam news (EN + AR feeds merged) ─────────────
+    const argaamArticles = await fetchArgaamNews(40)
 
     for (const article of argaamArticles) {
-      // Deduplicate by source URL
-      const { data: existing } = await supabase
-        .from('news')
-        .select('id')
-        .eq('source_url', article.url)
-        .limit(1)
+      // Resolve company_id from extracted tickers (tries all, returns first match)
+      const companyId = await resolveCompanyId(supabase, article.relatedTickers)
 
-      if (existing && existing.length > 0) {
-        skipped++
-        continue
-      }
-
-      // Find related company IDs from extracted tickers
-      let companyId: string | null = null
-      if (article.relatedTickers.length > 0) {
-        const { data: company } = await supabase
-          .from('companies')
-          .select('id')
-          .eq('symbol', article.relatedTickers[0])
-          .limit(1)
-
-        if (company?.[0]) {
-          companyId = company[0].id
+      // Upsert — safe to re-run, skips duplicate source_url rows
+      const { error, statusText } = await supabase.from('news').upsert(
+        {
+          company_id: companyId,
+          title_en: article.title,
+          title_ar: article.title_ar,
+          title_zh: null,
+          body_en: article.description,
+          body_ar: null,
+          body_zh: null,
+          source: 'argaam',
+          source_url: article.url,
+          sentiment_score: null,
+          published_at: article.publishedAt,
+        },
+        {
+          onConflict: 'source_url',
+          ignoreDuplicates: true,
         }
-      }
-
-      const { error } = await supabase.from('news').insert({
-        company_id: companyId,
-        title_en: article.title,
-        title_ar: article.title_ar,
-        title_zh: null,
-        body_en: article.description,
-        body_ar: null,
-        body_zh: null,
-        source: 'argaam',
-        source_url: article.url,
-        sentiment_score: null,
-        published_at: article.publishedAt,
-      })
+      )
 
       if (error) {
-        errors.push(`Argaam insert: ${error.message}`)
+        // "23505" = unique violation — treated as a skip, not an error
+        if (error.code === '23505' || statusText === 'Conflict') {
+          skipped++
+        } else {
+          errors.push(`Argaam insert (${article.url.slice(-40)}): ${error.message}`)
+        }
       } else {
         newsInserted++
       }
     }
 
-    // 2. Fetch CMA + Tadawul announcements
+    // ── 2. Fetch CMA + Tadawul regulatory announcements ─────────
     const announcements = await fetchAllAnnouncements(20)
 
     for (const ann of announcements) {
-      // Deduplicate by URL
-      const { data: existing } = await supabase
-        .from('news')
-        .select('id')
-        .eq('source_url', ann.url)
-        .limit(1)
-
-      if (existing && existing.length > 0) {
-        skipped++
-        continue
-      }
-
-      const { error } = await supabase.from('news').insert({
-        company_id: null,
-        title_en: ann.title,
-        title_ar: ann.title_ar,
-        title_zh: null,
-        body_en: ann.description,
-        body_ar: null,
-        body_zh: null,
-        source: ann.source,
-        source_url: ann.url,
-        sentiment_score: null,
-        published_at: ann.publishedAt,
-      })
+      const { error, statusText } = await supabase.from('news').upsert(
+        {
+          company_id: null,
+          title_en: ann.title,
+          title_ar: ann.title_ar,
+          title_zh: null,
+          body_en: ann.description,
+          body_ar: null,
+          body_zh: null,
+          source: ann.source,
+          source_url: ann.url,
+          sentiment_score: null,
+          published_at: ann.publishedAt,
+        },
+        {
+          onConflict: 'source_url',
+          ignoreDuplicates: true,
+        }
+      )
 
       if (error) {
-        errors.push(`${ann.source} insert: ${error.message}`)
+        if (error.code === '23505' || statusText === 'Conflict') {
+          skipped++
+        } else {
+          errors.push(`${ann.source} insert: ${error.message}`)
+        }
       } else {
         announcementsInserted++
       }
@@ -131,6 +144,7 @@ export async function GET(request: NextRequest) {
       newsInserted,
       announcementsInserted,
       skipped,
+      total: argaamArticles.length + announcements.length,
       errors: errors.length > 0 ? errors.slice(0, 5) : undefined,
       elapsedMs: elapsed,
       timestamp: new Date().toISOString(),

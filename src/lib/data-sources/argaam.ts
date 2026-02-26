@@ -24,32 +24,54 @@ const ARGAAM_RSS_EN = 'https://www.argaam.com/en/feeds/articles-rss'
 const ARGAAM_RSS_AR = 'https://www.argaam.com/ar/feeds/articles-rss'
 
 // Known Saudi company name → ticker mapping for entity extraction
+// Values are 4-digit Tadawul tickers matching the `ticker` column in the DB
 const COMPANY_KEYWORDS: Record<string, string> = {
-  aramco: '2222.SR',
-  'saudi aramco': '2222.SR',
-  'أرامكو': '2222.SR',
-  'al rajhi': '1120.SR',
-  'الراجحي': '1120.SR',
-  sabic: '2010.SR',
-  'سابك': '2010.SR',
-  stc: '7010.SR',
-  'الاتصالات السعودية': '7010.SR',
-  'saudi telecom': '7010.SR',
-  acwa: '2082.SR',
-  'أكوا باور': '2082.SR',
-  'acwa power': '2082.SR',
-  'snb': '1180.SR',
-  'البنك الأهلي': '1180.SR',
-  'saudi national bank': '1180.SR',
-  maaden: '1211.SR',
-  'معادن': '1211.SR',
-  'saudi arabian mining': '1211.SR',
-  'jarir': '4190.SR',
-  'جرير': '4190.SR',
-  'extra': '4003.SR',
-  'الحكير': '4006.SR',
-  'almarai': '2280.SR',
-  'المراعي': '2280.SR',
+  aramco: '2222',
+  'saudi aramco': '2222',
+  'أرامكو': '2222',
+  'al rajhi': '1120',
+  'الراجحي': '1120',
+  sabic: '2010',
+  'سابك': '2010',
+  stc: '7010',
+  'الاتصالات السعودية': '7010',
+  'saudi telecom': '7010',
+  acwa: '2082',
+  'أكوا باور': '2082',
+  'acwa power': '2082',
+  snb: '1180',
+  'البنك الأهلي': '1180',
+  'saudi national bank': '1180',
+  maaden: '1211',
+  'معادن': '1211',
+  'saudi arabian mining': '1211',
+  jarir: '4190',
+  'جرير': '4190',
+  extra: '4003',
+  'الحكير': '4006',
+  almarai: '2280',
+  'المراعي': '2280',
+  'riyad bank': '1010',
+  'بنك الرياض': '1010',
+  'alinma': '1150',
+  'البنك الإنمائي': '1150',
+  'bank albilad': '1140',
+  'بنك البلاد': '1140',
+  'bsf': '1050',
+  'الفرنسي': '1050',
+  'banque saudi fransi': '1050',
+  'sab': '1060',
+  'البنك السعودي البريطاني': '1060',
+  'saudi british bank': '1060',
+  'sipchem': '2310',
+  'سبكيم': '2310',
+  'dar al arkan': '4300',
+  'دار الأركان': '4300',
+  'etihad etisalat': '7020',
+  'موبايلي': '7020',
+  'mobily': '7020',
+  'zain saudi': '7030',
+  'زين السعودية': '7030',
 }
 
 /**
@@ -93,14 +115,15 @@ function extractTickers(text: string): string[] {
     }
   }
 
-  // Also match raw ticker patterns like "2222" or "2222.SE"
-  const tickerPattern = /\b(\d{4})(?:\.SE)?\b/g
+  // Also match raw ticker patterns like "2222", "2222.SE", or "2222.SR"
+  const tickerPattern = /\b(\d{4})(?:\.[A-Z]{2})?\b/g
   let tickerMatch: RegExpExecArray | null
   while ((tickerMatch = tickerPattern.exec(text)) !== null) {
     // Only add if it looks like a valid Tadawul ticker (1000-9999)
     const num = parseInt(tickerMatch[1], 10)
     if (num >= 1000 && num <= 9999) {
-      tickers.add(`${tickerMatch[1]}.SE`)
+      // Store as plain 4-digit ticker matching the DB `ticker` column
+      tickers.add(tickerMatch[1])
     }
   }
 

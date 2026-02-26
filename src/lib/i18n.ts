@@ -111,6 +111,23 @@ const translations: Record<string, Record<string, string>> = {
     "stock.spread": "Spread",
     "stock.prev_close": "Prev. Close",
 
+    // Stock Tabs
+    "stock.tab.overview":   "Overview",
+    "stock.tab.chart":      "Chart",
+    "stock.tab.financials": "Financials",
+    "stock.tab.dividends":  "Dividends",
+    "stock.tab.news":       "News",
+    "stock.tab.info":       "Info",
+    "stock.news_section":   "Latest News",
+    "stock.no_news":        "No news yet for this company.",
+    "stock.52w_low":        "52W Low",
+    "stock.52w_high":       "52W High",
+    "stock.market_cap":     "Market Cap",
+    "stock.current_pos":    "Current Price Position",
+    "stock.read_more":      "Read more →",
+    "stock.news_source":    "Source",
+    "stock.news_date":      "Date",
+
     // Calendar
     "calendar.title": "Dividend Calendar",
     "calendar.subtitle_records": "records",
@@ -324,6 +341,23 @@ const translations: Record<string, Record<string, string>> = {
     "stock.ask": "عرض",
     "stock.spread": "الفارق",
     "stock.prev_close": "الإغلاق السابق",
+
+    // Stock Tabs
+    "stock.tab.overview":   "نظرة عامة",
+    "stock.tab.chart":      "الرسم البياني",
+    "stock.tab.financials": "المالية",
+    "stock.tab.dividends":  "التوزيعات",
+    "stock.tab.news":       "الأخبار",
+    "stock.tab.info":       "معلومات",
+    "stock.news_section":   "آخر الأخبار",
+    "stock.no_news":        "لا توجد أخبار لهذه الشركة بعد.",
+    "stock.52w_low":        "أدنى 52 أسبوع",
+    "stock.52w_high":       "أعلى 52 أسبوع",
+    "stock.market_cap":     "القيمة السوقية",
+    "stock.current_pos":    "موقع السعر الحالي",
+    "stock.read_more":      "اقرأ المزيد ←",
+    "stock.news_source":    "المصدر",
+    "stock.news_date":      "التاريخ",
 
     // Calendar
     "calendar.title": "تقويم الأرباح الموزعة",
