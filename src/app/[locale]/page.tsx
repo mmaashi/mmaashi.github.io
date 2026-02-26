@@ -11,21 +11,19 @@ import { t, tMood } from "@/lib/i18n";
 // ── Hero Section with Tagline ────────────────────────────────
 function HeroTagline({ locale }: { locale: string }) {
   return (
-    <div className="text-center mb-8 fade-up" style={{ paddingTop: 20 }}>
+    <div className="text-center mb-8 fade-up" style={{ paddingTop: 24 }}>
       <h1
-        className="font-bold tracking-tight"
+        className="font-bold tracking-tight text-gradient-gold"
         style={{
-          fontSize: 32,
-          color: "var(--c-gold)",
+          fontSize: 36,
           fontFamily: "var(--font-grotesk)",
-          letterSpacing: "-0.03em",
-          marginBottom: 8,
-          textShadow: "0 0 40px rgba(200,169,81,0.15)",
+          letterSpacing: "-0.04em",
+          marginBottom: 10,
         }}
       >
         SŪQAI
       </h1>
-      <p style={{ fontSize: 14, color: "var(--c-muted)", maxWidth: 440, margin: "0 auto", lineHeight: 1.6 }}>
+      <p style={{ fontSize: 14, color: "var(--c-muted)", maxWidth: 440, margin: "0 auto", lineHeight: 1.7 }}>
         {t(locale, "market.tagline")}
       </p>
     </div>
@@ -48,7 +46,7 @@ async function MarketHero({ locale }: { locale: string }) {
       .replace("{dec}", String(s.declining || 0));
 
     return (
-      <div className="card-gold fade-up" style={{ padding: "26px 28px" }}>
+      <div className="fade-up" style={{ padding: "26px 28px", position: "relative", overflow: "hidden" }}>
         <div style={{
           position: "absolute", top: -80, right: -60,
           width: 320, height: 320, borderRadius: "50%",
@@ -150,7 +148,7 @@ async function MarketHero({ locale }: { locale: string }) {
     );
   } catch {
     return (
-      <div className="card" style={{ padding: "24px 28px" }}>
+      <div style={{ padding: "24px 28px" }}>
         <p style={{ color: "var(--c-muted)", fontSize: 13 }}>{t(locale, "market.unavailable")}</p>
       </div>
     );
@@ -195,7 +193,7 @@ function QuickActions({ locale }: { locale: string }) {
         <Link
           key={href}
           href={href}
-          className="card group"
+          className="card card-action group"
           style={{ padding: "20px 22px", textDecoration: "none", borderColor: ring, transition: "all 0.25s cubic-bezier(0.16,1,0.3,1)" }}
         >
           <div
@@ -383,23 +381,28 @@ export default async function DashboardPage({
       {/* Hero tagline */}
       <HeroTagline locale={locale} />
 
-      {/* Market index card */}
-      <div className="mb-6">
-        <MarketHero locale={locale} />
+      {/* Market index card — animated gold border */}
+      <div className="mb-6 card-gold-shimmer">
+        <div className="card-gold-inner">
+          <MarketHero locale={locale} />
+        </div>
       </div>
 
       {/* Quick action cards */}
-      <div className="mb-6">
+      <div className="mb-8">
         <QuickActions locale={locale} />
       </div>
 
+      {/* Section separator */}
+      <hr className="gradient-line mb-8" />
+
       {/* Gainers & Losers side by side */}
-      <div className="mb-6">
+      <div className="mb-8">
         <MoversPanel locale={locale} />
       </div>
 
       {/* News at the bottom */}
-      <div className="mb-6">
+      <div className="mb-8">
         <NewsPanel locale={locale} />
       </div>
 
