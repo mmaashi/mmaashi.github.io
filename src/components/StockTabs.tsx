@@ -3,14 +3,22 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import {
+  LayoutGrid,
+  LineChart,
+  BarChart3,
+  Coins,
+  Newspaper,
+  Info,
+} from "lucide-react";
 
 const TABS = [
-  { key: "overview",   en: "Overview",    ar: "نظرة عامة",       icon: "◈" },
-  { key: "chart",      en: "Chart",       ar: "الرسم البياني",    icon: "📈" },
-  { key: "financials", en: "Financials",  ar: "المالية",          icon: "₿" },
-  { key: "dividends",  en: "Dividends",   ar: "التوزيعات",        icon: "💰" },
-  { key: "news",       en: "News",        ar: "الأخبار",          icon: "📰" },
-  { key: "info",       en: "Info",        ar: "معلومات",          icon: "ⓘ" },
+  { key: "overview",   en: "Overview",    ar: "نظرة عامة",       Icon: LayoutGrid },
+  { key: "chart",      en: "Chart",       ar: "الرسم البياني",    Icon: LineChart },
+  { key: "financials", en: "Financials",  ar: "المالية",          Icon: BarChart3 },
+  { key: "dividends",  en: "Dividends",   ar: "التوزيعات",        Icon: Coins },
+  { key: "news",       en: "News",        ar: "الأخبار",          Icon: Newspaper },
+  { key: "info",       en: "Info",        ar: "معلومات",          Icon: Info },
 ] as const;
 
 type TabKey = typeof TABS[number]["key"];
@@ -47,6 +55,7 @@ function TabsInner({ locale, ticker, activeTab, newsCount = 0 }: StockTabsProps)
         {TABS.map((tab) => {
           const isActive = activeTab === tab.key;
           const label = isAr ? tab.ar : tab.en;
+          const { Icon } = tab;
 
           return (
             <Link
@@ -56,7 +65,7 @@ function TabsInner({ locale, ticker, activeTab, newsCount = 0 }: StockTabsProps)
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 6,
-                padding: "12px 18px",
+                padding: "11px 16px",
                 fontSize: 13,
                 fontWeight: isActive ? 700 : 500,
                 color: isActive ? "var(--c-gold)" : "var(--c-muted)",
@@ -71,6 +80,10 @@ function TabsInner({ locale, ticker, activeTab, newsCount = 0 }: StockTabsProps)
                 letterSpacing: "0.01em",
               }}
             >
+              <Icon
+                size={13}
+                style={{ color: isActive ? "var(--c-gold)" : "var(--c-dim)", flexShrink: 0 }}
+              />
               {label}
               {tab.key === "news" && newsCount > 0 && (
                 <span
@@ -81,8 +94,9 @@ function TabsInner({ locale, ticker, activeTab, newsCount = 0 }: StockTabsProps)
                     minWidth: 18,
                     height: 18,
                     borderRadius: 9,
-                    background: "var(--c-gold)",
-                    color: "var(--c-base)",
+                    background: isActive ? "var(--c-gold)" : "var(--c-elevated)",
+                    color: isActive ? "var(--c-base)" : "var(--c-text-sm)",
+                    border: isActive ? "none" : "1px solid var(--c-border-md)",
                     fontSize: 10,
                     fontWeight: 800,
                     padding: "0 5px",

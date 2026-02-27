@@ -153,6 +153,13 @@ export default async function StockPage({
   const currRatio = financial?.current_ratio   ? Number(financial.current_ratio)   : null;
   const ocf       = financial?.operating_cash_flow ? Number(financial.operating_cash_flow) : null;
 
+  const netMargin = netIncome !== null && revenue !== null && revenue > 0
+    ? `${((netIncome / revenue) * 100).toFixed(1)}%`
+    : null;
+  const revenueFormatted = revenue !== null
+    ? revenue >= 1e9 ? `${(revenue / 1e9).toFixed(1)}B` : `${(revenue / 1e6).toFixed(0)}M`
+    : null;
+
   const annualDiv  = recentDivs.reduce((s, d) => s + Number(d.amount_per_share), 0);
   const divYield   = currentPrice && annualDiv > 0 ? ((annualDiv / currentPrice) * 100).toFixed(2) + "%" : null;
   const divYieldNum = currentPrice && annualDiv > 0 ? (annualDiv / currentPrice) * 100 : null;
@@ -294,10 +301,15 @@ export default async function StockPage({
           {/* Company identity */}
           <div>
             <div className="flex items-center gap-3 mb-2">
-              {/* Ticker badge */}
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                   style={{ background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}>
-                <span style={{ fontSize: 9, fontWeight: 800, color: "var(--c-gold)", letterSpacing: "0.04em", textAlign: "center", lineHeight: 1.2 }}>
+              {/* Ticker badge — premium avatar */}
+              <div className="rounded-2xl flex items-center justify-center flex-shrink-0"
+                   style={{
+                     width: 58, height: 58,
+                     background: "linear-gradient(145deg, rgba(200,169,81,0.22) 0%, rgba(200,169,81,0.07) 100%)",
+                     border: "1.5px solid var(--c-gold-ring)",
+                     boxShadow: "0 4px 16px rgba(200,169,81,0.15), inset 0 1px 0 rgba(255,255,255,0.04)",
+                   }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: "var(--c-gold)", letterSpacing: "0.04em", textAlign: "center", lineHeight: 1.2, fontFamily: "var(--font-grotesk)" }}>
                   {company.ticker}
                 </span>
               </div>
@@ -441,21 +453,21 @@ export default async function StockPage({
             </div>
 
             {/* Key Metrics Grid */}
-            <div className="grid grid-cols-2 gap-3 content-start">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 content-start">
               {[
                 {
                   icon: BarChart3,
                   label: t(locale, "stock.pe"),
                   value: pe ?? "—",
                   sub: eps ? `${t(locale, "stock.eps_short")}: ${sar} ${eps.toFixed(2)}` : undefined,
-                  color: pe ? "var(--c-text)" : "var(--c-dim)",
+                  color: pe ? (parseFloat(pe) < 15 ? "var(--c-green)" : parseFloat(pe) < 25 ? "var(--c-text)" : "var(--c-red)") : "var(--c-dim)",
                 },
                 {
                   icon: DollarSign,
                   label: t(locale, "stock.eps"),
                   value: eps ? `${sar} ${eps.toFixed(2)}` : "—",
                   sub: financial ? `${t(locale, `stock.period.${financial.period?.toLowerCase() || "annual"}`)} ${financial.year}` : undefined,
-                  color: eps ? "var(--c-text)" : "var(--c-dim)",
+                  color: eps ? (eps > 0 ? "var(--c-text)" : "var(--c-red)") : "var(--c-dim)",
                 },
                 {
                   icon: Calendar,
@@ -471,6 +483,20 @@ export default async function StockPage({
                   sub: fiftyTwoHigh ? sar : undefined,
                   color: fiftyTwoHigh ? "var(--c-text)" : "var(--c-dim)",
                 },
+                {
+                  icon: TrendingUp,
+                  label: t(locale, "stock.revenue_short"),
+                  value: revenueFormatted ?? "—",
+                  sub: financial ? `${t(locale, `stock.period.${financial.period?.toLowerCase() || "annual"}`)} ${financial.year}` : undefined,
+                  color: revenueFormatted ? "var(--c-text)" : "var(--c-dim)",
+                },
+                {
+                  icon: BarChart3,
+                  label: t(locale, "stock.net_margin"),
+                  value: netMargin ?? "—",
+                  sub: netIncome && revenue ? `${sar} ${(netIncome / 1e9).toFixed(2)}B` : undefined,
+                  color: netMargin ? (parseFloat(netMargin) > 0 ? "var(--c-green)" : "var(--c-red)") : "var(--c-dim)",
+                },
               ].map(({ icon: Icon, label, value, sub, color }) => (
                 <div key={label} className="card" style={{ padding: "16px 18px" }}>
                   <div className="flex items-center gap-2 mb-2">
@@ -485,6 +511,21 @@ export default async function StockPage({
               ))}
             </div>
           </div>
+
+          {/* Company description */}
+          {(company.description_en || company.description_ar) && (
+            <div className="card mb-5" style={{ padding: "22px 24px" }}>
+              <div className="flex items-center gap-2 mb-3">
+                <Info size={14} style={{ color: "var(--c-gold)" }} />
+                <h2 className="font-bold" style={{ fontSize: 15, color: "var(--c-text)" }}>
+                  {t(locale, "stock.about_company")}
+                </h2>
+              </div>
+              <p style={{ fontSize: 13, color: "var(--c-muted)", lineHeight: 1.8, margin: 0 }}>
+                {(isAr && company.description_ar) ? company.description_ar : company.description_en}
+              </p>
+            </div>
+          )}
 
           {/* Latest News preview (top 3) */}
           {newsItems.length > 0 && (

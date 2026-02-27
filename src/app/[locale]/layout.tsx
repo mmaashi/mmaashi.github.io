@@ -14,6 +14,7 @@ import {
 import "../globals.css";
 import { getMarketSummary } from "@/lib/sahm";
 import { t } from "@/lib/i18n";
+import { NavLink } from "@/components/NavLink";
 
 const ibmPlexArabic = IBM_Plex_Sans_Arabic({
   weight: ["400", "500", "600", "700"],
@@ -114,10 +115,10 @@ export default async function LocaleLayout({
             {/* Desktop nav */}
             <nav className="hidden md:flex items-center gap-1">
               {navLinks.map(({ href, label, Icon }) => (
-                <Link key={href} href={href} className="nav-link">
+                <NavLink key={href} href={href}>
                   <Icon size={13} />
                   {label}
-                </Link>
+                </NavLink>
               ))}
             </nav>
 
@@ -196,15 +197,15 @@ export default async function LocaleLayout({
         >
           <div className="flex justify-around items-center" style={{ height: 54 }}>
             {navLinks.slice(0, 5).map(({ href, label, Icon }) => (
-              <Link
+              <NavLink
                 key={href}
                 href={href}
-                className="flex flex-col items-center justify-center gap-0.5 px-2 py-1"
-                style={{ color: "var(--c-muted)", minWidth: 48, textDecoration: "none" }}
+                className="mobile-nav-link"
+                style={{ textDecoration: "none" }}
               >
                 <Icon size={17} strokeWidth={1.8} />
                 <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.02em" }}>{label}</span>
-              </Link>
+              </NavLink>
             ))}
           </div>
         </nav>
