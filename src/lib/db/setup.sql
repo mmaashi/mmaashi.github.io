@@ -179,12 +179,15 @@ CREATE TABLE IF NOT EXISTS news (
   source_url      TEXT NOT NULL,
   sentiment_score DECIMAL,
   published_at    TIMESTAMPTZ NOT NULL,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(source_url)    -- required for upsert deduplication in cron
 );
 
 CREATE INDEX IF NOT EXISTS idx_news_published  ON news(published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_news_company    ON news(company_id) WHERE company_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_news_source_url ON news(source_url);
+
+-- Migration: add unique constraint if table already exists without it
+ALTER TABLE news ADD CONSTRAINT IF NOT EXISTS news_source_url_unique UNIQUE (source_url);
 
 -- ============================================================
 -- TRANSLATIONS CACHE
