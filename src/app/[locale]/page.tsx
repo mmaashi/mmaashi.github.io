@@ -7,6 +7,7 @@ import {
   SlidersHorizontal, CalendarDays, Zap,
 } from "lucide-react";
 import { t, tMood } from "@/lib/i18n";
+import SectorHeatMap from "@/components/SectorHeatMap";
 
 // ── Hero Section with Tagline ────────────────────────────────
 function HeroTagline({ locale }: { locale: string }) {
@@ -392,6 +393,9 @@ export default async function DashboardPage({
       <div className="mb-8">
         <QuickActions locale={locale} />
       </div>
+
+      {/* Sector Heat Map */}
+      <SectorHeatMap locale={locale} />
 
       {/* Section separator */}
       <hr className="gradient-line mb-8" />

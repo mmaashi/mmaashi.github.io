@@ -4,6 +4,8 @@ import PriceChart from "@/components/PriceChart";
 import SuqaiScore from "@/components/SuqaiScore";
 import { calculateScores } from "@/lib/scores";
 import StockTabs from "@/components/StockTabs";
+import FinancialChart from "@/components/FinancialChart";
+import StockChat from "@/components/StockChat";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -75,6 +77,7 @@ export default async function StockPage({
   yearAgo.setFullYear(yearAgo.getFullYear() - 1);
   const yearAgoStr = yearAgo.toISOString().split("T")[0];
 
+  // ── 3. Extract results ──────────────────────────────────────
   const [
     liveQuoteResult,
     latestPriceResult,
@@ -83,6 +86,7 @@ export default async function StockPage({
     recentDivResult,
     allDivResult,
     newsResult,
+    peersResult,
   ] = await Promise.allSettled([
     getCompanyQuote(upperTicker),
     supabase
@@ -104,8 +108,7 @@ export default async function StockPage({
       .eq("company_id", company.id)
       .order("year", { ascending: false })
       .order("period", { ascending: false })
-      .limit(1)
-      .single(),
+      .limit(8),
     supabase
       .from("dividends")
       .select("amount_per_share, ex_date, payment_date")
@@ -124,16 +127,23 @@ export default async function StockPage({
       .eq("company_id", company.id)
       .order("published_at", { ascending: false })
       .limit(15),
+    supabase
+      .from("companies")
+      .select("id, ticker, name_en, name_ar, sector")
+      .eq("sector", company.sector ?? "")
+      .neq("id", company.id)
+      .limit(6),
   ]);
 
-  // ── 3. Extract results ──────────────────────────────────────
-  const liveQuote     = liveQuoteResult.status     === "fulfilled" ? liveQuoteResult.value      : null;
-  const latestDbPrice = latestPriceResult.status   === "fulfilled" ? latestPriceResult.value.data : null;
-  const priceHistory  = priceHistoryResult.status  === "fulfilled" ? priceHistoryResult.value.data ?? [] : [];
-  const financial     = financialResult.status     === "fulfilled" ? financialResult.value.data  : null;
-  const recentDivs    = recentDivResult.status     === "fulfilled" ? recentDivResult.value.data ?? [] : [];
-  const allDivs       = allDivResult.status        === "fulfilled" ? allDivResult.value.data ?? [] : [];
-  const newsItems     = newsResult.status          === "fulfilled" ? newsResult.value.data ?? [] : [];
+  const liveQuote      = liveQuoteResult.status     === "fulfilled" ? liveQuoteResult.value      : null;
+  const latestDbPrice  = latestPriceResult.status   === "fulfilled" ? latestPriceResult.value.data : null;
+  const priceHistory   = priceHistoryResult.status  === "fulfilled" ? priceHistoryResult.value.data ?? [] : [];
+  const allFinancials  = financialResult.status     === "fulfilled" ? financialResult.value.data ?? [] : [];
+  const financial      = allFinancials[0] ?? null;
+  const recentDivs     = recentDivResult.status     === "fulfilled" ? recentDivResult.value.data ?? [] : [];
+  const allDivs        = allDivResult.status        === "fulfilled" ? allDivResult.value.data ?? [] : [];
+  const newsItems      = newsResult.status          === "fulfilled" ? newsResult.value.data ?? [] : [];
+  const peers          = peersResult.status         === "fulfilled" ? peersResult.value.data ?? [] : [];
 
   // ── 4. Compute display values ───────────────────────────────
   const currentPrice = liveQuote?.price ?? (latestDbPrice ? Number(latestDbPrice.close) : null);
@@ -177,6 +187,19 @@ export default async function StockPage({
          (parseFloat(fiftyTwoHigh) - parseFloat(fiftyTwoLow))) * 100
       ))
     : null;
+
+  // Fair Value estimate (simplified Graham/PE model)
+  const netMarginNum = netIncome !== null && revenue !== null && revenue > 0 ? netIncome / revenue : null;
+  const adjustedPE = netMarginNum !== null
+    ? netMarginNum > 0.3 ? 20
+    : netMarginNum > 0.2 ? 17
+    : netMarginNum > 0.1 ? 14
+    : 12
+    : null;
+  const fairValue = eps && eps > 0 && adjustedPE ? +(eps * adjustedPE).toFixed(2) : null;
+  const fairValueDiff = fairValue && currentPrice ? ((fairValue - currentPrice) / fairValue) * 100 : null;
+  const isUndervalued = fairValueDiff !== null && fairValueDiff > 5;
+  const isOvervalued  = fairValueDiff !== null && fairValueDiff < -5;
 
   const displayName = locale === "ar" && company.name_ar ? company.name_ar : company.name_en;
   const isLive      = !!liveQuote;
@@ -527,6 +550,107 @@ export default async function StockPage({
             </div>
           )}
 
+          {/* ── Fair Value Estimate ──────────────────────────── */}
+          {fairValue && currentPrice && (
+            <div className="card mb-5" style={{ padding: "22px 24px" }}>
+              <div className="flex items-center gap-2 mb-4">
+                <DollarSign size={14} style={{ color: "var(--c-gold)" }} />
+                <h2 className="font-bold" style={{ fontSize: 15, color: "var(--c-text)" }}>
+                  {isAr ? "التقييم العادل" : "Fair Value Estimate"}
+                </h2>
+                <span style={{ fontSize: 10, color: "var(--c-dim)", marginLeft: 4 }}>
+                  {isAr ? "(تقدير مبسط)" : "(simplified model)"}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                    {isAr ? "السعر الحالي" : "Current Price"}
+                  </p>
+                  <span className="font-num font-bold" style={{ fontSize: 22, color: "var(--c-text)" }}>
+                    {sar} {currentPrice?.toFixed(2)}
+                  </span>
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                    {isAr ? "القيمة العادلة" : "Fair Value"}
+                  </p>
+                  <span className="font-num font-bold" style={{ fontSize: 22, color: isUndervalued ? "var(--c-green)" : isOvervalued ? "var(--c-red)" : "var(--c-gold)" }}>
+                    {sar} {fairValue}
+                  </span>
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                    {isAr ? "الحالة" : "Status"}
+                  </p>
+                  <div>
+                    <span style={{
+                      display: "inline-block", padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700,
+                      background: isUndervalued ? "var(--c-green-bg)" : isOvervalued ? "var(--c-red-bg)" : "var(--c-border)",
+                      color: isUndervalued ? "var(--c-green)" : isOvervalued ? "var(--c-red)" : "var(--c-muted)",
+                      border: `1px solid ${isUndervalued ? "var(--c-green-ring)" : isOvervalued ? "var(--c-red-ring)" : "var(--c-border)"}`,
+                    }}>
+                      {isUndervalued
+                        ? (isAr ? `مخفّض ${Math.abs(fairValueDiff!).toFixed(0)}%` : `▲ ${Math.abs(fairValueDiff!).toFixed(0)}% Undervalued`)
+                        : isOvervalued
+                        ? (isAr ? `مرتفع ${Math.abs(fairValueDiff!).toFixed(0)}%` : `▼ ${Math.abs(fairValueDiff!).toFixed(0)}% Overvalued`)
+                        : (isAr ? "سعر عادل" : "Fair Price")}
+                    </span>
+                    <p style={{ fontSize: 10, color: "var(--c-dim)", marginTop: 6 }}>
+                      {isAr ? `المضاعف المستخدم: ${adjustedPE}x EPS` : `Model: EPS × ${adjustedPE}x`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p style={{ fontSize: 10, color: "var(--c-dim)", marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--c-border)" }}>
+                {isAr
+                  ? "⚠️ هذا تقدير مبسط يستند إلى مضاعف الأرباح. لا يُعدّ توصية استثمارية."
+                  : "⚠️ Simplified estimate based on EPS × adjusted P/E multiple. Not investment advice."}
+              </p>
+            </div>
+          )}
+
+          {/* ── Peer Comparison ──────────────────────────────── */}
+          {peers.length > 0 && (
+            <div className="card mb-5" style={{ padding: "20px 24px" }}>
+              <div className="flex items-center gap-2 mb-4">
+                <Users size={14} style={{ color: "var(--c-gold)" }} />
+                <h2 className="font-bold" style={{ fontSize: 15, color: "var(--c-text)" }}>
+                  {isAr ? "شركات مشابهة" : "Similar Companies"}
+                </h2>
+                <span style={{ fontSize: 11, color: "var(--c-dim)", marginLeft: 4 }}>
+                  {isAr ? `في قطاع ${tSector(locale, company.sector ?? "")}` : `in ${tSector(locale, company.sector ?? "")}`}
+                </span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {peers.map((peer) => {
+                  const peerName = (isAr && peer.name_ar) ? peer.name_ar : peer.name_en;
+                  return (
+                    <Link
+                      key={peer.ticker}
+                      href={`/${locale}/stock/${peer.ticker}`}
+                      style={{ textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: "var(--radius-md)", background: "var(--c-elevated)", border: "1px solid var(--c-border)", transition: "border-color 0.15s" }}
+                      className="hover:border-gold"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div style={{ width: 34, height: 34, borderRadius: 8, background: "var(--c-base)", border: "1px solid var(--c-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "var(--c-gold)", fontFamily: "var(--font-grotesk)" }}>
+                            {peer.ticker.slice(0, 4)}
+                          </span>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: "var(--c-text)", marginBottom: 1 }}>{peerName}</p>
+                          <span className="font-num" style={{ fontSize: 11, color: "var(--c-muted)" }}>{peer.ticker}</span>
+                        </div>
+                      </div>
+                      <ArrowUpRight size={14} style={{ color: "var(--c-muted)" }} />
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Latest News preview (top 3) */}
           {newsItems.length > 0 && (
             <div className="card mb-5" style={{ padding: "20px 22px" }}>
@@ -780,6 +904,30 @@ export default async function StockPage({
               </div>
             )}
           </div>
+
+          {/* ── Financial Trend Charts ────────────────────────── */}
+          {allFinancials.length > 1 && (
+            <div className="card" style={{ padding: "22px 24px" }}>
+              <div className="flex items-center gap-2 mb-5">
+                <BarChart3 size={14} style={{ color: "var(--c-gold)" }} />
+                <div>
+                  <h2 className="font-bold" style={{ fontSize: 15, color: "var(--c-text)" }}>
+                    {isAr ? "الاتجاهات المالية" : "Financial Trends"}
+                  </h2>
+                  <p style={{ fontSize: 11, color: "var(--c-muted)" }}>
+                    {isAr ? `آخر ${allFinancials.length} فترات` : `Last ${allFinancials.length} periods`}
+                  </p>
+                </div>
+              </div>
+              <FinancialChart data={allFinancials.map(f => ({
+                year: f.year ?? 0,
+                period: f.period ?? "annual",
+                revenue: f.revenue ? Number(f.revenue) : null,
+                net_income: f.net_income ? Number(f.net_income) : null,
+                earnings_per_share: f.earnings_per_share ? Number(f.earnings_per_share) : null,
+              }))} />
+            </div>
+          )}
         </section>
       )}
 
@@ -1040,6 +1188,24 @@ export default async function StockPage({
       <p style={{ fontSize: 11, color: "var(--c-dim)", textAlign: "center", letterSpacing: "0.02em" }}>
         {t(locale, "common.disclaimer")}
       </p>
+
+      {/* ── AI Stock Chatbot ──────────────────────────────────── */}
+      <StockChat
+        locale={locale}
+        stockContext={{
+          ticker: upperTicker,
+          name: displayName,
+          price: currentPrice,
+          changePct,
+          pe,
+          eps,
+          revenue: revenueFormatted,
+          netMargin,
+          divYield,
+          sector: company.sector,
+          fairValue,
+        }}
+      />
     </div>
   );
 }
