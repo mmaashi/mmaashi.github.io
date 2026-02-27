@@ -1,7 +1,8 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { getCompanyQuote } from "@/lib/data-sources";
 import PriceChart from "@/components/PriceChart";
-import SuqaiScore, { calculateScores } from "@/components/SuqaiScore";
+import SuqaiScore from "@/components/SuqaiScore";
+import { calculateScores } from "@/lib/scores";
 import StockTabs from "@/components/StockTabs";
 import Link from "next/link";
 import {
