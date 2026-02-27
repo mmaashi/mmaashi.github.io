@@ -23,6 +23,37 @@ export interface ArgaamArticle {
 const ARGAAM_RSS_EN = 'https://www.argaam.com/en/feeds/articles-rss'
 const ARGAAM_RSS_AR = 'https://www.argaam.com/ar/feeds/articles-rss'
 
+// rss2json acts as a proxy — bypasses Argaam's server-side IP blocking of cloud infra
+const RSS2JSON_BASE = 'https://api.rss2json.com/v1/api.json?rss_url='
+
+interface Rss2JsonItem {
+  title: string
+  link: string
+  description: string
+  pubDate: string
+}
+interface Rss2JsonResponse {
+  status: string
+  items: Rss2JsonItem[]
+}
+
+/**
+ * Fetch RSS via rss2json proxy (fallback when direct fetch is blocked).
+ */
+async function fetchViaProxy(rssUrl: string): Promise<Array<{ title: string; link: string; description: string; pubDate: string }>> {
+  const proxyUrl = `${RSS2JSON_BASE}${encodeURIComponent(rssUrl)}&count=40`
+  const res = await fetch(proxyUrl, { next: { revalidate: 0 } })
+  if (!res.ok) return []
+  const data = (await res.json()) as Rss2JsonResponse
+  if (data.status !== 'ok' || !Array.isArray(data.items)) return []
+  return data.items.map((item) => ({
+    title: item.title ?? '',
+    link: item.link ?? '',
+    description: item.description ?? '',
+    pubDate: item.pubDate ?? new Date().toISOString(),
+  }))
+}
+
 // Known Saudi company name → ticker mapping for entity extraction
 // Values are 4-digit Tadawul tickers matching the `ticker` column in the DB
 const COMPANY_KEYWORDS: Record<string, string> = {
@@ -149,26 +180,77 @@ function categorizeArticle(title: string, description: string): ArgaamArticle['c
 }
 
 /**
+ * Fetch items from an RSS URL — tries direct fetch first, falls back to rss2json proxy.
+ * Argaam blocks Vercel/cloud IPs, so the proxy is usually required in production.
+ */
+async function fetchRSSItems(rssUrl: string): Promise<Array<{ title: string; link: string; description: string; pubDate: string }>> {
+  // 1. Try direct fetch
+  try {
+    const res = await fetch(rssUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; SUQAI/1.0; +https://suqaist.vercel.app)',
+        'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+      },
+      next: { revalidate: 0 },
+    })
+    if (res.ok) {
+      const xml = await res.text()
+      const items = parseRSSItems(xml)
+      if (items.length > 0) return items
+    }
+  } catch {
+    // Fall through to proxy
+  }
+
+  // 2. Fall back to rss2json proxy
+  try {
+    return await fetchViaProxy(rssUrl)
+  } catch (err) {
+    console.error(`RSS proxy fallback failed for ${rssUrl}:`, err)
+    return []
+  }
+}
+
+/**
  * Fetch latest articles from Argaam RSS feeds.
  * Fetches both English and Arabic feeds, deduplicates by URL.
  */
 export async function fetchArgaamNews(limit = 30): Promise<ArgaamArticle[]> {
   const articles: ArgaamArticle[] = []
 
-  // Fetch English feed
+  // Fetch English feed (direct → proxy fallback)
   try {
-    const enRes = await fetch(ARGAAM_RSS_EN, {
-      headers: { 'User-Agent': 'SUQAI/1.0' },
-      next: { revalidate: 0 },
-    })
-    if (enRes.ok) {
-      const xml = await enRes.text()
-      const items = parseRSSItems(xml)
+    const items = await fetchRSSItems(ARGAAM_RSS_EN)
+    for (const item of items.slice(0, limit)) {
+      articles.push({
+        title: item.title,
+        title_ar: null,
+        description: item.description.replace(/<[^>]+>/g, '').slice(0, 500),
+        url: item.link,
+        publishedAt: new Date(item.pubDate).toISOString(),
+        source: 'argaam',
+        category: categorizeArticle(item.title, item.description),
+        relatedTickers: extractTickers(`${item.title} ${item.description}`),
+      })
+    }
+  } catch (err) {
+    console.error('Argaam EN feed error:', err)
+  }
 
-      for (const item of items.slice(0, limit)) {
+  // Fetch Arabic feed (direct → proxy fallback)
+  try {
+    const arItems = await fetchRSSItems(ARGAAM_RSS_AR)
+    for (const item of arItems.slice(0, limit)) {
+      // Merge into existing English article if URL pattern matches
+      const existingIdx = articles.findIndex(
+        (a) => a.url.replace('/en/', '/ar/') === item.link || a.url.replace('/ar/', '/en/') === item.link
+      )
+      if (existingIdx >= 0) {
+        articles[existingIdx].title_ar = item.title
+      } else {
         articles.push({
           title: item.title,
-          title_ar: null, // Will be matched with Arabic feed
+          title_ar: item.title,
           description: item.description.replace(/<[^>]+>/g, '').slice(0, 500),
           url: item.link,
           publishedAt: new Date(item.pubDate).toISOString(),
@@ -176,43 +258,6 @@ export async function fetchArgaamNews(limit = 30): Promise<ArgaamArticle[]> {
           category: categorizeArticle(item.title, item.description),
           relatedTickers: extractTickers(`${item.title} ${item.description}`),
         })
-      }
-    }
-  } catch (err) {
-    console.error('Argaam EN feed error:', err)
-  }
-
-  // Fetch Arabic feed
-  try {
-    const arRes = await fetch(ARGAAM_RSS_AR, {
-      headers: { 'User-Agent': 'SUQAI/1.0' },
-      next: { revalidate: 0 },
-    })
-    if (arRes.ok) {
-      const xml = await arRes.text()
-      const items = parseRSSItems(xml)
-
-      for (const item of items.slice(0, limit)) {
-        // Check if we already have an English version by URL pattern
-        const existingIdx = articles.findIndex(
-          (a) => a.url.replace('/en/', '/ar/') === item.link || a.url.replace('/ar/', '/en/') === item.link
-        )
-
-        if (existingIdx >= 0) {
-          // Merge Arabic title into existing article
-          articles[existingIdx].title_ar = item.title
-        } else {
-          articles.push({
-            title: item.title, // Arabic title in title field
-            title_ar: item.title,
-            description: item.description.replace(/<[^>]+>/g, '').slice(0, 500),
-            url: item.link,
-            publishedAt: new Date(item.pubDate).toISOString(),
-            source: 'argaam',
-            category: categorizeArticle(item.title, item.description),
-            relatedTickers: extractTickers(`${item.title} ${item.description}`),
-          })
-        }
       }
     }
   } catch (err) {
