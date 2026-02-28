@@ -1,8 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "cd suqaist && npm install && npm run build",
-  "outputDirectory": "suqaist/.next",
-  "installCommand": "cd suqaist && npm install",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
   "crons": [
     {
       "path": "/api/cron/prices",
