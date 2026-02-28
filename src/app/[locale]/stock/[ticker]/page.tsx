@@ -978,7 +978,6 @@ export default async function StockPage({
                     </div>
                   </div>
                 </div>
-              </div>
 
               {/* Dividend history table */}
               <div className="card overflow-hidden">
