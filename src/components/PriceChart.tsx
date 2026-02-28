@@ -91,9 +91,11 @@ export default function PriceChart({ data, ticker, locale = "en" }: Props) {
             d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"
           />
         </svg>
-        <p style={{ color: "var(--c-muted)", fontSize: 13 }}>{t(locale, "chart.no_history")}</p>
+        <p style={{ color: "var(--c-muted)", fontSize: 13 }}>
+          {locale === "ar" ? "لا توجد بيانات أسعار تاريخية بعد" : "No price history available yet"}
+        </p>
         <p style={{ color: "var(--c-dim)", fontSize: 11, marginTop: 4 }}>
-          {t(locale, "chart.populates")}
+          {locale === "ar" ? "يتم جمع البيانات — ستتوفر قريباً" : "Data is being collected — check back soon"}
         </p>
       </div>
     );

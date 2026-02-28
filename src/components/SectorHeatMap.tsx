@@ -90,11 +90,11 @@ async function getSectorPerformance(): Promise<SectorData[]> {
 }
 
 function getHeatColor(change: number): { bg: string; border: string; text: string } {
-  if (change >= 2)   return { bg: "rgba(14,203,129,0.18)", border: "rgba(14,203,129,0.4)", text: "var(--c-green)" };
-  if (change >= 0.5) return { bg: "rgba(14,203,129,0.08)", border: "rgba(14,203,129,0.2)", text: "var(--c-green)" };
+  if (change >= 2)   return { bg: "rgba(14,203,129,0.22)", border: "rgba(14,203,129,0.45)", text: "var(--c-green)" };
+  if (change >= 0.5) return { bg: "rgba(14,203,129,0.10)", border: "rgba(14,203,129,0.25)", text: "var(--c-green)" };
   if (change >= -0.5) return { bg: "rgba(200,200,200,0.05)", border: "var(--c-border)", text: "var(--c-muted)" };
-  if (change >= -2)  return { bg: "rgba(246,70,93,0.08)", border: "rgba(246,70,93,0.2)", text: "var(--c-red)" };
-  return             { bg: "rgba(246,70,93,0.18)", border: "rgba(246,70,93,0.4)", text: "var(--c-red)" };
+  if (change >= -2)  return { bg: "rgba(246,70,93,0.10)", border: "rgba(246,70,93,0.25)", text: "var(--c-red)" };
+  return             { bg: "rgba(246,70,93,0.22)", border: "rgba(246,70,93,0.45)", text: "var(--c-red)" };
 }
 
 export default async function SectorHeatMap({ locale }: Props) {
@@ -104,23 +104,23 @@ export default async function SectorHeatMap({ locale }: Props) {
   const isAr = locale === "ar";
 
   return (
-    <div className="card mb-5" style={{ padding: "22px 24px" }}>
-      <div className="flex items-center justify-between mb-4">
+    <div className="card mb-5" style={{ padding: "16px 18px" }}>
+      <div className="flex items-center justify-between mb-3">
         <div>
-          <h2 className="font-bold" style={{ fontSize: 15, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
-            {isAr ? "خريطة حرارة القطاعات" : "Sector Heat Map"}
+          <h2 className="font-bold" style={{ fontSize: 14, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
+            {isAr ? "أداء القطاعات" : "Sector Performance"}
           </h2>
-          <p style={{ fontSize: 11, color: "var(--c-muted)", marginTop: 2 }}>
-            {isAr ? "أداء القطاعات — تغيّر اليوم" : "Sector performance — today's change"}
+          <p style={{ fontSize: 10, color: "var(--c-muted)", marginTop: 1 }}>
+            {isAr ? "تغيّر اليوم" : "Today's change"}
           </p>
         </div>
         <Link href={`/${locale}/screener`}
-              style={{ fontSize: 12, color: "var(--c-gold)", textDecoration: "none", fontWeight: 600 }}>
-          {isAr ? "مصفاة الأسهم ←" : "Screener →"}
+              style={{ fontSize: 11, color: "var(--c-gold)", textDecoration: "none", fontWeight: 600 }}>
+          {isAr ? "المصفاة ←" : "Screener →"}
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
         {sectors.map(({ sector, avgChange, count, gainers, losers }) => {
           const colors = getHeatColor(avgChange);
           const sign   = avgChange >= 0 ? "+" : "";
@@ -133,31 +133,24 @@ export default async function SectorHeatMap({ locale }: Props) {
               style={{
                 textDecoration: "none",
                 display: "block",
-                padding: "14px 16px",
-                borderRadius: "var(--radius-md)",
+                padding: "8px 10px",
+                borderRadius: "var(--radius-sm, 8px)",
                 background: colors.bg,
                 border: `1px solid ${colors.border}`,
                 transition: "opacity 0.15s",
               }}
             >
-              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--c-text)", marginBottom: 6, lineHeight: 1.3 }}>
+              <p style={{ fontSize: 10, fontWeight: 600, color: "var(--c-text)", marginBottom: 3, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {label}
               </p>
-              <div className="flex items-end justify-between">
-                <span className="font-num font-bold" style={{ fontSize: 18, color: colors.text }}>
-                  {sign}{avgChange.toFixed(2)}%
-                </span>
-                <div style={{ textAlign: "right" }}>
-                  <p className="font-num" style={{ fontSize: 10, color: "var(--c-dim)", marginBottom: 1 }}>
-                    {count} {isAr ? "سهم" : "stocks"}
-                  </p>
-                  <p className="font-num" style={{ fontSize: 10, color: "var(--c-muted)" }}>
-                    <span style={{ color: "var(--c-green)" }}>▲{gainers}</span>
-                    {" / "}
-                    <span style={{ color: "var(--c-red)" }}>▼{losers}</span>
-                  </p>
-                </div>
-              </div>
+              <span className="font-num font-bold" style={{ fontSize: 14, color: colors.text }}>
+                {sign}{avgChange.toFixed(1)}%
+              </span>
+              <p className="font-num" style={{ fontSize: 9, color: "var(--c-dim)", marginTop: 2 }}>
+                <span style={{ color: "var(--c-green)" }}>▲{gainers}</span>
+                {" "}
+                <span style={{ color: "var(--c-red)" }}>▼{losers}</span>
+              </p>
             </Link>
           );
         })}

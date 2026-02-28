@@ -164,7 +164,15 @@ export default async function StockPage({
   const pe        = currentPrice && eps && eps > 0 ? (currentPrice / eps).toFixed(1) : null;
   const revenue   = financial?.revenue   ? Number(financial.revenue)   : null;
   const netIncome = financial?.net_income ? Number(financial.net_income) : null;
-  const debtEq    = financial?.debt_to_equity  ? Number(financial.debt_to_equity)  : null;
+  const totalAssets = financial?.total_assets ? Number(financial.total_assets) : null;
+  const totalLiabilities = financial?.total_liabilities ? Number(financial.total_liabilities) : null;
+
+  // Use stored ratio OR calculate from assets/liabilities
+  const debtEq    = financial?.debt_to_equity
+    ? Number(financial.debt_to_equity)
+    : (totalAssets && totalLiabilities && totalAssets > totalLiabilities)
+      ? totalLiabilities / (totalAssets - totalLiabilities)
+      : null;
   const currRatio = financial?.current_ratio   ? Number(financial.current_ratio)   : null;
   const ocf       = financial?.operating_cash_flow ? Number(financial.operating_cash_flow) : null;
 
@@ -175,7 +183,9 @@ export default async function StockPage({
     ? revenue >= 1e9 ? `${(revenue / 1e9).toFixed(1)}B` : `${(revenue / 1e6).toFixed(0)}M`
     : null;
 
-  const annualDiv  = recentDivs.reduce((s, d) => s + Number(d.amount_per_share), 0);
+  // Use allDivs (last 12 records, no date filter) for yield — more reliable than recentDivs which filters by 1yr
+  const latestFourDivs = allDivs.slice(0, 4);
+  const annualDiv  = latestFourDivs.reduce((s, d) => s + Number(d.amount_per_share), 0);
   const divYield   = currentPrice && annualDiv > 0 ? ((annualDiv / currentPrice) * 100).toFixed(2) + "%" : null;
   const divYieldNum = currentPrice && annualDiv > 0 ? (annualDiv / currentPrice) * 100 : null;
 
@@ -415,7 +425,7 @@ export default async function StockPage({
                     ? isVol
                       ? val >= 1e6 ? `${(val / 1e6).toFixed(1)}M` : `${(val / 1e3).toFixed(0)}K`
                       : `${sar} ${val.toFixed(2)}`
-                    : "—"}
+                    : "N/A"}
                 </span>
               </div>
             ))}
@@ -486,42 +496,42 @@ export default async function StockPage({
                 {
                   icon: BarChart3,
                   label: t(locale, "stock.pe"),
-                  value: pe ?? "—",
+                  value: pe ?? "N/A",
                   sub: eps ? `${t(locale, "stock.eps_short")}: ${sar} ${eps.toFixed(2)}` : undefined,
                   color: pe ? (parseFloat(pe) < 15 ? "var(--c-green)" : parseFloat(pe) < 25 ? "var(--c-text)" : "var(--c-red)") : "var(--c-dim)",
                 },
                 {
                   icon: DollarSign,
                   label: t(locale, "stock.eps"),
-                  value: eps ? `${sar} ${eps.toFixed(2)}` : "—",
+                  value: eps ? `${sar} ${eps.toFixed(2)}` : "N/A",
                   sub: financial ? `${t(locale, `stock.period.${financial.period?.toLowerCase() || "annual"}`)} ${financial.year}` : undefined,
                   color: eps ? (eps > 0 ? "var(--c-text)" : "var(--c-red)") : "var(--c-dim)",
                 },
                 {
                   icon: Calendar,
                   label: t(locale, "stock.div_yield"),
-                  value: divYield ?? "—",
+                  value: divYield ?? "N/A",
                   sub: annualDiv > 0 ? `${sar} ${annualDiv.toFixed(2)}/${t(locale, "stock.per_year")}` : undefined,
                   color: divYield ? "var(--c-green)" : "var(--c-dim)",
                 },
                 {
                   icon: Activity,
                   label: t(locale, "stock.52w"),
-                  value: fiftyTwoHigh && fiftyTwoLow ? `${fiftyTwoLow} – ${fiftyTwoHigh}` : "—",
+                  value: fiftyTwoHigh && fiftyTwoLow ? `${fiftyTwoLow} – ${fiftyTwoHigh}` : "N/A",
                   sub: fiftyTwoHigh ? sar : undefined,
                   color: fiftyTwoHigh ? "var(--c-text)" : "var(--c-dim)",
                 },
                 {
                   icon: TrendingUp,
                   label: t(locale, "stock.revenue_short"),
-                  value: revenueFormatted ?? "—",
+                  value: revenueFormatted ?? "N/A",
                   sub: financial ? `${t(locale, `stock.period.${financial.period?.toLowerCase() || "annual"}`)} ${financial.year}` : undefined,
                   color: revenueFormatted ? "var(--c-text)" : "var(--c-dim)",
                 },
                 {
                   icon: BarChart3,
                   label: t(locale, "stock.net_margin"),
-                  value: netMargin ?? "—",
+                  value: netMargin ?? "N/A",
                   sub: netIncome && revenue ? `${sar} ${(netIncome / 1e9).toFixed(2)}B` : undefined,
                   color: netMargin ? (parseFloat(netMargin) > 0 ? "var(--c-green)" : "var(--c-red)") : "var(--c-dim)",
                 },
@@ -872,7 +882,7 @@ export default async function StockPage({
                       <div key={label} style={{ padding: "14px 16px", background: "var(--c-elevated)", borderRadius: "var(--radius-md)", border: "1px solid var(--c-border)" }}>
                         <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{label}</p>
                         <span className="font-num font-bold" style={{ fontSize: 20, color: val ? color : "var(--c-dim)" }}>
-                          {val ? `${sar} ${fmt(val)}` : "—"}
+                          {val ? `${sar} ${fmt(val)}` : "N/A"}
                         </span>
                       </div>
                     ))}
@@ -893,8 +903,8 @@ export default async function StockPage({
                     ].map(({ label, val, fmt, suffix, color }) => (
                       <div key={label} className="card" style={{ padding: "14px 16px" }}>
                         <p style={{ fontSize: 10, color: "var(--c-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>{label}</p>
-                        <span className="font-num font-bold" style={{ fontSize: 18, color: val ? color : "var(--c-dim)" }}>
-                          {val ? `${fmt(val)}${suffix}` : "—"}
+                        <span className="font-num font-bold" style={{ fontSize: 18, color: val != null ? color : "var(--c-dim)" }}>
+                          {val != null ? `${fmt(val)}${suffix}` : "N/A"}
                         </span>
                       </div>
                     ))}
@@ -944,29 +954,31 @@ export default async function StockPage({
           {allDivs.length > 0 ? (
             <>
               {/* Dividend summary card */}
-              {divYield && (
-                <div className="card mb-4" style={{ padding: "20px 22px" }}>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="card mb-4" style={{ padding: "20px 22px" }}>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="metric-label">{t(locale, "stock.div_yield")}</p>
+                    <span className="font-num font-bold" style={{ fontSize: 28, color: divYield ? "var(--c-green)" : "var(--c-dim)" }}>
+                      {divYield ?? "N/A"}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="metric-label">Annual Dividend</p>
+                    <span className="font-num font-bold" style={{ fontSize: 20, color: "var(--c-text)" }}>
+                      {annualDiv > 0 ? `${sar} ${annualDiv.toFixed(2)}` : "N/A"}
+                    </span>
+                    {annualDiv > 0 && <p style={{ fontSize: 11, color: "var(--c-dim)", marginTop: 2 }}>per share / year</p>}
+                  </div>
                     <div>
-                      <p className="metric-label">{t(locale, "stock.div_yield")}</p>
-                      <span className="font-num font-bold" style={{ fontSize: 28, color: "var(--c-green)" }}>{divYield}</span>
-                    </div>
-                    <div>
-                      <p className="metric-label">Annual Dividend</p>
+                      <p className="metric-label">Total Payments</p>
                       <span className="font-num font-bold" style={{ fontSize: 20, color: "var(--c-text)" }}>
-                        {sar} {annualDiv.toFixed(2)}
+                        {allDivs.length}
                       </span>
-                      <p style={{ fontSize: 11, color: "var(--c-dim)", marginTop: 2 }}>per share / year</p>
-                    </div>
-                    <div>
-                      <p className="metric-label">Payments (last 12m)</p>
-                      <span className="font-num font-bold" style={{ fontSize: 20, color: "var(--c-text)" }}>
-                        {recentDivs.length}
-                      </span>
+                      <p style={{ fontSize: 11, color: "var(--c-dim)", marginTop: 2 }}>on record</p>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Dividend history table */}
               <div className="card overflow-hidden">
