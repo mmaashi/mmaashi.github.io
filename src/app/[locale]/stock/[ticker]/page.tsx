@@ -100,7 +100,6 @@ export default async function StockPage({
       .from("stock_prices")
       .select("date, close, open, high, low")
       .eq("company_id", company.id)
-      .gte("date", yearAgoStr)
       .order("date", { ascending: true }),
     supabase
       .from("financials")
@@ -111,22 +110,22 @@ export default async function StockPage({
       .limit(8),
     supabase
       .from("dividends")
-      .select("amount_per_share, ex_date, payment_date")
+      .select("amount_per_share, ex_date, pay_date")
       .eq("company_id", company.id)
       .gte("ex_date", yearAgoStr)
       .order("ex_date", { ascending: false }),
     supabase
       .from("dividends")
-      .select("amount_per_share, ex_date, payment_date, currency")
+      .select("amount_per_share, ex_date, pay_date, currency")
       .eq("company_id", company.id)
       .order("ex_date", { ascending: false })
       .limit(12),
     supabase
       .from("news")
-      .select("id, title_en, title_ar, source, source_url, published_at, sentiment_score")
-      .eq("company_id", company.id)
+      .select("id, title_en, title_ar, source, source_url, published_at, sentiment_score, company_id")
+      .or(`company_id.eq.${company.id},company_id.is.null`)
       .order("published_at", { ascending: false })
-      .limit(15),
+      .limit(20),
     supabase
       .from("companies")
       .select("id, ticker, name_en, name_ar, sector")
@@ -142,7 +141,13 @@ export default async function StockPage({
   const financial      = allFinancials[0] ?? null;
   const recentDivs     = recentDivResult.status     === "fulfilled" ? recentDivResult.value.data ?? [] : [];
   const allDivs        = allDivResult.status        === "fulfilled" ? allDivResult.value.data ?? [] : [];
-  const newsItems      = newsResult.status          === "fulfilled" ? newsResult.value.data ?? [] : [];
+  const rawNewsItems   = newsResult.status          === "fulfilled" ? newsResult.value.data ?? [] : [];
+  // Sort: company-specific news first, then general market news
+  const newsItems      = rawNewsItems.sort((a: {company_id: string | null}, b: {company_id: string | null}) => {
+    if (a.company_id === company.id && b.company_id !== company.id) return -1;
+    if (a.company_id !== company.id && b.company_id === company.id) return 1;
+    return 0;
+  }).slice(0, 15);
   const peers          = peersResult.status         === "fulfilled" ? peersResult.value.data ?? [] : [];
 
   // ── 4. Compute display values ───────────────────────────────
@@ -995,8 +1000,8 @@ export default async function StockPage({
                         </td>
                         <td style={{ textAlign: "right" }}>
                           <span className="font-num" style={{ color: "var(--c-muted)", fontSize: 13 }}>
-                            {d.payment_date
-                              ? new Date(d.payment_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                            {d.pay_date
+                              ? new Date(d.pay_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
                               : "—"}
                           </span>
                         </td>

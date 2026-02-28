@@ -16,7 +16,7 @@ export default async function CalendarPage({
     .select(`
       id,
       ex_date,
-      payment_date,
+      pay_date,
       amount_per_share,
       currency,
       companies (
@@ -57,7 +57,7 @@ export default async function CalendarPage({
       name_en: company?.name_en || "",
       name_ar: company?.name_ar || company?.name_en || "",
       ex_date: d.ex_date,
-      payment_date: d.payment_date,
+      pay_date: d.pay_date,
       amount,
       currency: d.currency,
       price,
@@ -110,9 +110,9 @@ export default async function CalendarPage({
           </span>
         </td>
         <td style={{ textAlign: "right" }}>
-          {d.payment_date ? (
+          {d.pay_date ? (
             <span className="font-num" style={{ color: "var(--c-muted)", fontSize: 13 }}>
-              {new Date(d.payment_date + "T00:00:00").toLocaleDateString("en-US", {
+              {new Date(d.pay_date + "T00:00:00").toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
               })}

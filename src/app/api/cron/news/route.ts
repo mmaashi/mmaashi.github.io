@@ -132,8 +132,10 @@ export async function GET(request: NextRequest) {
 
     for (const ann of announcements) {
       try {
+        // Try to link announcement to a company via ticker extraction from title
+        const annCompanyId = await resolveCompanyId(supabase, ann.relatedTickers)
         const row: NewsRow = {
-          company_id: null,
+          company_id: annCompanyId,
           title_en: ann.title,
           title_ar: ann.title_ar,
           title_zh: null,

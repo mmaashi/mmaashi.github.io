@@ -152,7 +152,9 @@ export interface Database {
           id: string
           company_id: string
           ex_date: string
-          payment_date: string | null
+          pay_date: string | null
+          record_date: string | null
+          year: number | null
           amount_per_share: number
           currency: string
           created_at: string
@@ -160,7 +162,9 @@ export interface Database {
         Insert: {
           company_id: string
           ex_date: string
-          payment_date?: string | null
+          pay_date?: string | null
+          record_date?: string | null
+          year?: number | null
           amount_per_share: number
           currency?: string
         }
