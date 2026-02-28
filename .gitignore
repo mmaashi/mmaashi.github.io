@@ -43,3 +43,4 @@ next-env.d.ts
 
 # Separate project - keep out of suqaist repo
 fatoora-saver/
+.DS_Store
