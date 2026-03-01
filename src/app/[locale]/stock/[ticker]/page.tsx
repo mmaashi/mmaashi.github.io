@@ -25,6 +25,8 @@ import {
   ArrowDownRight,
   Newspaper,
   ExternalLink,
+  Scale,
+  Wallet,
 } from "lucide-react";
 import { t, tSector } from "@/lib/i18n";
 
@@ -534,6 +536,38 @@ export default async function StockPage({
                   value: netMargin ?? "N/A",
                   sub: netIncome && revenue ? `${sar} ${(netIncome / 1e9).toFixed(2)}B` : undefined,
                   color: netMargin ? (parseFloat(netMargin) > 0 ? "var(--c-green)" : "var(--c-red)") : "var(--c-dim)",
+                },
+                // Financial Health - New
+                {
+                  icon: TrendingUp,
+                  label: isAr ? "إجمالي الأصول" : "Total Assets",
+                  value: totalAssets ? `${sar} ${(totalAssets / 1e9).toFixed(1)}B` : "N/A",
+                  sub: financial ? `${t(locale, `stock.period.${financial.period?.toLowerCase() || "annual"}`)} ${financial.year}` : undefined,
+                  color: totalAssets ? "var(--c-text)" : "var(--c-dim)",
+                },
+                {
+                  icon: TrendingDown,
+                  label: isAr ? "إجمالي المطلوبات" : "Total Liabilities",
+                  value: totalLiabilities ? `${sar} ${(totalLiabilities / 1e9).toFixed(1)}B` : "N/A",
+                  color: totalLiabilities ? "var(--c-text)" : "var(--c-dim)",
+                },
+                {
+                  icon: Scale,
+                  label: isAr ? "الديون/حقوق الملكية" : "Debt/Equity",
+                  value: debtToEquity ? debtToEquity.toFixed(2) : "N/A",
+                  color: debtToEquity ? (debtToEquity < 1 ? "var(--c-green)" : debtToEquity > 2 ? "var(--c-red)" : "var(--c-text)") : "var(--c-dim)",
+                },
+                {
+                  icon: Activity,
+                  label: isAr ? "النسبة الجارية" : "Current Ratio",
+                  value: currRatio ? currRatio.toFixed(2) : "N/A",
+                  color: currRatio ? (currRatio >= 1.5 ? "var(--c-green)" : currRatio < 1 ? "var(--c-red)" : "var(--c-text)") : "var(--c-dim)",
+                },
+                {
+                  icon: Wallet,
+                  label: isAr ? "التدفق النقدي التشغيلي" : "Operating Cash Flow",
+                  value: ocf ? `${sar} ${(ocf / 1e9).toFixed(1)}B` : "N/A",
+                  color: ocf ? (ocf > 0 ? "var(--c-green)" : "var(--c-red)") : "var(--c-dim)",
                 },
               ].map(({ icon: Icon, label, value, sub, color }) => (
                 <div key={label} className="card" style={{ padding: "16px 18px" }}>
