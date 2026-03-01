@@ -110,13 +110,13 @@ export default async function StockPage({
       .limit(8),
     supabase
       .from("dividends")
-      .select("amount_per_share, ex_date, payment_date")
+      .select("amount_per_share, ex_date, pay_date")
       .eq("company_id", company.id)
       .gte("ex_date", yearAgoStr)
       .order("ex_date", { ascending: false }),
     supabase
       .from("dividends")
-      .select("amount_per_share, ex_date, payment_date, currency")
+      .select("amount_per_share, ex_date, pay_date, currency")
       .eq("company_id", company.id)
       .order("ex_date", { ascending: false })
       .limit(12),
@@ -1011,9 +1011,9 @@ export default async function StockPage({
                         </td>
                         <td style={{ textAlign: "right" }}>
                           <span className="font-num" style={{ color: "var(--c-muted)", fontSize: 13 }}>
-                            {d.payment_date
-                              ? new Date(d.payment_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                              : "—"}
+                            {d.pay_date
+                              ? new Date(d.pay_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                              : "N/A"}
                           </span>
                         </td>
                       </tr>

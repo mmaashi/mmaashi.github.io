@@ -16,7 +16,7 @@ export default async function CalendarPage({
     .select(`
       id,
       ex_date,
-      payment_date,
+      pay_date,
       amount_per_share,
       currency,
       companies (
@@ -57,7 +57,7 @@ export default async function CalendarPage({
       name_en: company?.name_en || "",
       name_ar: company?.name_ar || company?.name_en || "",
       ex_date: d.ex_date,
-      pay_date: d.payment_date,
+      pay_date: d.pay_date,
       amount,
       currency: d.currency,
       price,

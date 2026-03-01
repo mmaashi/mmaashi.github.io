@@ -116,7 +116,7 @@ export async function GET() {
   const divYears: Record<string, number> = {};
 
   if (dividends) {
-    const divFields = ["amount_per_share", "ex_date", "payment_date", "record_date", "year", "currency"];
+    const divFields = ["amount_per_share", "ex_date", "pay_date", "record_date", "year", "currency"];
     for (const df of divFields) {
       divMissing[df] = dividends.filter((d: any) => d[df] === null || d[df] === "").length;
     }
