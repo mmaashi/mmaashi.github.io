@@ -1,3 +1,6 @@
+import { createServiceClient } from "@/lib/supabase/server";
+import Link from "next/link";
+
 // Empty State
 function EmptyState() {
   return (
@@ -14,10 +17,15 @@ export default async function IPOpage({
 }) {
   const { locale } = await params;
 
-  const title = locale === "ar" ? "الاكتتابات" : "IPO Tracker";
+  const supabase = createServiceClient();
+  
+  // Fetch IPOs from database
+  const { data: ipos } = await supabase
+    .from("ipos")
+    .select("*")
+    .order("offering_date", { ascending: false });
 
-  // This would fetch from ipos table - placeholder
-  const ipos: any[] = [];
+  const title = locale === "ar" ? "الاكتتابات" : "IPO Tracker";
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
