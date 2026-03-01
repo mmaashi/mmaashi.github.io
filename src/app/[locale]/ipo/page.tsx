@@ -38,7 +38,7 @@ export default async function IPOpage({
       </div>
 
       {/* IPOs Table */}
-      {ipos.length === 0 ? (
+      {!ipos || ipos.length === 0 ? (
         <EmptyState />
       ) : (
         <div className="bg-[#111827] rounded-lg overflow-hidden">
