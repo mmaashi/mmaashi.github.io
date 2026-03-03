@@ -20,7 +20,7 @@ export default async function ScreenerPage({
     .from("stock_prices")
     .select("company_id, close, volume, date")
     .order("date", { ascending: false })
-    .limit(200);
+    .limit(1200);
 
   const priceMap = new Map<string, { close: number; prevClose: number | null; volume: number }>();
   const seenDates = new Map<string, number>();

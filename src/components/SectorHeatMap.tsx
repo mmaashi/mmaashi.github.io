@@ -17,17 +17,26 @@ interface Props {
 async function getSectorPerformance(): Promise<SectorData[]> {
   const supabase = createServiceClient();
 
-  // Get the two most recent distinct trading dates
-  const { data: dates } = await supabase
+  // Get the most recent trading date
+  const { data: latestRows } = await supabase
     .from("stock_prices")
     .select("date")
     .order("date", { ascending: false })
-    .limit(2);
+    .limit(1);
 
-  if (!dates || dates.length < 2) return [];
+  if (!latestRows || latestRows.length === 0) return [];
+  const latestDate = latestRows[0].date as string;
 
-  const latestDate = dates[0].date as string;
-  const prevDate   = dates[1].date as string;
+  // Get the previous distinct trading date (strictly before latestDate)
+  const { data: prevRows } = await supabase
+    .from("stock_prices")
+    .select("date")
+    .lt("date", latestDate)
+    .order("date", { ascending: false })
+    .limit(1);
+
+  if (!prevRows || prevRows.length === 0) return [];
+  const prevDate = prevRows[0].date as string;
 
   // Fetch latest prices for all companies
   const [{ data: latestPrices }, { data: prevPrices }] = await Promise.all([
