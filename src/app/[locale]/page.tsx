@@ -11,11 +11,45 @@ import {
   Home,
 } from "lucide-react";
 import { t, tMood, tSector } from "@/lib/i18n";
+import { calculateScores } from "@/lib/scores";
+import { scoreVerdict } from "@/lib/format";
+import { displayName } from "@/lib/display-names";
 import SectorHeatMap from "@/components/SectorHeatMap";
 
 // ════════════════════════════════════════════════════════════════
 // Helpers — compute SŪQAI score & fetch stock fundamentals
 // ════════════════════════════════════════════════════════════════
+
+/** Generate a computed verdict sentence from actual pillar scores */
+function computeVerdict(
+  pillars: StockFundamentals["pillars"],
+  score: number | null,
+  locale: string,
+): string {
+  const isAr = locale === "ar";
+  if (score === null) return isAr ? "بيانات غير كافية للتقييم." : "Insufficient data for analysis.";
+
+  const { label } = scoreVerdict(score, locale);
+
+  // Find strongest and weakest pillars
+  const entries: [string, number][] = [];
+  const nameMapEn: Record<string, string> = { value: "valuation", growth: "growth", momentum: "momentum", health: "financial health", dividends: "dividends" };
+  const nameMapAr: Record<string, string> = { value: "التقييم", growth: "النمو", momentum: "الزخم", health: "الملاءة المالية", dividends: "التوزيعات" };
+  for (const [k, v] of Object.entries(pillars)) {
+    if (v !== null) entries.push([k, v]);
+  }
+  if (entries.length === 0) return isAr ? "بيانات غير كافية للتقييم." : "Insufficient data for analysis.";
+
+  entries.sort((a, b) => b[1] - a[1]);
+  const strongest = entries[0];
+  const weakest = entries[entries.length - 1];
+  const nameMap = isAr ? nameMapAr : nameMapEn;
+
+  if (isAr) {
+    return `التقييم: ${label}. أقوى جانب: ${nameMap[strongest[0]]}${weakest[1] < 40 ? `. يحتاج تحسين: ${nameMap[weakest[0]]}` : ""}.`;
+  }
+  return `Rating: ${label}. Strongest: ${nameMap[strongest[0]]}${weakest[1] < 40 ? `. Needs improvement: ${nameMap[weakest[0]]}` : ""}.`;
+}
 
 interface StockFundamentals {
   ticker: string;
@@ -29,7 +63,6 @@ interface StockFundamentals {
   peRatio: number | null;
   roe: number | null;
   debtToEquity: number | null;
-  verdictKey: string;
   pillars: {
     value: number | null;
     growth: number | null;
@@ -37,62 +70,11 @@ interface StockFundamentals {
     health: number | null;
     dividends: number | null;
   };
-}
-
-/** Clamp a pillar score to 0–100 range */
-function clamp(v: number): number {
-  return Math.max(0, Math.min(100, Math.round(v)));
-}
-
-/** Compute a basic SŪQAI score from available fundamentals */
-function computeScore(fin: any, divYieldPct: number | null, priceChange: number | null): {
-  total: number | null;
-  pillars: StockFundamentals["pillars"];
-} {
-  const pillars = { value: null as number | null, growth: null as number | null, momentum: null as number | null, health: null as number | null, dividends: null as number | null };
-  let count = 0;
-  let sum = 0;
-
-  // Value pillar: based on P/E ratio (lower is better, <15 = 90, >40 = 20)
-  if (fin?.pe_ratio != null && fin.pe_ratio > 0) {
-    pillars.value = clamp(100 - (fin.pe_ratio - 5) * 2);
-    sum += pillars.value; count++;
-  }
-
-  // Growth pillar: based on EPS (positive = good) + revenue growth proxy
-  if (fin?.earnings_per_share != null) {
-    const epsScore = fin.earnings_per_share > 0 ? clamp(50 + fin.earnings_per_share * 5) : clamp(30 - Math.abs(fin.earnings_per_share) * 3);
-    pillars.growth = epsScore;
-    sum += pillars.growth; count++;
-  }
-
-  // Momentum pillar: based on daily price change
-  if (priceChange != null) {
-    pillars.momentum = clamp(50 + priceChange * 10);
-    sum += pillars.momentum; count++;
-  }
-
-  // Health pillar: based on debt-to-equity and ROE
-  if (fin?.debt_to_equity != null || fin?.roe != null) {
-    let healthScore = 50;
-    if (fin.debt_to_equity != null) healthScore += fin.debt_to_equity < 1 ? 20 : fin.debt_to_equity < 2 ? 0 : -20;
-    if (fin.roe != null) healthScore += fin.roe > 0.15 ? 20 : fin.roe > 0.08 ? 10 : 0;
-    pillars.health = clamp(healthScore);
-    sum += pillars.health; count++;
-  }
-
-  // Dividends pillar: based on yield
-  if (divYieldPct != null && divYieldPct > 0) {
-    pillars.dividends = clamp(divYieldPct * 15); // 6.7% yield = 100
-    sum += pillars.dividends; count++;
-  }
-
-  const total = count >= 2 ? Math.round(sum / count) : null;
-  return { total, pillars };
+  dataDate: string | null;
 }
 
 /** Fetch fundamentals for a set of tickers */
-async function fetchFundamentals(tickers: string[], verdictKeys: string[]): Promise<StockFundamentals[]> {
+async function fetchFundamentals(tickers: string[]): Promise<StockFundamentals[]> {
   const supabase = createServiceClient();
 
   // Fetch companies
@@ -118,14 +100,14 @@ async function fetchFundamentals(tickers: string[], verdictKeys: string[]): Prom
     if (!finMap.has(f.company_id)) finMap.set(f.company_id, f);
   }
 
-  // Fetch recent dividends (last 2 years)
-  const twoYearsAgo = new Date();
-  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+  // Fetch recent dividends (last 1 year for proper annual yield)
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
   const { data: dividends } = await supabase
     .from("dividends")
     .select("company_id, amount_per_share, ex_date")
     .in("company_id", companyIds)
-    .gte("ex_date", twoYearsAgo.toISOString().split("T")[0])
+    .gte("ex_date", oneYearAgo.toISOString().split("T")[0])
     .order("ex_date", { ascending: false });
 
   // Sum dividends per company for annual yield
@@ -147,8 +129,8 @@ async function fetchFundamentals(tickers: string[], verdictKeys: string[]): Prom
     if (!priceMap.has(p.company_id)) priceMap.set(p.company_id, p);
   }
 
-  // Assemble results
-  return tickers.map((ticker, i) => {
+  // Assemble results — using the canonical calculateScores from scores.ts
+  return tickers.map((ticker) => {
     const comp = companyMap.get(ticker);
     const compId = comp?.id;
     const fin = compId ? finMap.get(compId) : null;
@@ -161,22 +143,50 @@ async function fetchFundamentals(tickers: string[], verdictKeys: string[]): Prom
       : null;
     const divYieldPct = (totalDivs && price && price > 0) ? (totalDivs / price) * 100 : null;
 
-    const { total, pillars } = computeScore(fin, divYieldPct, priceChange);
+    // Use the SAME scoring algorithm as the stock detail page
+    const scores = calculateScores({
+      pe: fin?.pe_ratio ?? null,
+      eps: fin?.earnings_per_share ?? null,
+      divYield: divYieldPct,
+      revenue: fin?.revenue ?? null,
+      netIncome: fin?.net_income ?? null,
+      changePct: priceChange,
+      currentPrice: price,
+      fiftyTwoHigh: null, // not fetched on homepage — momentum defaults to 2.5 ± change
+      fiftyTwoLow: null,
+      debtToEquity: fin?.debt_to_equity ?? null,
+      roe: fin?.roe ?? null,
+    });
+
+    // Convert 0-5 pillar scores to 0-100 scale for display
+    const toHundred = (v: number) => Math.round(v * 20);
+    const pillars = {
+      value: toHundred(scores.value),
+      growth: toHundred(scores.growth),
+      momentum: toHundred(scores.momentum),
+      health: toHundred(scores.health),
+      dividends: toHundred(scores.dividend),
+    };
+
+    // Overall score = average of 5 pillars (0-100 scale)
+    const overall = Math.round(
+      (pillars.value + pillars.growth + pillars.momentum + pillars.health + pillars.dividends) / 5
+    );
 
     return {
       ticker,
       nameEn: comp?.name_en || ticker,
       nameAr: comp?.name_ar || ticker,
       sector: comp?.sector || "",
-      score: total,
+      score: overall,
       latestPrice: price,
       priceChange,
       divYield: divYieldPct != null ? `${divYieldPct.toFixed(1)}%` : null,
       peRatio: fin?.pe_ratio ?? null,
       roe: fin?.roe ?? null,
       debtToEquity: fin?.debt_to_equity ?? null,
-      verdictKey: verdictKeys[i] || "featured.verdict1",
       pillars,
+      dataDate: latestPrice?.date ?? null,
     };
   });
 }
@@ -276,19 +286,19 @@ function HeroSection({ locale, heroStock }: { locale: string; heroStock: StockFu
               </span>
             </div>
             <p className="font-bold" style={{ fontSize: 15, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
-              {isAr ? heroStock.nameAr : heroStock.nameEn}
+              {displayName(locale, heroStock.nameEn, heroStock.nameAr)}
             </p>
             <p className="font-num" style={{ fontSize: 11, color: "var(--c-muted)", marginBottom: 10 }}>{heroStock.ticker}</p>
             <div className="flex items-center gap-4 mb-2">
               <div>
                 <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "score.label")}</span>
                 <p className="font-num font-bold" style={{ fontSize: 16, color: "var(--c-gold)" }}>
-                  {heroStock.score ?? na}
+                  {heroStock.score != null ? <>{heroStock.score}<span style={{ fontSize: 10, fontWeight: 500, color: "var(--c-dim)" }}>/100</span></> : na}
                 </p>
               </div>
               <div style={{ width: 1, height: 28, background: "var(--c-border)" }} />
               <div>
-                <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "featured.fair_value")}</span>
+                <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "featured.latest_price")}</span>
                 <p className="font-num font-bold" style={{ fontSize: 14, color: "var(--c-text)" }}>
                   {heroStock.latestPrice != null ? `${heroStock.latestPrice.toFixed(2)} ${sar}` : na}
                 </p>
@@ -436,26 +446,29 @@ function FeaturedAnalysis({ locale, stocks }: { locale: string; stocks: StockFun
             <div className="flex items-center justify-between mb-2">
               <div>
                 <p className="font-bold" style={{ fontSize: 14, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
-                  {isAr ? f.nameAr : f.nameEn}
+                  {displayName(locale, f.nameEn, f.nameAr)}
                 </p>
                 <p className="font-num" style={{ fontSize: 11, color: "var(--c-dim)" }}>{f.ticker}</p>
               </div>
               <div
-                className="flex items-center justify-center rounded-lg"
+                className="flex flex-col items-center justify-center rounded-lg"
                 style={{
-                  width: 38, height: 38,
+                  width: 44, height: 38,
                   background: "var(--c-gold-dim)",
                   border: "1px solid var(--c-gold-ring)",
                 }}
               >
-                <span className="font-num font-bold" style={{ fontSize: 15, color: "var(--c-gold)" }}>
+                <span className="font-num font-bold" style={{ fontSize: 15, lineHeight: 1, color: "var(--c-gold)" }}>
                   {f.score ?? na}
                 </span>
+                {f.score != null && (
+                  <span className="font-num" style={{ fontSize: 8, color: "var(--c-dim)", lineHeight: 1, marginTop: 1 }}>/100</span>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-4 mt-2">
               <div>
-                <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "featured.fair_value")}</span>
+                <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "featured.latest_price")}</span>
                 <p className="font-num font-semibold" style={{ fontSize: 13, color: "var(--c-text)" }}>
                   {f.latestPrice != null ? `${f.latestPrice.toFixed(2)} ${sar}` : na}
                 </p>
@@ -468,29 +481,65 @@ function FeaturedAnalysis({ locale, stocks }: { locale: string; stocks: StockFun
                 </p>
               </div>
             </div>
-            {/* Pillar mini-bars */}
+            {/* Pillar mini-bars with labels */}
             {f.pillars && (
-              <div className="flex items-center gap-1 mt-3" style={{ height: 4 }}>
+              <div className="flex gap-1 mt-3">
                 {(["value", "growth", "momentum", "health", "dividends"] as const).map((k) => {
                   const v = f.pillars[k];
                   const pct = v != null ? Math.min(100, Math.max(0, v)) : 0;
+                  const labelEn: Record<string, string> = { value: "V", growth: "G", momentum: "M", health: "H", dividends: "D" };
+                  const labelAr: Record<string, string> = { value: "ق", growth: "ن", momentum: "ز", health: "ص", dividends: "ت" };
                   return (
-                    <div key={k} style={{ flex: 1, height: 4, borderRadius: 2, background: "var(--c-border)", overflow: "hidden" }}>
-                      <div style={{
-                        width: `${pct}%`,
-                        height: "100%",
-                        borderRadius: 2,
-                        background: pct >= 70 ? "var(--c-green)" : pct >= 40 ? "var(--c-gold)" : "var(--c-red)",
-                      }} />
+                    <div key={k} style={{ flex: 1, textAlign: "center" }}>
+                      <span style={{ fontSize: 8, fontWeight: 600, color: "var(--c-dim)", letterSpacing: "0.02em" }}>
+                        {isAr ? labelAr[k] : labelEn[k]}
+                      </span>
+                      <div style={{ height: 4, borderRadius: 2, background: "var(--c-border)", overflow: "hidden", marginTop: 2 }}>
+                        <div style={{
+                          width: `${pct}%`,
+                          height: "100%",
+                          borderRadius: 2,
+                          background: pct >= 70 ? "var(--c-green)" : pct >= 40 ? "var(--c-gold)" : "var(--c-red)",
+                        }} />
+                      </div>
                     </div>
                   );
                 })}
               </div>
             )}
-            {/* Verdict line */}
+            {/* Verdict line — computed from actual pillar scores */}
             <p style={{ fontSize: 11, color: "var(--c-muted)", lineHeight: 1.5, marginTop: 8 }}>
-              {t(locale, f.verdictKey)}
+              {computeVerdict(f.pillars, f.score, locale)}
             </p>
+            {/* Pillar contribution chips — H4 */}
+            {f.pillars && (() => {
+              const chipNameEn: Record<string, string> = { value: "Value", growth: "Growth", momentum: "Momentum", health: "Health", dividends: "Dividends" };
+              const chipNameAr: Record<string, string> = { value: "التقييم", growth: "النمو", momentum: "الزخم", health: "الملاءة", dividends: "التوزيعات" };
+              const chips: { label: string; color: string; bg: string }[] = [];
+              for (const [k, v] of Object.entries(f.pillars)) {
+                if (v == null) continue;
+                const name = isAr ? chipNameAr[k] : chipNameEn[k];
+                if (v >= 70) chips.push({ label: `✓ ${name}`, color: "var(--c-green)", bg: "rgba(34,197,94,0.10)" });
+                else if (v < 40) chips.push({ label: `↓ ${name}`, color: "var(--c-red)", bg: "rgba(239,68,68,0.10)" });
+              }
+              if (chips.length === 0) return null;
+              return (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {chips.map((c) => (
+                    <span key={c.label} style={{ fontSize: 9, fontWeight: 600, color: c.color, background: c.bg, borderRadius: 4, padding: "2px 6px" }}>
+                      {c.label}
+                    </span>
+                  ))}
+                </div>
+              );
+            })()}
+            {/* Data freshness */}
+            {f.dataDate && (
+              <p style={{ fontSize: 9, color: "var(--c-dim)", marginTop: 4 }}>
+                {isAr ? "بتاريخ" : "As of"}{" "}
+                {new Date(f.dataDate).toLocaleDateString(isAr ? "ar-SA" : "en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </p>
+            )}
             {/* CTA button */}
             <span
               className="inline-flex items-center mt-3 px-4 py-1.5 rounded-lg font-semibold"
@@ -949,10 +998,9 @@ export default async function DashboardPage({
 
   // Fetch real featured-stock data once, pass down as props
   const featuredTickers = ["1120", "2222", "7010"];
-  const verdictKeys = ["featured.verdict1", "featured.verdict2", "featured.verdict3"];
   let featuredStocks: StockFundamentals[] = [];
   try {
-    featuredStocks = await fetchFundamentals(featuredTickers, verdictKeys);
+    featuredStocks = await fetchFundamentals(featuredTickers);
   } catch {
     // graceful degradation — sections will show empty / "N/A"
   }

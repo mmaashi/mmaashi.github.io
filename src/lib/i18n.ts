@@ -271,12 +271,10 @@ const translations: Record<string, Record<string, string>> = {
 
     // Homepage Featured Analysis
     "featured.title": "Featured Stock Analysis",
-    "featured.fair_value": "Fair Value",
+    "featured.latest_price": "Latest Price",
     "featured.div_yield": "Div. Yield",
     "featured.view": "View Analysis",
-    "featured.verdict1": "Strong financial health and stable dividend profile.",
-    "featured.verdict2": "Attractive dividend, but valuation looks less compelling.",
-    "featured.verdict3": "Balanced growth and income, with moderate risk.",
+    // verdict keys removed — verdicts are now computed from actual pillar scores
 
     // Homepage Market Snapshot
     "snapshot.title": "Today in the Saudi market",
@@ -584,12 +582,10 @@ const translations: Record<string, Record<string, string>> = {
 
     // Homepage Featured Analysis
     "featured.title": "تحليل أسهم مميزة",
-    "featured.fair_value": "القيمة العادلة",
+    "featured.latest_price": "آخر سعر",
     "featured.div_yield": "عائد التوزيعات",
     "featured.view": "عرض التحليل",
-    "featured.verdict1": "ملاءة مالية قوية مع توزيعات مستقرة.",
-    "featured.verdict2": "عائد توزيعات جيد، لكن التقييم أقل جاذبية.",
-    "featured.verdict3": "توازن بين النمو والدخل مع مستوى مخاطر متوسط.",
+    // verdict keys removed — verdicts are now computed from actual pillar scores
 
     // Homepage Market Snapshot
     "snapshot.title": "ماذا يحدث اليوم في السوق السعودي",
