@@ -239,7 +239,7 @@ function HeroSection({ locale, heroStock }: { locale: string; heroStock: StockFu
               <ArrowUpRight size={14} style={isAr ? { transform: "scaleX(-1)" } : undefined} />
             </Link>
             <Link
-              href={`/${locale}/portfolio`}
+              href={`/${locale}/screener`}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all"
               style={{
                 background: "transparent",
@@ -249,7 +249,7 @@ function HeroSection({ locale, heroStock }: { locale: string; heroStock: StockFu
                 fontFamily: "var(--font-grotesk)",
               }}
             >
-              <Briefcase size={13} />
+              <SlidersHorizontal size={13} />
               {t(locale, "hero.cta_secondary")}
             </Link>
           </div>
@@ -271,7 +271,7 @@ function HeroSection({ locale, heroStock }: { locale: string; heroStock: StockFu
           >
             <div className="flex items-center gap-2 mb-2">
               <Star size={12} style={{ color: "var(--c-gold)" }} />
-              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--c-gold)", letterSpacing: "0.06em" }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--c-gold)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
                 {isAr ? "سهم مميز" : "FEATURED"}
               </span>
             </div>
@@ -281,21 +281,21 @@ function HeroSection({ locale, heroStock }: { locale: string; heroStock: StockFu
             <p className="font-num" style={{ fontSize: 11, color: "var(--c-muted)", marginBottom: 10 }}>{heroStock.ticker}</p>
             <div className="flex items-center gap-4 mb-2">
               <div>
-                <span style={{ fontSize: 9, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "score.label")}</span>
+                <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "score.label")}</span>
                 <p className="font-num font-bold" style={{ fontSize: 16, color: "var(--c-gold)" }}>
                   {heroStock.score ?? na}
                 </p>
               </div>
               <div style={{ width: 1, height: 28, background: "var(--c-border)" }} />
               <div>
-                <span style={{ fontSize: 9, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "featured.fair_value")}</span>
+                <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "featured.fair_value")}</span>
                 <p className="font-num font-bold" style={{ fontSize: 14, color: "var(--c-text)" }}>
                   {heroStock.latestPrice != null ? `${heroStock.latestPrice.toFixed(2)} ${sar}` : na}
                 </p>
               </div>
               <div style={{ width: 1, height: 28, background: "var(--c-border)" }} />
               <div>
-                <span style={{ fontSize: 9, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "featured.div_yield")}</span>
+                <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "featured.div_yield")}</span>
                 <p className="font-num font-bold" style={{ fontSize: 14, color: "var(--c-green)" }}>
                   {heroStock.divYield ?? na}
                 </p>
@@ -378,7 +378,7 @@ function FeaturesSection({ locale }: { locale: string }) {
     <section className="fade-up" style={{ marginBottom: 32 }}>
       <h2
         className="font-bold mb-4"
-        style={{ fontSize: 16, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}
+        style={{ fontSize: 17, color: "var(--c-text)", fontFamily: "var(--font-grotesk)", letterSpacing: "-0.01em" }}
       >
         {t(locale, "features.title")}
       </h2>
@@ -388,7 +388,7 @@ function FeaturesSection({ locale }: { locale: string }) {
             key={num}
             href={href}
             className="card group"
-            style={{ padding: "18px 18px", textDecoration: "none", transition: "all 0.2s" }}
+            style={{ padding: "20px 20px", textDecoration: "none", transition: "all 0.2s" }}
           >
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center mb-3"
@@ -399,7 +399,7 @@ function FeaturesSection({ locale }: { locale: string }) {
             <h3 className="font-semibold mb-1" style={{ fontSize: 13, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
               {t(locale, `features.card${num}.title`)}
             </h3>
-            <p style={{ fontSize: 11, color: "var(--c-muted)", lineHeight: 1.55 }}>
+            <p style={{ fontSize: 12, color: "var(--c-muted)", lineHeight: 1.6 }}>
               {t(locale, `features.card${num}.desc`)}
             </p>
           </Link>
@@ -421,7 +421,7 @@ function FeaturedAnalysis({ locale, stocks }: { locale: string; stocks: StockFun
     <section className="fade-up" style={{ marginBottom: 32 }}>
       <h2
         className="font-bold mb-4"
-        style={{ fontSize: 16, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}
+        style={{ fontSize: 17, color: "var(--c-text)", fontFamily: "var(--font-grotesk)", letterSpacing: "-0.01em" }}
       >
         {t(locale, "featured.title")}
       </h2>
@@ -431,7 +431,7 @@ function FeaturedAnalysis({ locale, stocks }: { locale: string; stocks: StockFun
             key={f.ticker}
             href={`/${locale}/stock/${f.ticker}`}
             className="card group"
-            style={{ padding: "18px 18px", textDecoration: "none", transition: "all 0.2s" }}
+            style={{ padding: "20px 20px", textDecoration: "none", transition: "all 0.2s" }}
           >
             <div className="flex items-center justify-between mb-2">
               <div>
@@ -455,14 +455,14 @@ function FeaturedAnalysis({ locale, stocks }: { locale: string; stocks: StockFun
             </div>
             <div className="flex items-center gap-4 mt-2">
               <div>
-                <span style={{ fontSize: 9, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "featured.fair_value")}</span>
+                <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "featured.fair_value")}</span>
                 <p className="font-num font-semibold" style={{ fontSize: 13, color: "var(--c-text)" }}>
                   {f.latestPrice != null ? `${f.latestPrice.toFixed(2)} ${sar}` : na}
                 </p>
               </div>
               <div style={{ width: 1, height: 24, background: "var(--c-border)" }} />
               <div>
-                <span style={{ fontSize: 9, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "featured.div_yield")}</span>
+                <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "featured.div_yield")}</span>
                 <p className="font-num font-semibold" style={{ fontSize: 13, color: "var(--c-green)" }}>
                   {f.divYield ?? na}
                 </p>
@@ -530,7 +530,7 @@ async function MarketSnapshot({ locale }: { locale: string }) {
       <section className="fade-up" style={{ marginBottom: 32 }}>
         <h2
           className="font-bold mb-4"
-          style={{ fontSize: 16, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}
+          style={{ fontSize: 17, color: "var(--c-text)", fontFamily: "var(--font-grotesk)", letterSpacing: "-0.01em" }}
         >
           {t(locale, "snapshot.title")}
         </h2>
@@ -570,7 +570,7 @@ async function MarketSnapshot({ locale }: { locale: string }) {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
             {/* Breadth */}
             <div className="stat-card" style={{ padding: "10px 12px" }}>
-              <span style={{ fontSize: 9, color: "var(--c-dim)", fontWeight: 600, letterSpacing: "0.05em" }}>
+              <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600, letterSpacing: "0.05em" }}>
                 {t(locale, "snapshot.breadth")}
               </span>
               <div className="flex items-center gap-2 mt-1">
@@ -585,7 +585,7 @@ async function MarketSnapshot({ locale }: { locale: string }) {
 
             {/* Unchanged */}
             <div className="stat-card" style={{ padding: "10px 12px" }}>
-              <span style={{ fontSize: 9, color: "var(--c-dim)", fontWeight: 600, letterSpacing: "0.05em" }}>
+              <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600, letterSpacing: "0.05em" }}>
                 {t(locale, "market.unchanged")}
               </span>
               <p className="font-num font-bold mt-1" style={{ fontSize: 14, color: "var(--c-text)" }}>{s.unchanged}</p>
@@ -593,7 +593,7 @@ async function MarketSnapshot({ locale }: { locale: string }) {
 
             {/* Volume */}
             <div className="stat-card" style={{ padding: "10px 12px" }}>
-              <span style={{ fontSize: 9, color: "var(--c-dim)", fontWeight: 600, letterSpacing: "0.05em" }}>
+              <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600, letterSpacing: "0.05em" }}>
                 {t(locale, "market.volume")}
               </span>
               <p className="font-num font-bold mt-1" style={{ fontSize: 14, color: "var(--c-text)" }}>
@@ -604,7 +604,7 @@ async function MarketSnapshot({ locale }: { locale: string }) {
             {/* Traded Value */}
             {s.total_value != null && (
               <div className="stat-card" style={{ padding: "10px 12px" }}>
-                <span style={{ fontSize: 9, color: "var(--c-dim)", fontWeight: 600, letterSpacing: "0.05em" }}>
+                <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600, letterSpacing: "0.05em" }}>
                   {t(locale, "snapshot.traded")}
                 </span>
                 <p className="font-num font-bold mt-1" style={{ fontSize: 14, color: "var(--c-text)" }}>
@@ -616,7 +616,7 @@ async function MarketSnapshot({ locale }: { locale: string }) {
             {/* Top Sector */}
             {s.top_sector && (
               <div className="stat-card" style={{ padding: "10px 12px" }}>
-                <span style={{ fontSize: 9, color: "var(--c-dim)", fontWeight: 600, letterSpacing: "0.05em" }}>
+                <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600, letterSpacing: "0.05em" }}>
                   {t(locale, "snapshot.top_sector")}
                 </span>
                 <p className="font-bold mt-1" style={{ fontSize: 13, color: "var(--c-gold)" }}>
@@ -627,7 +627,7 @@ async function MarketSnapshot({ locale }: { locale: string }) {
 
             {/* Market Mood */}
             <div className="stat-card" style={{ padding: "10px 12px" }}>
-              <span style={{ fontSize: 9, color: "var(--c-dim)", fontWeight: 600, letterSpacing: "0.05em" }}>
+              <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600, letterSpacing: "0.05em" }}>
                 {t(locale, "market.mood")}
               </span>
               <p className="font-bold mt-1" style={{ fontSize: 13, color: isUp ? "var(--c-green)" : "var(--c-red)" }}>
@@ -685,15 +685,15 @@ async function MoversPanel({ locale }: { locale: string }) {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                style={{ background: type === "up" ? "var(--c-green-bg)" : "var(--c-red-bg)",
                         border: `1px solid ${type === "up" ? "var(--c-green-ring)" : "var(--c-red-ring)"}` }}>
-            <span style={{ fontSize: 9, fontWeight: 700, color: type === "up" ? "var(--c-green)" : "var(--c-red)" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: type === "up" ? "var(--c-green)" : "var(--c-red)" }}>
               {s.symbol.slice(0, 4)}
             </span>
           </div>
           <div>
-            <p className="font-semibold text-sm" style={{ color: "var(--c-text)" }}>{s.symbol}</p>
-            <p className="truncate" style={{ fontSize: 11, color: "var(--c-muted)", maxWidth: 110 }}>
-              {(locale === "ar" && s.name_ar) ? s.name_ar : (s.name_en || s.name)}
+            <p className="font-semibold text-sm truncate" style={{ color: "var(--c-text)", maxWidth: 130 }}>
+              {(locale === "ar" && s.name_ar) ? s.name_ar : (s.name_en || s.name || s.symbol)}
             </p>
+            <p className="font-num" style={{ fontSize: 11, color: "var(--c-dim)" }}>{s.symbol}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -814,7 +814,7 @@ async function NewsPanel({ locale }: { locale: string }) {
                   <div className="flex items-start gap-2">
                     {sentiment && (
                       <span className={`badge ${sentiment === "up" ? "badge-up" : "badge-down"} mt-0.5 shrink-0`}
-                            style={{ padding: "1px 5px", fontSize: 9 }}>
+                            style={{ padding: "2px 6px", fontSize: 10 }}>
                         {sentiment === "up" ? "▲" : "▼"}
                       </span>
                     )}
@@ -857,7 +857,7 @@ function TrustSection({ locale }: { locale: string }) {
     <section className="fade-up" style={{ marginBottom: 32 }}>
       <h2
         className="font-bold mb-4"
-        style={{ fontSize: 16, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}
+        style={{ fontSize: 17, color: "var(--c-text)", fontFamily: "var(--font-grotesk)", letterSpacing: "-0.01em" }}
       >
         {t(locale, "trust.title")}
       </h2>
@@ -916,7 +916,7 @@ function FooterSection({ locale }: { locale: string }) {
         </p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           {footerLinks.map(({ label, href }) => (
-            <Link key={href} href={href} style={{ fontSize: 11, color: "var(--c-muted)", textDecoration: "none" }}>
+            <Link key={href} href={href} style={{ fontSize: 12, color: "var(--c-muted)", textDecoration: "none" }}>
               {label}
             </Link>
           ))}
@@ -924,13 +924,13 @@ function FooterSection({ locale }: { locale: string }) {
       </div>
 
       {/* Built with line */}
-      <p style={{ fontSize: 11, color: "var(--c-muted)", textAlign: "center", marginBottom: 12 }}>
+      <p style={{ fontSize: 12, color: "var(--c-muted)", textAlign: "center", marginBottom: 12 }}>
         {t(locale, "footer.built_with")}
       </p>
 
       {/* Disclaimer note */}
       <hr className="gold-line" style={{ marginBottom: 12 }} />
-      <p style={{ fontSize: 10, color: "var(--c-dim)", textAlign: "center", lineHeight: 1.6, maxWidth: 560, margin: "0 auto", paddingBottom: 24 }}>
+      <p style={{ fontSize: 11, color: "var(--c-dim)", textAlign: "center", lineHeight: 1.6, maxWidth: 560, margin: "0 auto", paddingBottom: 24 }}>
         {t(locale, "footer.note")}
       </p>
     </footer>

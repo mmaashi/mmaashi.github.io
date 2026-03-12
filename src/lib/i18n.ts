@@ -592,7 +592,7 @@ const translations: Record<string, Record<string, string>> = {
     "trust.step2.title": "منطق التحليل",
     "trust.step2.desc": "تم تصميم التقييمات والرؤى لمساعدة المستخدم على استكشاف الأسهم بشكل أسرع وفهم الشركات بشكل أوضح.",
     "trust.step3.title": "إخلاء المسؤولية",
-    "trust.step3.desc": "يوفر سوقAI المعلومات لأغراض بحثية وتعليمية فقط، ولا يُعد ذلك نصيحة استثمارية.",
+    "trust.step3.desc": "يوفر SŪQAI المعلومات لأغراض بحثية وتعليمية فقط، ولا يُعد ذلك نصيحة استثمارية.",
 
     // Homepage Footer
     "footer.about": "من نحن",
@@ -602,7 +602,7 @@ const translations: Record<string, Record<string, string>> = {
     "footer.screener": "فلترة الأسهم",
     "footer.contact": "تواصل معنا",
     "footer.disclaimer_link": "إخلاء المسؤولية",
-    "footer.note": "يوفر سوقAI بيانات سوق مترجمة لأغراض معلوماتية فقط، وليست نصيحة استثمارية.",
+    "footer.note": "يوفر SŪQAI بيانات سوق مترجمة لأغراض معلوماتية فقط، وليست نصيحة استثمارية.",
     "footer.built_with": "صُنع بالذكاء الاصطناعي لمجتمع المستثمرين السعودي",
 
     // Common
