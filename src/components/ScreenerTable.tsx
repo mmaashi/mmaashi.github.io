@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Filter } from "lucide-react";
 import { t, tSector } from "@/lib/i18n";
+import { displayName } from "@/lib/display-names";
 
 interface Company {
   id: string;
@@ -172,7 +173,7 @@ export default function ScreenerTable({
               <tbody>
                 {filtered.map((c) => {
                   const isUp = (c.change_pct ?? 0) >= 0;
-                  const name = locale === "ar" && c.name_ar ? c.name_ar : c.name_en;
+                  const name = displayName(locale, c.name_en, c.name_ar);
                   return (
                     <tr
                       key={c.ticker}
@@ -187,7 +188,7 @@ export default function ScreenerTable({
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                                style={{ background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}>
-                            <span style={{ fontSize: 8, fontWeight: 800, color: "var(--c-gold)" }}>
+                            <span style={{ fontSize: 10, fontWeight: 800, color: "var(--c-gold)" }}>
                               {c.ticker.slice(0, 4)}
                             </span>
                           </div>

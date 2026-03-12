@@ -10,6 +10,7 @@ import {
   Star,
   Bot,
   Rocket,
+  BarChart3,
 } from "lucide-react";
 
 export default async function AboutPage({
@@ -52,12 +53,26 @@ export default async function AboutPage({
       bg: "rgba(167,139,250,0.08)",
       ring: "rgba(167,139,250,0.2)",
     },
+    {
+      icon: Briefcase,
+      title: t(locale, "about.feature_portfolio"),
+      desc: t(locale, "about.feature_portfolio_desc"),
+      color: "var(--c-gold)",
+      bg: "var(--c-gold-dim)",
+      ring: "var(--c-gold-ring)",
+    },
+    {
+      icon: BarChart3,
+      title: t(locale, "about.feature_score"),
+      desc: t(locale, "about.feature_score_desc"),
+      color: "var(--c-green)",
+      bg: "var(--c-green-bg)",
+      ring: "var(--c-green-ring)",
+    },
   ];
 
   const comingSoon = [
-    { icon: Briefcase, label: t(locale, "about.coming_portfolio") },
     { icon: GitCompare, label: t(locale, "about.coming_compare") },
-    { icon: Star, label: t(locale, "about.coming_score") },
     { icon: Bot, label: t(locale, "about.coming_ai") },
   ];
 

@@ -1,6 +1,8 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { t, tSector } from "@/lib/i18n";
 import { calculateScores } from "@/lib/scores";
+import { scoreVerdict } from "@/lib/format";
+import { displayName } from "@/lib/display-names";
 import { Info, Briefcase } from "lucide-react";
 import DashboardSummaryCards from "@/components/dashboard/DashboardSummaryCards";
 import PortfolioPerformanceChart from "@/components/dashboard/PortfolioPerformanceChart";
@@ -187,7 +189,7 @@ export default async function PortfolioPage({
 
     holdings.push({
       ticker: h.ticker,
-      name: locale === "ar" ? (company.name_ar || company.name_en) : company.name_en,
+      name: displayName(locale, company.name_en, company.name_ar),
       sector: company.sector || "Other",
       shares: h.shares,
       avgCost: h.avgCost,
@@ -261,8 +263,8 @@ export default async function PortfolioPage({
       id: `div-${comp.ticker}-${d.pay_date}`,
       type: "dividend",
       ticker: comp.ticker,
-      title: `${sar} ${Number(d.amount_per_share).toFixed(2)} per share`,
-      subtitle: d.pay_date ? `Pay date: ${d.pay_date}` : "",
+      title: `${sar} ${Number(d.amount_per_share).toFixed(2)} ${t(locale, "portfolio.feed.per_share")}`,
+      subtitle: d.pay_date ? `${t(locale, "portfolio.feed.pay_date")} ${d.pay_date}` : "",
       date: d.ex_date || d.pay_date || new Date().toISOString(),
       color: "var(--c-gold)",
       link: `/${locale}/stock/${comp.ticker}`,
@@ -290,7 +292,7 @@ export default async function PortfolioPage({
         id: `score-high-${h.ticker}`,
         type: "score_alert",
         ticker: h.ticker,
-        title: `SŪQAI Score: ${Math.round(h.overallScore)} — Strong`,
+        title: `${t(locale, "portfolio.feed.score_label")} ${Math.round(h.overallScore)} — ${scoreVerdict(h.overallScore, locale).label}`,
         subtitle: "",
         date: new Date().toISOString(),
         color: "var(--c-green)",
@@ -301,7 +303,7 @@ export default async function PortfolioPage({
         id: `score-low-${h.ticker}`,
         type: "score_alert",
         ticker: h.ticker,
-        title: `SŪQAI Score: ${Math.round(h.overallScore)} — Weak`,
+        title: `${t(locale, "portfolio.feed.score_label")} ${Math.round(h.overallScore)} — ${scoreVerdict(h.overallScore, locale).label}`,
         subtitle: "",
         date: new Date().toISOString(),
         color: "var(--c-red)",
@@ -316,7 +318,7 @@ export default async function PortfolioPage({
         id: `price-${h.ticker}`,
         type: "price_alert",
         ticker: h.ticker,
-        title: `${h.todayChange > 0 ? "+" : ""}${h.todayChange.toFixed(1)}% today`,
+        title: `${h.todayChange > 0 ? "+" : ""}${h.todayChange.toFixed(1)}% ${t(locale, "portfolio.feed.today")}`,
         subtitle: `${sar} ${h.currentPrice.toFixed(2)}`,
         date: new Date().toISOString(),
         color: h.todayChange > 0 ? "var(--c-green)" : "var(--c-red)",
@@ -364,10 +366,10 @@ export default async function PortfolioPage({
             className="font-bold text-xl"
             style={{ color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}
           >
-            {isAr ? "مركز القيادة" : "Portfolio Command Center"}
+            {t(locale, "portfolio.command_center")}
           </h1>
           <p style={{ fontSize: 12, color: "var(--c-muted)" }}>
-            {isAr ? "نظرة شاملة على محفظتك" : "Complete overview of your portfolio"}
+            {t(locale, "portfolio.command_center_desc")}
           </p>
         </div>
       </div>
