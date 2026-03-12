@@ -113,7 +113,7 @@ async function fetchFundamentals(tickers: string[]): Promise<StockFundamentals[]
   // Sum dividends per company for annual yield
   const divMap = new Map<string, number>();
   for (const d of dividends || []) {
-    divMap.set(d.company_id, (divMap.get(d.company_id) || 0) + d.amount_per_share);
+    divMap.set(d.company_id, (divMap.get(d.company_id) || 0) + Number(d.amount_per_share));
   }
 
   // Fetch latest stock price per company
@@ -740,7 +740,7 @@ async function MoversPanel({ locale }: { locale: string }) {
           </div>
           <div>
             <p className="font-semibold text-sm truncate" style={{ color: "var(--c-text)", maxWidth: 130 }}>
-              {(locale === "ar" && s.name_ar) ? s.name_ar : (s.name_en || s.name || s.symbol)}
+              {displayName(locale, s.name_en || s.name || s.symbol, s.name_ar)}
             </p>
             <p className="font-num" style={{ fontSize: 11, color: "var(--c-dim)" }}>{s.symbol}</p>
           </div>
