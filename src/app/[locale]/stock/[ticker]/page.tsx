@@ -6,6 +6,9 @@ import { calculateScores } from "@/lib/scores";
 import StockTabs from "@/components/StockTabs";
 import FinancialChart from "@/components/FinancialChart";
 import StockChat from "@/components/StockChat";
+import VerdictHeader from "@/components/VerdictHeader";
+import FairValueCard from "@/components/FairValueCard";
+import ScoreChecks from "@/components/ScoreChecks";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -28,7 +31,7 @@ import {
 } from "lucide-react";
 import { t, tSector } from "@/lib/i18n";
 
-type Tab = "overview" | "chart" | "financials" | "dividends" | "news" | "info";
+type Tab = "overview" | "chart" | "financials" | "dividends" | "news" | "info" | "analysis";
 
 export default async function StockPage({
   params,
@@ -41,7 +44,7 @@ export default async function StockPage({
   const { tab: rawTab = "overview" } = await searchParams;
 
   const upperTicker = ticker.toUpperCase();
-  const validTabs: Tab[] = ["overview", "chart", "financials", "dividends", "news", "info"];
+  const validTabs: Tab[] = ["overview", "chart", "financials", "dividends", "news", "info", "analysis"];
   const activeTab: Tab = validTabs.includes(rawTab as Tab) ? (rawTab as Tab) : "overview";
 
   const supabase = createServiceClient();
@@ -103,7 +106,7 @@ export default async function StockPage({
       .order("date", { ascending: true }),
     supabase
       .from("financials")
-      .select("earnings_per_share, year, period, net_income, revenue, total_assets, total_liabilities, debt_to_equity, current_ratio, operating_cash_flow, free_cash_flow")
+      .select("earnings_per_share, year, period, net_income, revenue, total_assets, total_liabilities, debt_to_equity, current_ratio, operating_cash_flow, free_cash_flow, roe, gross_profit, operating_income")
       .eq("company_id", company.id)
       .order("year", { ascending: false })
       .order("period", { ascending: false })
@@ -112,8 +115,8 @@ export default async function StockPage({
       .from("dividends")
       .select("amount_per_share, ex_date, pay_date")
       .eq("company_id", company.id)
-      .gte("ex_date", yearAgoStr)
-      .order("ex_date", { ascending: false }),
+      .order("ex_date", { ascending: false })
+      .limit(20),
     supabase
       .from("dividends")
       .select("amount_per_share, ex_date, pay_date, currency")
@@ -175,6 +178,9 @@ export default async function StockPage({
       : null;
   const currRatio = financial?.current_ratio   ? Number(financial.current_ratio)   : null;
   const ocf       = financial?.operating_cash_flow ? Number(financial.operating_cash_flow) : null;
+  const roe       = financial?.roe ? Number(financial.roe) : (netIncome && totalAssets && totalLiabilities && (totalAssets - totalLiabilities) > 0) ? (netIncome / (totalAssets - totalLiabilities)) * 100 : null;
+  const grossProfit = financial?.gross_profit ? Number(financial.gross_profit) : null;
+  const opIncome    = financial?.operating_income ? Number(financial.operating_income) : null;
 
   const netMargin = netIncome !== null && revenue !== null && revenue > 0
     ? `${((netIncome / revenue) * 100).toFixed(1)}%`
@@ -232,7 +238,62 @@ export default async function StockPage({
     currentPrice,
     fiftyTwoHigh: fiftyTwoHigh ? parseFloat(fiftyTwoHigh) : null,
     fiftyTwoLow:  fiftyTwoLow  ? parseFloat(fiftyTwoLow)  : null,
+    debtToEquity: debtEq,
+    roe,
   });
+
+  // ── SŪQAI Verdict & Analysis Data ──────────────────────────
+  const overallScore = ((scores.value + scores.growth + scores.dividend + scores.health + scores.momentum) / 25) * 100;
+
+  // Insight badges
+  const insightBadges: string[] = [];
+  if (isUndervalued) insightBadges.push("undervalued");
+  if (divYieldNum && divYieldNum > 4) insightBadges.push("high_yield");
+  if (divYieldNum && divYieldNum > 2 && allDivs.length >= 8) insightBadges.push("dividend_champion");
+  if (scores.growth >= 4) insightBadges.push("high_growth");
+  if (debtEq !== null && debtEq < 0.5) insightBadges.push("low_debt");
+  if (company.is_shariah_compliant) insightBadges.push("shariah_compliant");
+  if (scores.momentum >= 4) insightBadges.push("momentum_up");
+
+  // Risk flags
+  const riskFlags: string[] = [];
+  if (isOvervalued) riskFlags.push("overvalued");
+  if (debtEq !== null && debtEq > 2) riskFlags.push("high_debt");
+  if (eps !== null && eps < 0) riskFlags.push("negative_earnings");
+  if (revenue !== null && netIncome !== null && allFinancials.length >= 2) {
+    const prevRev = allFinancials[1]?.revenue ? Number(allFinancials[1].revenue) : null;
+    if (prevRev && revenue < prevRev * 0.9) riskFlags.push("declining_revenue");
+  }
+  if (!divYieldNum || divYieldNum === 0) riskFlags.push("no_dividend");
+
+  // Per-pillar checks for Analysis tab
+  const valueChecks = [
+    { check: isAr ? "مضاعف الأرباح أقل من 15" : "P/E ratio below 15", passed: pe !== null && parseFloat(pe) < 15 },
+    { check: isAr ? "مخفّض عن القيمة العادلة" : "Trading below fair value", passed: isUndervalued },
+    { check: isAr ? "ربحية السهم إيجابية" : "Positive EPS", passed: eps !== null && eps > 0 },
+    { check: isAr ? "هامش ربح أعلى من 10%" : "Net margin above 10%", passed: netIncome !== null && revenue !== null && revenue > 0 && (netIncome / revenue) > 0.1 },
+  ];
+  const growthChecks = [
+    { check: isAr ? "نمو الإيرادات" : "Revenue growth (YoY)", passed: allFinancials.length >= 2 && revenue !== null && allFinancials[1]?.revenue !== null && revenue > Number(allFinancials[1]?.revenue ?? 0) },
+    { check: isAr ? "نمو صافي الربح" : "Net income growth", passed: allFinancials.length >= 2 && netIncome !== null && Number(allFinancials[1]?.net_income ?? 0) > 0 && netIncome > Number(allFinancials[1]?.net_income ?? 0) },
+    { check: isAr ? "ربحية السهم أعلى من 1 ريال" : "EPS above 1 SAR", passed: eps !== null && eps > 1 },
+  ];
+  const healthChecks = [
+    { check: isAr ? "نسبة الدين إلى حقوق الملكية أقل من 1" : "Debt/Equity below 1.0", passed: debtEq !== null && debtEq < 1 },
+    { check: isAr ? "نسبة التداول أعلى من 1" : "Current ratio above 1.0", passed: currRatio !== null && currRatio > 1 },
+    { check: isAr ? "تدفقات تشغيلية إيجابية" : "Positive operating cash flow", passed: ocf !== null && ocf > 0 },
+    { check: isAr ? "صافي الأصول إيجابي" : "Positive net assets", passed: totalAssets !== null && totalLiabilities !== null && totalAssets > totalLiabilities },
+  ];
+  const dividendChecks = [
+    { check: isAr ? "عائد توزيعات أعلى من 2%" : "Dividend yield above 2%", passed: divYieldNum !== null && divYieldNum > 2 },
+    { check: isAr ? "توزيعات مستمرة (4+ دفعات)" : "Consistent dividends (4+ payments)", passed: allDivs.length >= 4 },
+    { check: isAr ? "عائد توزيعات أعلى من 4%" : "High yield above 4%", passed: divYieldNum !== null && divYieldNum > 4 },
+  ];
+  const momentumChecks = [
+    { check: isAr ? "تغيّر إيجابي اليوم" : "Positive daily change", passed: changePct !== null && changePct > 0 },
+    { check: isAr ? "أعلى من منتصف نطاق 52 أسبوع" : "Above 52-week midpoint", passed: rangePosition !== null && rangePosition > 50 },
+    { check: isAr ? "سعر أعلى من متوسط الفتح" : "Price above open", passed: currentPrice !== null && open !== null && currentPrice > open },
+  ];
 
   const chartData = priceHistory.map((p) => ({
     date:  p.date as string,
@@ -451,6 +512,21 @@ export default async function StockPage({
       ══════════════════════════════════════════════════════ */}
       {activeTab === "overview" && (
         <>
+          {/* ── Verdict Header (Simply Wall St inspired) ──────── */}
+          <VerdictHeader
+            overallScore={overallScore}
+            valuePillars={{
+              value: scores.value,
+              growth: scores.growth,
+              performance: scores.momentum,
+              health: scores.health,
+              dividend: scores.dividend,
+            }}
+            insightBadges={insightBadges}
+            riskFlags={riskFlags}
+            locale={locale}
+          />
+
           {/* SŪQAI Score + Key Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-4 mb-5">
             {/* Score */}
@@ -491,7 +567,7 @@ export default async function StockPage({
             </div>
 
             {/* Key Metrics Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 content-start">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 content-start">
               {[
                 {
                   icon: BarChart3,
@@ -515,13 +591,6 @@ export default async function StockPage({
                   color: divYield ? "var(--c-green)" : "var(--c-dim)",
                 },
                 {
-                  icon: Activity,
-                  label: t(locale, "stock.52w"),
-                  value: fiftyTwoHigh && fiftyTwoLow ? `${fiftyTwoLow} – ${fiftyTwoHigh}` : "N/A",
-                  sub: fiftyTwoHigh ? sar : undefined,
-                  color: fiftyTwoHigh ? "var(--c-text)" : "var(--c-dim)",
-                },
-                {
                   icon: TrendingUp,
                   label: t(locale, "stock.revenue_short"),
                   value: revenueFormatted ?? "N/A",
@@ -534,6 +603,27 @@ export default async function StockPage({
                   value: netMargin ?? "N/A",
                   sub: netIncome && revenue ? `${sar} ${(netIncome / 1e9).toFixed(2)}B` : undefined,
                   color: netMargin ? (parseFloat(netMargin) > 0 ? "var(--c-green)" : "var(--c-red)") : "var(--c-dim)",
+                },
+                {
+                  icon: Building2,
+                  label: t(locale, "stock.debt_equity"),
+                  value: debtEq !== null ? `${debtEq.toFixed(2)}x` : "N/A",
+                  sub: debtEq !== null ? (debtEq < 0.5 ? "Low leverage" : debtEq < 1 ? "Moderate" : "High leverage") : undefined,
+                  color: debtEq !== null ? (debtEq < 0.5 ? "var(--c-green)" : debtEq < 1 ? "var(--c-gold)" : "var(--c-red)") : "var(--c-dim)",
+                },
+                {
+                  icon: TrendingUp,
+                  label: t(locale, "stock.roe"),
+                  value: roe !== null ? `${roe.toFixed(1)}%` : "N/A",
+                  sub: roe !== null ? (roe > 15 ? "Strong returns" : roe > 10 ? "Healthy" : "Below avg") : undefined,
+                  color: roe !== null ? (roe > 15 ? "var(--c-green)" : roe > 0 ? "var(--c-text)" : "var(--c-red)") : "var(--c-dim)",
+                },
+                {
+                  icon: Activity,
+                  label: t(locale, "stock.52w"),
+                  value: fiftyTwoHigh && fiftyTwoLow ? `${fiftyTwoLow} – ${fiftyTwoHigh}` : "N/A",
+                  sub: fiftyTwoHigh ? sar : undefined,
+                  color: fiftyTwoHigh ? "var(--c-text)" : "var(--c-dim)",
                 },
               ].map(({ icon: Icon, label, value, sub, color }) => (
                 <div key={label} className="card" style={{ padding: "16px 18px" }}>
@@ -565,65 +655,17 @@ export default async function StockPage({
             </div>
           )}
 
-          {/* ── Fair Value Estimate ──────────────────────────── */}
-          {fairValue && currentPrice && (
-            <div className="card mb-5" style={{ padding: "22px 24px" }}>
-              <div className="flex items-center gap-2 mb-4">
-                <DollarSign size={14} style={{ color: "var(--c-gold)" }} />
-                <h2 className="font-bold" style={{ fontSize: 15, color: "var(--c-text)" }}>
-                  {isAr ? "التقييم العادل" : "Fair Value Estimate"}
-                </h2>
-                <span style={{ fontSize: 10, color: "var(--c-dim)", marginLeft: 4 }}>
-                  {isAr ? "(تقدير مبسط)" : "(simplified model)"}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                    {isAr ? "السعر الحالي" : "Current Price"}
-                  </p>
-                  <span className="font-num font-bold" style={{ fontSize: 22, color: "var(--c-text)" }}>
-                    {sar} {currentPrice?.toFixed(2)}
-                  </span>
-                </div>
-                <div>
-                  <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                    {isAr ? "القيمة العادلة" : "Fair Value"}
-                  </p>
-                  <span className="font-num font-bold" style={{ fontSize: 22, color: isUndervalued ? "var(--c-green)" : isOvervalued ? "var(--c-red)" : "var(--c-gold)" }}>
-                    {sar} {fairValue}
-                  </span>
-                </div>
-                <div>
-                  <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                    {isAr ? "الحالة" : "Status"}
-                  </p>
-                  <div>
-                    <span style={{
-                      display: "inline-block", padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700,
-                      background: isUndervalued ? "var(--c-green-bg)" : isOvervalued ? "var(--c-red-bg)" : "var(--c-border)",
-                      color: isUndervalued ? "var(--c-green)" : isOvervalued ? "var(--c-red)" : "var(--c-muted)",
-                      border: `1px solid ${isUndervalued ? "var(--c-green-ring)" : isOvervalued ? "var(--c-red-ring)" : "var(--c-border)"}`,
-                    }}>
-                      {isUndervalued
-                        ? (isAr ? `مخفّض ${Math.abs(fairValueDiff!).toFixed(0)}%` : `▲ ${Math.abs(fairValueDiff!).toFixed(0)}% Undervalued`)
-                        : isOvervalued
-                        ? (isAr ? `مرتفع ${Math.abs(fairValueDiff!).toFixed(0)}%` : `▼ ${Math.abs(fairValueDiff!).toFixed(0)}% Overvalued`)
-                        : (isAr ? "سعر عادل" : "Fair Price")}
-                    </span>
-                    <p style={{ fontSize: 10, color: "var(--c-dim)", marginTop: 6 }}>
-                      {isAr ? `المضاعف المستخدم: ${adjustedPE}x EPS` : `Model: EPS × ${adjustedPE}x`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <p style={{ fontSize: 10, color: "var(--c-dim)", marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--c-border)" }}>
-                {isAr
-                  ? "⚠️ هذا تقدير مبسط يستند إلى مضاعف الأرباح. لا يُعدّ توصية استثمارية."
-                  : "⚠️ Simplified estimate based on EPS × adjusted P/E multiple. Not investment advice."}
-              </p>
-            </div>
-          )}
+          {/* ── Fair Value Card (Simply Wall St inspired) ─────── */}
+          <div className="mb-5">
+            <FairValueCard
+              currentPrice={currentPrice}
+              fairValue={fairValue}
+              model="pe_based"
+              adjustedPE={adjustedPE}
+              analystTarget={null}
+              locale={locale}
+            />
+          </div>
 
           {/* ── Peer Comparison ──────────────────────────────── */}
           {peers.length > 0 && (
@@ -871,18 +913,19 @@ export default async function StockPage({
                 {/* Income Statement */}
                 <div className="mb-5">
                   <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>
-                    Income Statement
+                    {isAr ? "قائمة الدخل" : "Income Statement"}
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {[
-                      { label: t(locale, "stock.revenue"),    val: revenue,   fmt: (v: number) => `${(v / 1e9).toFixed(2)}B`, color: "var(--c-text)" },
-                      { label: t(locale, "stock.net_income"), val: netIncome, fmt: (v: number) => `${(v / 1e9).toFixed(2)}B`, color: netIncome && netIncome > 0 ? "var(--c-green)" : "var(--c-red)" },
-                      { label: t(locale, "stock.eps_short"),  val: eps,       fmt: (v: number) => v.toFixed(2), color: "var(--c-text)" },
-                    ].map(({ label, val, fmt, color }) => (
+                      { label: t(locale, "stock.revenue"),      val: revenue,     fmt: (v: number) => `${(v / 1e9).toFixed(2)}B`, prefix: sar, color: "var(--c-text)" },
+                      { label: t(locale, "stock.gross_profit"), val: grossProfit, fmt: (v: number) => `${(v / 1e9).toFixed(2)}B`, prefix: sar, color: grossProfit && grossProfit > 0 ? "var(--c-green)" : "var(--c-red)" },
+                      { label: t(locale, "stock.op_income"),    val: opIncome,    fmt: (v: number) => `${(v / 1e9).toFixed(2)}B`, prefix: sar, color: opIncome && opIncome > 0 ? "var(--c-green)" : "var(--c-red)" },
+                      { label: t(locale, "stock.net_income"),   val: netIncome,   fmt: (v: number) => `${(v / 1e9).toFixed(2)}B`, prefix: sar, color: netIncome && netIncome > 0 ? "var(--c-green)" : "var(--c-red)" },
+                    ].map(({ label, val, fmt, prefix, color }) => (
                       <div key={label} style={{ padding: "14px 16px", background: "var(--c-elevated)", borderRadius: "var(--radius-md)", border: "1px solid var(--c-border)" }}>
-                        <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{label}</p>
-                        <span className="font-num font-bold" style={{ fontSize: 20, color: val ? color : "var(--c-dim)" }}>
-                          {val ? `${sar} ${fmt(val)}` : "N/A"}
+                        <p style={{ fontSize: 10, color: "var(--c-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{label}</p>
+                        <span className="font-num font-bold" style={{ fontSize: 18, color: val ? color : "var(--c-dim)" }}>
+                          {val ? `${prefix} ${fmt(val)}` : "N/A"}
                         </span>
                       </div>
                     ))}
@@ -890,21 +933,42 @@ export default async function StockPage({
                 </div>
 
                 {/* Balance Sheet & Ratios */}
-                <div>
+                <div className="mb-5">
                   <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>
-                    Balance Sheet & Ratios
+                    {isAr ? "الميزانية والنسب المالية" : "Balance Sheet & Ratios"}
                   </p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {[
-                      { label: "Debt / Equity", val: debtEq,    fmt: (v: number) => v.toFixed(2), suffix: "x",  color: debtEq && debtEq > 1 ? "var(--c-red)" : "var(--c-green)" },
-                      { label: "Current Ratio", val: currRatio, fmt: (v: number) => v.toFixed(2), suffix: "x",  color: currRatio && currRatio > 1.5 ? "var(--c-green)" : "var(--c-gold)" },
-                      { label: "Operating CF",  val: ocf,       fmt: (v: number) => `${(v / 1e9).toFixed(1)}B`, suffix: "", color: ocf && ocf > 0 ? "var(--c-green)" : "var(--c-red)" },
-                      { label: "P/E Ratio",     val: pe ? parseFloat(pe) : null, fmt: (v: number) => v.toFixed(1), suffix: "x", color: "var(--c-text)" },
+                      { label: t(locale, "stock.debt_equity"), val: debtEq, fmt: (v: number) => v.toFixed(2), suffix: "x", color: debtEq !== null ? (debtEq < 0.5 ? "var(--c-green)" : debtEq < 1 ? "var(--c-gold)" : "var(--c-red)") : "var(--c-dim)" },
+                      { label: t(locale, "stock.roe"),         val: roe,    fmt: (v: number) => v.toFixed(1), suffix: "%", color: roe !== null ? (roe > 15 ? "var(--c-green)" : roe > 0 ? "var(--c-text)" : "var(--c-red)") : "var(--c-dim)" },
+                      { label: t(locale, "stock.net_margin"),  val: netMargin ? parseFloat(netMargin) : null, fmt: (v: number) => v.toFixed(1), suffix: "%", color: netMargin ? (parseFloat(netMargin) > 10 ? "var(--c-green)" : parseFloat(netMargin) > 0 ? "var(--c-text)" : "var(--c-red)") : "var(--c-dim)" },
+                      { label: t(locale, "stock.pe"),          val: pe ? parseFloat(pe) : null, fmt: (v: number) => v.toFixed(1), suffix: "x", color: pe ? (parseFloat(pe) < 15 ? "var(--c-green)" : parseFloat(pe) < 25 ? "var(--c-text)" : "var(--c-red)") : "var(--c-dim)" },
                     ].map(({ label, val, fmt, suffix, color }) => (
                       <div key={label} className="card" style={{ padding: "14px 16px" }}>
                         <p style={{ fontSize: 10, color: "var(--c-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>{label}</p>
                         <span className="font-num font-bold" style={{ fontSize: 18, color: val != null ? color : "var(--c-dim)" }}>
                           {val != null ? `${fmt(val)}${suffix}` : "N/A"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Assets & Liabilities */}
+                <div>
+                  <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>
+                    {isAr ? "الأصول والالتزامات" : "Assets & Liabilities"}
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {[
+                      { label: t(locale, "stock.total_assets"), val: totalAssets, fmt: (v: number) => `${(v / 1e9).toFixed(1)}B`, color: "var(--c-text)" },
+                      { label: isAr ? "إجمالي الالتزامات" : "Total Liabilities", val: totalLiabilities, fmt: (v: number) => `${(v / 1e9).toFixed(1)}B`, color: "var(--c-red)" },
+                      { label: isAr ? "حقوق الملكية" : "Equity", val: totalAssets && totalLiabilities ? totalAssets - totalLiabilities : null, fmt: (v: number) => `${(v / 1e9).toFixed(1)}B`, color: "var(--c-green)" },
+                    ].map(({ label, val, fmt, color }) => (
+                      <div key={label} className="card" style={{ padding: "14px 16px" }}>
+                        <p style={{ fontSize: 10, color: "var(--c-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>{label}</p>
+                        <span className="font-num font-bold" style={{ fontSize: 18, color: val != null ? color : "var(--c-dim)" }}>
+                          {val != null ? `${sar} ${fmt(val)}` : "N/A"}
                         </span>
                       </div>
                     ))}
@@ -934,12 +998,14 @@ export default async function StockPage({
                   </p>
                 </div>
               </div>
-              <FinancialChart data={allFinancials.map(f => ({
+              <FinancialChart locale={locale} data={allFinancials.map(f => ({
                 year: f.year ?? 0,
                 period: f.period ?? "annual",
                 revenue: f.revenue ? Number(f.revenue) : null,
                 net_income: f.net_income ? Number(f.net_income) : null,
                 earnings_per_share: f.earnings_per_share ? Number(f.earnings_per_share) : null,
+                gross_profit: f.gross_profit ? Number(f.gross_profit) : null,
+                operating_income: f.operating_income ? Number(f.operating_income) : null,
               }))} />
             </div>
           )}
@@ -1191,6 +1257,77 @@ export default async function StockPage({
             )}
           </div>
         </section>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          TAB: ANALYSIS
+      ══════════════════════════════════════════════════════ */}
+      {activeTab === "analysis" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Verdict at top of analysis */}
+          <VerdictHeader
+            overallScore={overallScore}
+            valuePillars={{
+              value: scores.value,
+              growth: scores.growth,
+              performance: scores.momentum,
+              health: scores.health,
+              dividend: scores.dividend,
+            }}
+            insightBadges={insightBadges}
+            riskFlags={riskFlags}
+            locale={locale}
+          />
+
+          {/* Fair Value */}
+          <FairValueCard
+            currentPrice={currentPrice}
+            fairValue={fairValue}
+            model="pe_based"
+            adjustedPE={adjustedPE}
+            analystTarget={null}
+            locale={locale}
+          />
+
+          {/* Score Checks Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <ScoreChecks
+              title={isAr ? "القيمة" : "Value"}
+              score={scores.value}
+              color="#C8A951"
+              checks={valueChecks}
+              locale={locale}
+            />
+            <ScoreChecks
+              title={isAr ? "النمو" : "Growth"}
+              score={scores.growth}
+              color="#0ECB81"
+              checks={growthChecks}
+              locale={locale}
+            />
+            <ScoreChecks
+              title={isAr ? "الصحة المالية" : "Financial Health"}
+              score={scores.health}
+              color="#A78BFA"
+              checks={healthChecks}
+              locale={locale}
+            />
+            <ScoreChecks
+              title={isAr ? "التوزيعات" : "Dividends"}
+              score={scores.dividend}
+              color="#F59E0B"
+              checks={dividendChecks}
+              locale={locale}
+            />
+            <ScoreChecks
+              title={isAr ? "الزخم" : "Momentum"}
+              score={scores.momentum}
+              color="#60A5FA"
+              checks={momentumChecks}
+              locale={locale}
+            />
+          </div>
+        </div>
       )}
 
       {/* Back + Disclaimer */}

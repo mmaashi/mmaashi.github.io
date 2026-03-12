@@ -15,6 +15,8 @@ export function calculateScores(data: {
   currentPrice: number | null;
   fiftyTwoHigh: number | null;
   fiftyTwoLow: number | null;
+  debtToEquity?: number | null;
+  roe?: number | null;
 }) {
   // Value score (based on P/E — lower is better)
   let valueScore = 2.5;
@@ -50,15 +52,50 @@ export function calculateScores(data: {
     else if (dy > 0) dividendScore = 1;
   }
 
-  // Health score (based on profitability)
+  // Health score (based on profitability, leverage, and ROE)
   let healthScore = 2.5;
+  let healthFactors = 0;
+  let healthSum = 0;
+
+  // Factor 1: Net margin
   if (data.netIncome !== null && data.revenue !== null && data.revenue > 0) {
     const margin = (data.netIncome / data.revenue) * 100;
-    if (margin > 30) healthScore = 5;
-    else if (margin > 20) healthScore = 4;
-    else if (margin > 10) healthScore = 3;
-    else if (margin > 0) healthScore = 2;
-    else healthScore = 1;
+    let marginScore = 2.5;
+    if (margin > 30) marginScore = 5;
+    else if (margin > 20) marginScore = 4;
+    else if (margin > 10) marginScore = 3;
+    else if (margin > 0) marginScore = 2;
+    else marginScore = 1;
+    healthSum += marginScore;
+    healthFactors++;
+  }
+
+  // Factor 2: Debt-to-Equity (lower is healthier)
+  if (data.debtToEquity !== null && data.debtToEquity !== undefined) {
+    let deScore = 2.5;
+    if (data.debtToEquity < 0.3) deScore = 5;
+    else if (data.debtToEquity < 0.5) deScore = 4;
+    else if (data.debtToEquity < 1) deScore = 3;
+    else if (data.debtToEquity < 2) deScore = 2;
+    else deScore = 1;
+    healthSum += deScore;
+    healthFactors++;
+  }
+
+  // Factor 3: ROE (higher is better)
+  if (data.roe !== null && data.roe !== undefined) {
+    let roeScore = 2.5;
+    if (data.roe > 25) roeScore = 5;
+    else if (data.roe > 15) roeScore = 4;
+    else if (data.roe > 10) roeScore = 3;
+    else if (data.roe > 0) roeScore = 2;
+    else roeScore = 1;
+    healthSum += roeScore;
+    healthFactors++;
+  }
+
+  if (healthFactors > 0) {
+    healthScore = healthSum / healthFactors;
   }
 
   // Momentum score (based on price position within 52W range)

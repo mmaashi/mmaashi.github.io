@@ -10,6 +10,7 @@ import {
   Coins,
   Newspaper,
   Info,
+  Sparkles,
 } from "lucide-react";
 
 const TABS = [
@@ -19,6 +20,7 @@ const TABS = [
   { key: "dividends",  en: "Dividends",   ar: "التوزيعات",        Icon: Coins },
   { key: "news",       en: "News",        ar: "الأخبار",          Icon: Newspaper },
   { key: "info",       en: "Info",        ar: "معلومات",          Icon: Info },
+  { key: "analysis",  en: "Analysis",   ar: "التحليل",          Icon: Sparkles },
 ] as const;
 
 type TabKey = typeof TABS[number]["key"];

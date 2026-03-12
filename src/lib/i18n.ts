@@ -6,7 +6,7 @@
 const translations: Record<string, Record<string, string>> = {
   en: {
     // Nav
-    home: "Dashboard",
+    home: "Home",
     screener: "Screener",
     news: "News",
     calendar: "Calendar",
@@ -129,6 +129,11 @@ const translations: Record<string, Record<string, string>> = {
     "stock.read_more":      "Read more →",
     "stock.news_source":    "Source",
     "stock.news_date":      "Date",
+    "stock.debt_equity":    "D/E Ratio",
+    "stock.roe":            "ROE",
+    "stock.total_assets":   "Total Assets",
+    "stock.gross_profit":   "Gross Profit",
+    "stock.op_income":      "Operating Income",
 
     // Calendar
     "calendar.title": "Dividend Calendar",
@@ -153,7 +158,7 @@ const translations: Record<string, Record<string, string>> = {
     "calendar.no_records": "No dividend records found",
 
     // News
-    "news.title": "Financial News",
+    "news.title": "Latest market news",
     "news.subtitle": "Latest Saudi Market News",
     "news.positive": "Positive",
     "news.negative": "Negative",
@@ -230,9 +235,76 @@ const translations: Record<string, Record<string, string>> = {
     "score.fair": "Fair Value",
     "score.overvalued": "Potentially Overvalued",
 
+    // Homepage Hero
+    "hero.headline": "Saudi stock analysis, made easier",
+    "hero.subheadline": "Track Tadawul stocks, discover opportunities, and understand company fundamentals with visual insights, fair value signals, and dividend data.",
+    "hero.cta_primary": "Explore Stocks",
+    "hero.cta_secondary": "Open Screener",
+    "hero.featured_note": "Strong fundamentals, consistent dividend payer",
+
+    // Homepage Search
+    "search.placeholder": "Search by company name or ticker…",
+    "search.chip.aramco": "Aramco",
+    "search.chip.alrajhi": "Al Rajhi",
+    "search.chip.stc": "STC",
+    "search.chip.sabic": "SABIC",
+    "search.chip.acwa": "ACWA Power",
+
+    // Homepage "What SŪQAI Does"
+    "features.title": "What you can do with SŪQAI",
+    "features.card1.title": "Analyze companies visually",
+    "features.card1.desc": "See stock scores, fair value signals, dividend data, and key risks in one view.",
+    "features.card2.title": "Find opportunities faster",
+    "features.card2.desc": "Use screeners to discover undervalued, high-dividend, and financially strong stocks.",
+    "features.card3.title": "Track dividends and events",
+    "features.card3.desc": "Monitor ex-dates, payment dates, earnings, and company announcements.",
+    "features.card4.title": "Build your market workflow",
+    "features.card4.desc": "Save watchlists, follow your portfolio, and monitor the stocks that matter most.",
+
+    // Homepage Featured Analysis
+    "featured.title": "Featured Stock Analysis",
+    "featured.fair_value": "Fair Value",
+    "featured.div_yield": "Div. Yield",
+    "featured.view": "View Analysis",
+    "featured.verdict1": "Strong financial health and stable dividend profile.",
+    "featured.verdict2": "Attractive dividend, but valuation looks less compelling.",
+    "featured.verdict3": "Balanced growth and income, with moderate risk.",
+
+    // Homepage Market Snapshot
+    "snapshot.title": "Today in the Saudi market",
+    "snapshot.tasi": "TASI Index",
+    "snapshot.breadth": "Market Breadth",
+    "snapshot.top_sector": "Top Sector",
+    "snapshot.traded": "Traded Value",
+
+    // Homepage Movers
+    "movers.view_analysis": "View analysis",
+
+    // Homepage Trust
+    "trust.title": "How SŪQAI works",
+    "trust.step1.title": "Data sources",
+    "trust.step1.desc": "Market data, company financials, and dividend information are collected from approved financial and market sources.",
+    "trust.step2.title": "Analysis logic",
+    "trust.step2.desc": "Scores and insights are designed to help users explore stocks faster and understand companies more clearly.",
+    "trust.step3.title": "Disclaimer",
+    "trust.step3.desc": "SŪQAI provides information for research and educational purposes only. It does not constitute investment advice.",
+
+    // Homepage Footer
+    "footer.about": "About",
+    "footer.methodology": "Methodology",
+    "footer.data_sources": "Data Sources",
+    "footer.dividends": "Dividends",
+    "footer.screener": "Screener",
+    "footer.contact": "Contact",
+    "footer.disclaimer_link": "Disclaimer",
+    "footer.note": "SŪQAI provides translated market data for informational purposes only. Not investment advice.",
+    "footer.built_with": "Built with AI for the Saudi investor community",
+
     // Common
     "common.sar": "SAR",
     "common.na": "N/A",
+    "common.billion": "B",
+    "common.million": "M",
     "common.disclaimer": "SŪQAI provides translated market data for informational purposes only. Not investment advice.",
     "common.main_market": "Main Market",
   },
@@ -362,6 +434,11 @@ const translations: Record<string, Record<string, string>> = {
     "stock.read_more":      "اقرأ المزيد ←",
     "stock.news_source":    "المصدر",
     "stock.news_date":      "التاريخ",
+    "stock.debt_equity":    "الدين/حقوق الملكية",
+    "stock.roe":            "العائد على حقوق الملكية",
+    "stock.total_assets":   "إجمالي الأصول",
+    "stock.gross_profit":   "إجمالي الربح",
+    "stock.op_income":      "الدخل التشغيلي",
 
     // Calendar
     "calendar.title": "تقويم الأرباح الموزعة",
@@ -386,7 +463,7 @@ const translations: Record<string, Record<string, string>> = {
     "calendar.no_records": "لا توجد سجلات توزيعات",
 
     // News
-    "news.title": "الأخبار المالية",
+    "news.title": "آخر أخبار السوق",
     "news.subtitle": "آخر أخبار السوق السعودي",
     "news.positive": "إيجابي",
     "news.negative": "سلبي",
@@ -463,9 +540,76 @@ const translations: Record<string, Record<string, string>> = {
     "score.fair": "قيمة عادلة",
     "score.overvalued": "مقوّم بأعلى من قيمته",
 
+    // Homepage Hero
+    "hero.headline": "تحليل الأسهم السعودية بطريقة أبسط",
+    "hero.subheadline": "تتبّع أسهم تداول، واكتشف الفرص، وافهم أساسيات الشركات مع رؤى بصرية وإشارات القيمة العادلة وبيانات التوزيعات.",
+    "hero.cta_primary": "استكشف الأسهم",
+    "hero.cta_secondary": "افتح فلترة الأسهم",
+    "hero.featured_note": "أساسيات قوية، توزيعات أرباح منتظمة",
+
+    // Homepage Search
+    "search.placeholder": "ابحث باسم الشركة أو الرمز…",
+    "search.chip.aramco": "أرامكو",
+    "search.chip.alrajhi": "الراجحي",
+    "search.chip.stc": "STC",
+    "search.chip.sabic": "سابك",
+    "search.chip.acwa": "أكوا باور",
+
+    // Homepage "What SŪQAI Does"
+    "features.title": "ماذا يمكنك أن تفعل مع SŪQAI",
+    "features.card1.title": "حلّل الشركات بصريًا",
+    "features.card1.desc": "شاهد تقييمات الأسهم، وإشارات القيمة العادلة، وبيانات التوزيعات، وأبرز المخاطر في مكان واحد.",
+    "features.card2.title": "اعثر على الفرص أسرع",
+    "features.card2.desc": "استخدم الفلاتر لاكتشاف الأسهم الأقل من قيمتها العادلة، وذات التوزيعات المرتفعة، والملاءة المالية القوية.",
+    "features.card3.title": "تابع التوزيعات والأحداث",
+    "features.card3.desc": "تابع تواريخ الاستحقاق والدفع، والنتائج المالية، وإعلانات الشركات.",
+    "features.card4.title": "ابنِ أسلوبك الاستثماري",
+    "features.card4.desc": "احفظ قوائم المتابعة، وتابع محفظتك، وراقب الأسهم الأكثر أهمية لك.",
+
+    // Homepage Featured Analysis
+    "featured.title": "تحليل أسهم مميزة",
+    "featured.fair_value": "القيمة العادلة",
+    "featured.div_yield": "عائد التوزيعات",
+    "featured.view": "عرض التحليل",
+    "featured.verdict1": "ملاءة مالية قوية مع توزيعات مستقرة.",
+    "featured.verdict2": "عائد توزيعات جيد، لكن التقييم أقل جاذبية.",
+    "featured.verdict3": "توازن بين النمو والدخل مع مستوى مخاطر متوسط.",
+
+    // Homepage Market Snapshot
+    "snapshot.title": "ماذا يحدث اليوم في السوق السعودي",
+    "snapshot.tasi": "مؤشر تاسي",
+    "snapshot.breadth": "اتساع السوق",
+    "snapshot.top_sector": "أفضل قطاع",
+    "snapshot.traded": "قيمة التداول",
+
+    // Homepage Movers
+    "movers.view_analysis": "عرض التحليل",
+
+    // Homepage Trust
+    "trust.title": "كيف يعمل SŪQAI",
+    "trust.step1.title": "مصادر البيانات",
+    "trust.step1.desc": "يتم جمع بيانات السوق والقوائم المالية والتوزيعات من مصادر مالية وسوقية معتمدة.",
+    "trust.step2.title": "منطق التحليل",
+    "trust.step2.desc": "تم تصميم التقييمات والرؤى لمساعدة المستخدم على استكشاف الأسهم بشكل أسرع وفهم الشركات بشكل أوضح.",
+    "trust.step3.title": "إخلاء المسؤولية",
+    "trust.step3.desc": "يوفر سوقAI المعلومات لأغراض بحثية وتعليمية فقط، ولا يُعد ذلك نصيحة استثمارية.",
+
+    // Homepage Footer
+    "footer.about": "من نحن",
+    "footer.methodology": "المنهجية",
+    "footer.data_sources": "مصادر البيانات",
+    "footer.dividends": "التوزيعات",
+    "footer.screener": "فلترة الأسهم",
+    "footer.contact": "تواصل معنا",
+    "footer.disclaimer_link": "إخلاء المسؤولية",
+    "footer.note": "يوفر سوقAI بيانات سوق مترجمة لأغراض معلوماتية فقط، وليست نصيحة استثمارية.",
+    "footer.built_with": "صُنع بالذكاء الاصطناعي لمجتمع المستثمرين السعودي",
+
     // Common
     "common.sar": "ر.س",
     "common.na": "غ.م",
+    "common.billion": "مليار",
+    "common.million": "مليون",
     "common.disclaimer": "تقدم SŪQAI بيانات السوق المترجمة لأغراض إعلامية فقط. لا تُعدّ نصيحة استثمارية.",
     "common.main_market": "السوق الرئيسي",
   },

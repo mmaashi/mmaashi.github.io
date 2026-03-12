@@ -119,7 +119,21 @@ export interface Database {
           free_cash_flow: number | null
           debt_to_equity: number | null
           current_ratio: number | null
+          equity: number | null
+          roe: number | null
+          gross_profit: number | null
+          operating_income: number | null
+          total_equity: number | null
+          cash: number | null
+          total_debt: number | null
+          capex: number | null
+          pe_ratio: number | null
+          pb_ratio: number | null
+          source_name: string | null
+          source_ref: string | null
+          fetched_at: string | null
           created_at: string
+          updated_at: string | null
         }
         Insert: {
           company_id: string
@@ -135,6 +149,20 @@ export interface Database {
           free_cash_flow?: number | null
           debt_to_equity?: number | null
           current_ratio?: number | null
+          equity?: number | null
+          roe?: number | null
+          gross_profit?: number | null
+          operating_income?: number | null
+          total_equity?: number | null
+          cash?: number | null
+          total_debt?: number | null
+          capex?: number | null
+          pe_ratio?: number | null
+          pb_ratio?: number | null
+          source_name?: string | null
+          source_ref?: string | null
+          fetched_at?: string | null
+          updated_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['financials']['Insert']>
         Relationships: [

@@ -3,7 +3,7 @@ import { IBM_Plex_Sans_Arabic, Inter, Space_Grotesk } from "next/font/google";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  LayoutDashboard,
+  Home,
   SlidersHorizontal,
   Newspaper,
   CalendarDays,
@@ -15,6 +15,7 @@ import "../globals.css";
 import { getMarketSummary } from "@/lib/sahm";
 import { t } from "@/lib/i18n";
 import { NavLink } from "@/components/NavLink";
+import { MobileNav } from "@/components/MobileNav";
 
 const ibmPlexArabic = IBM_Plex_Sans_Arabic({
   weight: ["400", "500", "600", "700"],
@@ -61,13 +62,16 @@ export default async function LocaleLayout({
   } catch {}
 
   const navLinks = [
-    { href: `/${locale}`,          label: t(locale, "home"),     Icon: LayoutDashboard },
-    { href: `/${locale}/screener`, label: t(locale, "screener"), Icon: SlidersHorizontal },
-    { href: `/${locale}/news`,     label: t(locale, "news"),     Icon: Newspaper },
-    { href: `/${locale}/calendar`, label: t(locale, "calendar"), Icon: CalendarDays },
-    { href: `/${locale}/portfolio`, label: t(locale, "portfolio"), Icon: Briefcase },
-    { href: `/${locale}/about`,    label: t(locale, "about"),    Icon: Info },
+    { href: `/${locale}`,          label: t(locale, "home"),     Icon: Home,               iconName: "Home" },
+    { href: `/${locale}/screener`, label: t(locale, "screener"), Icon: SlidersHorizontal,  iconName: "SlidersHorizontal" },
+    { href: `/${locale}/news`,     label: t(locale, "news"),     Icon: Newspaper,          iconName: "Newspaper" },
+    { href: `/${locale}/calendar`, label: t(locale, "calendar"), Icon: CalendarDays,       iconName: "CalendarDays" },
+    { href: `/${locale}/portfolio`, label: t(locale, "portfolio"), Icon: Briefcase,         iconName: "Briefcase" },
+    { href: `/${locale}/about`,    label: t(locale, "about"),    Icon: Info,               iconName: "Info" },
   ];
+
+  // Serializable version for the client-side MobileNav
+  const mobileLinks = navLinks.map(({ href, label, iconName }) => ({ href, label, iconName }));
 
   return (
     <html lang={locale} dir={isRTL ? "rtl" : "ltr"}>
@@ -122,8 +126,9 @@ export default async function LocaleLayout({
               ))}
             </nav>
 
-            {/* Right: TASI chip + lang toggle */}
+            {/* Right: hamburger (mobile) + TASI chip + lang toggle */}
             <div className="flex items-center gap-2.5 shrink-0">
+              <MobileNav links={mobileLinks} locale={locale} />
               {/* TASI chip */}
               <div
                 className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg"
@@ -183,32 +188,7 @@ export default async function LocaleLayout({
         </header>
 
         {/* ── Main ── */}
-        <main style={{ paddingTop: 56, paddingBottom: 72 }}>{children}</main>
-
-        {/* ── Mobile bottom nav ── */}
-        <nav
-          className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
-          style={{
-            background: "rgba(6,13,24,0.95)",
-            backdropFilter: "blur(24px) saturate(1.2)",
-            WebkitBackdropFilter: "blur(24px) saturate(1.2)",
-            borderTop: "1px solid var(--c-border)",
-          }}
-        >
-          <div className="flex justify-around items-center" style={{ height: 54 }}>
-            {navLinks.slice(0, 5).map(({ href, label, Icon }) => (
-              <NavLink
-                key={href}
-                href={href}
-                className="mobile-nav-link"
-                style={{ textDecoration: "none" }}
-              >
-                <Icon size={17} strokeWidth={1.8} />
-                <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.02em" }}>{label}</span>
-              </NavLink>
-            ))}
-          </div>
-        </nav>
+        <main style={{ paddingTop: 56, paddingBottom: 24 }}>{children}</main>
       </body>
     </html>
   );

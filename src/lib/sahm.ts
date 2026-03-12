@@ -32,6 +32,8 @@ export interface MarketSummary {
   index_change: number
   index_change_percent: number
   total_volume: number
+  total_value?: number
+  top_sector?: string
   advancing: number
   declining: number
   unchanged: number

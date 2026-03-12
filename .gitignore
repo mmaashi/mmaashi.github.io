@@ -41,6 +41,11 @@ yarn-error.log*
 next-env.d.ts
 .env*.local
 
-# Separate project - keep out of suqaist repo
+# Separate projects - keep out of suqaist repo
 fatoora-saver/
+meg/
+omega/
+mission-control/
+memory/
+skills/
 .DS_Store

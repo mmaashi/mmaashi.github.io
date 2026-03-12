@@ -17,7 +17,6 @@ interface Props {
 async function getSectorPerformance(): Promise<SectorData[]> {
   const supabase = createServiceClient();
 
-  // Get the most recent trading date
   const { data: latestRows } = await supabase
     .from("stock_prices")
     .select("date")
@@ -27,7 +26,6 @@ async function getSectorPerformance(): Promise<SectorData[]> {
   if (!latestRows || latestRows.length === 0) return [];
   const latestDate = latestRows[0].date as string;
 
-  // Get the previous distinct trading date (strictly before latestDate)
   const { data: prevRows } = await supabase
     .from("stock_prices")
     .select("date")
@@ -38,28 +36,16 @@ async function getSectorPerformance(): Promise<SectorData[]> {
   if (!prevRows || prevRows.length === 0) return [];
   const prevDate = prevRows[0].date as string;
 
-  // Fetch latest prices for all companies
   const [{ data: latestPrices }, { data: prevPrices }] = await Promise.all([
-    supabase
-      .from("stock_prices")
-      .select("company_id, close")
-      .eq("date", latestDate),
-    supabase
-      .from("stock_prices")
-      .select("company_id, close")
-      .eq("date", prevDate),
+    supabase.from("stock_prices").select("company_id, close").eq("date", latestDate),
+    supabase.from("stock_prices").select("company_id, close").eq("date", prevDate),
   ]);
 
   if (!latestPrices || !prevPrices) return [];
 
-  // Get sectors for all companies
-  const { data: companies } = await supabase
-    .from("companies")
-    .select("id, sector");
-
+  const { data: companies } = await supabase.from("companies").select("id, sector");
   if (!companies) return [];
 
-  // Build maps
   const latestMap = new Map<string, number>();
   const prevMap   = new Map<string, number>();
   for (const p of latestPrices) latestMap.set(p.company_id, Number(p.close));
@@ -67,7 +53,6 @@ async function getSectorPerformance(): Promise<SectorData[]> {
   const sectorMap = new Map<string, string>();
   for (const c of companies) if (c.sector) sectorMap.set(c.id, c.sector);
 
-  // Aggregate by sector
   const sectorAgg = new Map<string, { totalChange: number; count: number; gainers: number; losers: number }>();
 
   for (const [companyId, latestClose] of latestMap) {
@@ -86,7 +71,6 @@ async function getSectorPerformance(): Promise<SectorData[]> {
     else if (pctChange < 0) agg.losers++;
   }
 
-  // Convert to array sorted by avgChange
   return Array.from(sectorAgg.entries())
     .map(([sector, agg]) => ({
       sector,
@@ -106,6 +90,7 @@ function getHeatColor(change: number): { bg: string; border: string; text: strin
   return             { bg: "rgba(246,70,93,0.22)", border: "rgba(246,70,93,0.45)", text: "var(--c-red)" };
 }
 
+/** Compact horizontal-scroll sector strip — replaces the old full-grid layout */
 export default async function SectorHeatMap({ locale }: Props) {
   const sectors = await getSectorPerformance();
   if (sectors.length === 0) return null;
@@ -113,24 +98,32 @@ export default async function SectorHeatMap({ locale }: Props) {
   const isAr = locale === "ar";
 
   return (
-    <div className="card mb-5" style={{ padding: "16px 18px" }}>
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <h2 className="font-bold" style={{ fontSize: 14, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
-            {isAr ? "أداء القطاعات" : "Sector Performance"}
-          </h2>
-          <p style={{ fontSize: 10, color: "var(--c-muted)", marginTop: 1 }}>
-            {isAr ? "تغيّر اليوم" : "Today's change"}
-          </p>
-        </div>
-        <Link href={`/${locale}/screener`}
-              style={{ fontSize: 11, color: "var(--c-gold)", textDecoration: "none", fontWeight: 600 }}>
+    <div className="card mb-4" style={{ padding: "12px 14px" }}>
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="font-bold" style={{ fontSize: 13, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
+          {isAr ? "أداء القطاعات" : "Sector Performance"}
+        </h2>
+        <Link
+          href={`/${locale}/screener`}
+          style={{ fontSize: 10, color: "var(--c-gold)", textDecoration: "none", fontWeight: 600 }}
+        >
           {isAr ? "المصفاة ←" : "Screener →"}
         </Link>
       </div>
 
-      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-        {sectors.map(({ sector, avgChange, count, gainers, losers }) => {
+      {/* Horizontal scrolling strip */}
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          overflowX: "auto",
+          paddingBottom: 4,
+          scrollbarWidth: "none",       /* Firefox */
+          msOverflowStyle: "none",      /* IE/Edge */
+        }}
+      >
+        {sectors.map(({ sector, avgChange, gainers, losers }) => {
           const colors = getHeatColor(avgChange);
           const sign   = avgChange >= 0 ? "+" : "";
           const label  = tSector(locale, sector);
@@ -141,25 +134,41 @@ export default async function SectorHeatMap({ locale }: Props) {
               href={`/${locale}/screener?sector=${encodeURIComponent(sector)}`}
               style={{
                 textDecoration: "none",
-                display: "block",
-                padding: "8px 10px",
-                borderRadius: "var(--radius-sm, 8px)",
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 10px",
+                borderRadius: 8,
                 background: colors.bg,
                 border: `1px solid ${colors.border}`,
                 transition: "opacity 0.15s",
               }}
             >
-              <p style={{ fontSize: 10, fontWeight: 600, color: "var(--c-text)", marginBottom: 3, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: "var(--c-text)",
+                  whiteSpace: "nowrap",
+                  maxWidth: 100,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
                 {label}
-              </p>
-              <span className="font-num font-bold" style={{ fontSize: 14, color: colors.text }}>
+              </span>
+              <span
+                className="font-num"
+                style={{ fontSize: 12, fontWeight: 700, color: colors.text, whiteSpace: "nowrap" }}
+              >
                 {sign}{avgChange.toFixed(1)}%
               </span>
-              <p className="font-num" style={{ fontSize: 9, color: "var(--c-dim)", marginTop: 2 }}>
+              <span className="font-num" style={{ fontSize: 8, color: "var(--c-dim)", whiteSpace: "nowrap" }}>
                 <span style={{ color: "var(--c-green)" }}>▲{gainers}</span>
                 {" "}
                 <span style={{ color: "var(--c-red)" }}>▼{losers}</span>
-              </p>
+              </span>
             </Link>
           );
         })}
