@@ -40,11 +40,17 @@ export function normalizeNameEn(raw: string | null | undefined): string {
   if (!raw) return "";
   let name = raw.trim();
 
-  // If name is all-uppercase (3+ words), convert to title case
-  if (name === name.toUpperCase() && name.split(/\s+/).length >= 2) {
-    name = name
-      .split(/\s+/)
-      .map((w, i) => (i === 0 ? titleCase(w) : titleCase(w)))
+  // Single-word name: check if it's a known abbreviation
+  const words = name.split(/\s+/);
+  if (words.length === 1) {
+    const upper = name.toUpperCase();
+    if (UPPERCASE_WORDS.has(upper)) return upper;
+  }
+
+  // If name is all-uppercase (2+ words), convert to title case
+  if (name === name.toUpperCase() && words.length >= 2) {
+    name = words
+      .map((w) => titleCase(w))
       .join(" ");
     // Ensure first word is always capitalized
     name = name.charAt(0).toUpperCase() + name.slice(1);
