@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Info,
   Briefcase,
+  PieChart,
 } from "lucide-react";
 import "../globals.css";
 import { getMarketSummary } from "@/lib/sahm";
@@ -64,6 +65,7 @@ export default async function LocaleLayout({
   const navLinks = [
     { href: `/${locale}`,          label: t(locale, "home"),     Icon: Home,               iconName: "Home" },
     { href: `/${locale}/screener`, label: t(locale, "screener"), Icon: SlidersHorizontal,  iconName: "SlidersHorizontal" },
+    { href: `/${locale}/sectors`,  label: isRTL ? "القطاعات" : "Sectors",  Icon: PieChart,           iconName: "PieChart" },
     { href: `/${locale}/news`,     label: t(locale, "news"),     Icon: Newspaper,          iconName: "Newspaper" },
     { href: `/${locale}/calendar`, label: t(locale, "calendar"), Icon: CalendarDays,       iconName: "CalendarDays" },
     { href: `/${locale}/portfolio`, label: t(locale, "portfolio"), Icon: Briefcase,         iconName: "Briefcase" },

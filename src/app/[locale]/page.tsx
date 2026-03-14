@@ -987,6 +987,210 @@ function FooterSection({ locale }: { locale: string }) {
 }
 
 // ════════════════════════════════════════════════════════════════
+// Section 5.5 — SŪQAI Intelligence Cards
+// Top Scored | Dividend Picks | Value Ideas | Momentum Leaders
+// ════════════════════════════════════════════════════════════════
+async function IntelligenceCards({ locale }: { locale: string }) {
+  const isAr = locale === "ar";
+  const supabase = createServiceClient();
+
+  // Fetch top companies by different criteria from company_metrics_daily
+  // We'll get a broad set and filter client-side
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const metricsResult = await (supabase as any)
+    .from("company_metrics_daily")
+    .select("company_id, suqai_score, score_tier, dividend_yield, pe_ratio, pb_ratio, return_1m, return_3m, return_1y, roe, market_cap")
+    .order("metric_date", { ascending: false })
+    .limit(500);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const metricsRaw: any[] = metricsResult.data ?? [];
+
+  // Deduplicate: latest per company_id
+  const seen = new Set<string>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const metrics: any[] = [];
+  for (const row of metricsRaw) {
+    if (!seen.has(row.company_id)) {
+      seen.add(row.company_id);
+      metrics.push(row);
+    }
+  }
+
+  // Get company names
+  const companyIds = metrics.map(m => m.company_id);
+  const { data: companiesData } = await supabase
+    .from("companies")
+    .select("id, ticker, name_en, name_ar, sector")
+    .in("id", companyIds.length > 0 ? companyIds : ["none"]);
+
+  const companyMap = new Map((companiesData ?? []).map(c => [c.id, c]));
+
+  // Enrich with company data
+  const enriched = metrics
+    .map(m => ({ ...m, company: companyMap.get(m.company_id) }))
+    .filter(m => m.company);
+
+  // Create different ranked lists
+  const topScored = enriched
+    .filter(m => m.suqai_score != null)
+    .sort((a, b) => Number(b.suqai_score) - Number(a.suqai_score))
+    .slice(0, 5);
+
+  const dividendPicks = enriched
+    .filter(m => m.dividend_yield != null && Number(m.dividend_yield) > 0)
+    .sort((a, b) => Number(b.dividend_yield) - Number(a.dividend_yield))
+    .slice(0, 5);
+
+  const valueIdeas = enriched
+    .filter(m => m.pe_ratio != null && Number(m.pe_ratio) > 0 && Number(m.pe_ratio) < 15 && m.suqai_score != null && Number(m.suqai_score) >= 40)
+    .sort((a, b) => Number(a.pe_ratio) - Number(b.pe_ratio))
+    .slice(0, 5);
+
+  const momentumLeaders = enriched
+    .filter(m => m.return_1m != null)
+    .sort((a, b) => Number(b.return_1m) - Number(a.return_1m))
+    .slice(0, 5);
+
+  const tierColor = (tier: string | null) => {
+    switch (tier) {
+      case "Strong Buy": return "#22c55e";
+      case "Buy": return "#4ade80";
+      case "Hold": return "#d4a574";
+      case "Underperform": return "#f97316";
+      case "Sell": return "#ef4444";
+      default: return "#6b7280";
+    }
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function CardRow({ items, format }: { items: any[]; format: (m: any) => { value: string; color: string; sub?: string } }) {
+    if (items.length === 0) return <p style={{ color: "var(--c-dim)", fontSize: 12 }}>{isAr ? "لا توجد بيانات كافية" : "Insufficient data"}</p>;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {items.map((m, i) => {
+          const c = m.company;
+          const name = isAr && c.name_ar ? c.name_ar : c.name_en;
+          const { value, color, sub } = format(m);
+          return (
+            <Link
+              key={c.ticker}
+              href={`/${locale}/stock/${c.ticker}`}
+              style={{ textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: 8, background: i === 0 ? "var(--c-gold-dim)" : "var(--c-elevated)", border: `1px solid ${i === 0 ? "var(--c-gold-ring)" : "var(--c-border)"}`, transition: "border-color 0.15s" }}
+            >
+              <div className="flex items-center gap-2" style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 10, fontWeight: 800, color: i === 0 ? "var(--c-gold)" : "var(--c-muted)", width: 16 }}>{i + 1}</span>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: "var(--c-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</p>
+                  <span className="font-num" style={{ fontSize: 10, color: "var(--c-muted)" }}>{c.ticker}</span>
+                </div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <span className="font-num font-bold" style={{ fontSize: 14, color }}>{value}</span>
+                {sub && <p className="font-num" style={{ fontSize: 10, color: "var(--c-dim)" }}>{sub}</p>}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (enriched.length === 0) return null;
+
+  return (
+    <section className="fade-up mb-8">
+      <div className="flex items-center gap-2 mb-4">
+        <Star size={16} style={{ color: "var(--c-gold)" }} />
+        <h2 className="font-bold text-lg" style={{ color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
+          {isAr ? "اختيارات سوقاي" : "SŪQAI Picks"}
+        </h2>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Top Scored */}
+        <div className="card" style={{ padding: "16px 18px" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "rgba(200,169,81,0.15)", border: "1px solid rgba(200,169,81,0.3)" }}>
+              <Star size={12} style={{ color: "#C8A951" }} />
+            </div>
+            <h3 style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)", letterSpacing: "0.04em" }}>
+              {isAr ? "أعلى التقييمات" : "TOP SCORED"}
+            </h3>
+          </div>
+          <CardRow
+            items={topScored}
+            format={(m) => ({
+              value: Number(m.suqai_score).toFixed(0),
+              color: tierColor(m.score_tier),
+              sub: m.score_tier,
+            })}
+          />
+        </div>
+
+        {/* Dividend Picks */}
+        <div className="card" style={{ padding: "16px 18px" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.25)" }}>
+              <DollarSign size={12} style={{ color: "#22c55e" }} />
+            </div>
+            <h3 style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)", letterSpacing: "0.04em" }}>
+              {isAr ? "أعلى التوزيعات" : "DIVIDEND PICKS"}
+            </h3>
+          </div>
+          <CardRow
+            items={dividendPicks}
+            format={(m) => ({
+              value: `${(Number(m.dividend_yield) * 100).toFixed(1)}%`,
+              color: "#22c55e",
+              sub: isAr ? "عائد" : "yield",
+            })}
+          />
+        </div>
+
+        {/* Value Ideas */}
+        <div className="card" style={{ padding: "16px 18px" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.25)" }}>
+              <BarChart3 size={12} style={{ color: "#60A5FA" }} />
+            </div>
+            <h3 style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)", letterSpacing: "0.04em" }}>
+              {isAr ? "أفكار قيمة" : "VALUE IDEAS"}
+            </h3>
+          </div>
+          <CardRow
+            items={valueIdeas}
+            format={(m) => ({
+              value: `${Number(m.pe_ratio).toFixed(1)}x`,
+              color: "#60A5FA",
+              sub: "P/E",
+            })}
+          />
+        </div>
+
+        {/* Momentum Leaders */}
+        <div className="card" style={{ padding: "16px 18px" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.25)" }}>
+              <TrendingUp size={12} style={{ color: "#f97316" }} />
+            </div>
+            <h3 style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)", letterSpacing: "0.04em" }}>
+              {isAr ? "قادة الزخم" : "MOMENTUM"}
+            </h3>
+          </div>
+          <CardRow
+            items={momentumLeaders}
+            format={(m) => ({
+              value: `${Number(m.return_1m) > 0 ? "+" : ""}${(Number(m.return_1m) * 100).toFixed(1)}%`,
+              color: Number(m.return_1m) > 0 ? "#22c55e" : "#ef4444",
+              sub: isAr ? "شهر" : "1M",
+            })}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
 // Page — assembled in the user's specified order
 // ════════════════════════════════════════════════════════════════
 export default async function DashboardPage({
@@ -1018,6 +1222,11 @@ export default async function DashboardPage({
 
       {/* Section 5 — Featured Stock Analysis */}
       <FeaturedAnalysis locale={locale} stocks={featuredStocks} />
+
+      {/* Section 5.5 — SŪQAI Intelligence Cards */}
+      <Suspense fallback={<SkeletonCard height={320} />}>
+        <IntelligenceCards locale={locale} />
+      </Suspense>
 
       {/* Section 6 — Market Snapshot */}
       <Suspense fallback={<SkeletonCard height={220} />}>

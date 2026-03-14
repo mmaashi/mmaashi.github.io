@@ -21,6 +21,7 @@ import {
   CalendarDays,
   Briefcase,
   Info,
+  PieChart,
 } from "lucide-react";
 
 const iconMap: Record<string, LucideIcon> = {
@@ -30,6 +31,7 @@ const iconMap: Record<string, LucideIcon> = {
   CalendarDays,
   Briefcase,
   Info,
+  PieChart,
 };
 
 export function MobileNav({

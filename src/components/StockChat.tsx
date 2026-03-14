@@ -19,7 +19,6 @@ interface StockContext {
   netMargin: string | null;
   divYield: string | null;
   sector: string | null;
-  fairValue: number | null;
 }
 
 interface Props {
