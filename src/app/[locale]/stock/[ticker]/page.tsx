@@ -169,7 +169,7 @@ export default async function StockPage({
       .from("company_metrics_daily")
       .select("*")
       .eq("company_id", company.id)
-      .order("metric_date", { ascending: false })
+      .order("as_of_date", { ascending: false })
       .limit(1)
       .single(),
   ]);

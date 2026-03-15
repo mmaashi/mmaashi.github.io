@@ -1000,7 +1000,7 @@ async function IntelligenceCards({ locale }: { locale: string }) {
   const metricsResult = await (supabase as any)
     .from("company_metrics_daily")
     .select("company_id, suqai_score, score_tier, dividend_yield, pe_ratio, pb_ratio, return_1m, return_3m, return_1y, roe, market_cap")
-    .order("metric_date", { ascending: false })
+    .order("as_of_date", { ascending: false })
     .limit(500);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const metricsRaw: any[] = metricsResult.data ?? [];

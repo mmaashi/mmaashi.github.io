@@ -22,7 +22,7 @@ export default async function SectorsPage({
     (supabase as any)
       .from("company_metrics_daily")
       .select("company_id, suqai_score, score_tier, pe_ratio, pb_ratio, dividend_yield, roe, net_margin, revenue_growth_yoy, debt_to_equity, return_1y, market_cap")
-      .order("metric_date", { ascending: false })
+      .order("as_of_date", { ascending: false })
       .limit(500),
     supabase
       .from("sector_averages")
