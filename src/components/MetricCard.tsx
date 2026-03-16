@@ -83,7 +83,7 @@ export default function MetricCard({
           <p style={{ fontSize: 11, color: "var(--c-text)", lineHeight: 1.55, margin: 0 }}>
             {isAr ? i.detail.ar : i.detail.en}
           </p>
-          <p style={{ fontSize: 10, color: "var(--c-gold)", marginTop: 6, margin: 0, marginTop: 6, opacity: 0.9 }}>
+          <p style={{ fontSize: 10, color: "var(--c-gold)", margin: 0, marginTop: 6, opacity: 0.9 }}>
             {isAr ? "👁 " : "👁 "}{isAr ? i.watch.ar : i.watch.en}
           </p>
         </div>

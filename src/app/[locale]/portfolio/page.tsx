@@ -3,12 +3,18 @@ import { t, tSector } from "@/lib/i18n";
 import { calculateScores } from "@/lib/scores";
 import { scoreVerdict } from "@/lib/format";
 import { displayName } from "@/lib/display-names";
-import { Info, Briefcase } from "lucide-react";
+import { getMarketSummary } from "@/lib/sahm";
+import { Info, Briefcase, TrendingUp } from "lucide-react";
 import DashboardSummaryCards from "@/components/dashboard/DashboardSummaryCards";
 import PortfolioPerformanceChart from "@/components/dashboard/PortfolioPerformanceChart";
 import HoldingsTable, { type HoldingRow } from "@/components/dashboard/HoldingsTable";
 import SectorAllocationChart from "@/components/dashboard/SectorAllocationChart";
 import UpdatesFeed, { type FeedItem } from "@/components/dashboard/UpdatesFeed";
+import TodayAtGlance, { type TodayData } from "@/components/dashboard/TodayAtGlance";
+import WatchlistModule, { type WatchlistStock } from "@/components/dashboard/WatchlistModule";
+import OpportunitiesModule, { type Opportunity } from "@/components/dashboard/OpportunitiesModule";
+import WealthCalculator from "@/components/dashboard/WealthCalculator";
+import RecentlyViewed, { type RecentStock } from "@/components/dashboard/RecentlyViewed";
 
 // Demo holdings – tickers that exist in the DB
 const DEMO_HOLDINGS = [
@@ -20,73 +26,98 @@ const DEMO_HOLDINGS = [
   { ticker: "1010", shares: 120, avgCost: 40.8 },
 ];
 
+// Demo watchlist — popular stocks to track
+const DEMO_WATCHLIST = ["2010", "1211", "4200", "2280", "4030"];
+
 const SECTOR_AVG_PE = 18;
 
-export default async function PortfolioPage({
+export default async function MyDashboardPage({
   params,
 }: {
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
   const sar = t(locale, "common.sar");
+  const isAr = locale === "ar";
   const supabase = createServiceClient();
 
-  /* ── 1. Fetch companies ── */
+  // ── Fetch market summary for Today at a Glance ──
+  let marketData = { index_value: 0, index_change: 0, index_change_percent: 0, advancing: 0, declining: 0, unchanged: 0, total_volume: 0, isOpen: false };
+  try {
+    const s = await getMarketSummary();
+    const riyadh = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Riyadh" }));
+    const day = riyadh.getDay();
+    const min = riyadh.getHours() * 60 + riyadh.getMinutes();
+    marketData = {
+      index_value: s.index_value,
+      index_change: s.index_change,
+      index_change_percent: s.index_change_percent,
+      advancing: s.advancing,
+      declining: s.declining,
+      unchanged: s.unchanged,
+      total_volume: s.total_volume,
+      isOpen: day >= 0 && day <= 4 && min >= 600 && min <= 900,
+    };
+  } catch {}
+
+  // ── Fetch all tickers we need (holdings + watchlist + opportunities) ──
+  const allTickers = [...new Set([...DEMO_HOLDINGS.map((h) => h.ticker), ...DEMO_WATCHLIST])];
+
   const { data: companies } = await supabase
     .from("companies")
     .select("id, ticker, name_en, name_ar, sector")
-    .in("ticker", DEMO_HOLDINGS.map((h) => h.ticker));
+    .in("ticker", allTickers);
 
   const companyIds = (companies || []).map((c) => c.id);
-  const tickerToCompany = new Map(
-    (companies || []).map((c) => [c.ticker, c])
-  );
+  const tickerToCompany = new Map((companies || []).map((c) => [c.ticker, c]));
 
-  /* ── 2. Parallel fetches ── */
+  // ── Parallel fetches ──
   const oneYearAgo = new Date();
   oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
   const oneYearStr = oneYearAgo.toISOString().slice(0, 10);
 
-  const [pricesRes, financialsRes, dividendsRes, historyRes, newsRes] =
+  const [pricesRes, financialsRes, dividendsRes, historyRes, newsRes, opportunitiesRes] =
     await Promise.all([
-      // Latest 2 prices per company (for today change calc)
       supabase
         .from("stock_prices")
         .select("company_id, close, date")
         .in("company_id", companyIds)
         .order("date", { ascending: false })
         .limit(companyIds.length * 2),
-      // Latest financials per company
       supabase
         .from("financials")
         .select("company_id, earnings_per_share, revenue, net_income, debt_to_equity, current_ratio, operating_cash_flow, free_cash_flow, book_value_per_share")
         .in("company_id", companyIds)
         .order("year", { ascending: false })
         .limit(companyIds.length),
-      // Last 12 dividends per company
       supabase
         .from("dividends")
         .select("company_id, amount_per_share, pay_date, ex_date")
         .in("company_id", companyIds)
         .order("pay_date", { ascending: false })
         .limit(companyIds.length * 4),
-      // 1-year price history for all companies
       supabase
         .from("stock_prices")
         .select("company_id, close, date")
         .in("company_id", companyIds)
         .gte("date", oneYearStr)
         .order("date", { ascending: true }),
-      // Recent news
       supabase
         .from("news")
         .select("company_id, title_en, title_ar, published_at, source_url")
         .in("company_id", companyIds)
         .order("published_at", { ascending: false })
         .limit(20),
+      // Fetch top-scoring companies for Opportunities (outside portfolio)
+      supabase
+        .from("company_metrics_daily" as any)
+        .select("company_id, suqai_score, pe_ratio, roe, dividend_yield, revenue_growth_yoy")
+        .not("suqai_score", "is", null)
+        .order("suqai_score", { ascending: false })
+        .limit(30) as unknown as Promise<{ data: Array<{ company_id: string; suqai_score: number; pe_ratio: number | null; roe: number | null; dividend_yield: number | null; revenue_growth_yoy: number | null }> | null; error: any }>,
     ]);
 
-  /* ── 3. Build price map (latest + previous close) ── */
+  // ── Build price map ──
   const priceMap = new Map<string, { close: number; prevClose: number | null }>();
   const seenCount = new Map<string, number>();
   for (const p of pricesRes.data || []) {
@@ -100,7 +131,7 @@ export default async function PortfolioPage({
     seenCount.set(p.company_id, count + 1);
   }
 
-  /* ── 4. Build 52-week high/low from history ── */
+  // ── 52-week high/low ──
   const highLowMap = new Map<string, { high: number; low: number }>();
   for (const p of historyRes.data || []) {
     const val = Number(p.close);
@@ -113,7 +144,7 @@ export default async function PortfolioPage({
     }
   }
 
-  /* ── 5. Build financial & dividend maps ── */
+  // ── Financial & dividend maps ──
   const finMap = new Map<string, NonNullable<typeof financialsRes.data>[0]>();
   const seenFin = new Set<string>();
   for (const f of financialsRes.data || []) {
@@ -140,31 +171,17 @@ export default async function PortfolioPage({
     });
   }
 
-  /* ── 6. Build HoldingRow[] ── */
-  const holdings: HoldingRow[] = [];
-  for (const h of DEMO_HOLDINGS) {
-    const company = tickerToCompany.get(h.ticker);
-    if (!company) continue;
-    const priceData = priceMap.get(company.id);
-    const currentPrice = priceData?.close ?? h.avgCost;
-    const prevClose = priceData?.prevClose ?? currentPrice;
-    const totalCost = h.shares * h.avgCost;
-    const totalValue = h.shares * currentPrice;
-    const gainLoss = totalValue - totalCost;
-    const gainPct = totalCost > 0 ? (gainLoss / totalCost) * 100 : 0;
-    const todayChange = prevClose > 0 ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
-
-    const fin = finMap.get(company.id);
-    const hl = highLowMap.get(company.id);
-    const div = divMap.get(company.id);
+  // ── Helper: compute score for any company ──
+  function computeScore(companyId: string, currentPrice: number, todayChange: number): number | null {
+    const fin = finMap.get(companyId);
+    const hl = highLowMap.get(companyId);
+    const div = divMap.get(companyId);
     const eps = fin?.earnings_per_share ? Number(fin.earnings_per_share) : null;
     const pe = eps && eps > 0 ? currentPrice / eps : null;
     const divYield = div && div.annualEst > 0 ? (div.annualEst / currentPrice) * 100 : 0;
     const rev = fin?.revenue ? Number(fin.revenue) : null;
     const ni = fin?.net_income ? Number(fin.net_income) : null;
 
-    // SŪQAI Score
-    let overallScore: number | null = null;
     try {
       const scores = calculateScores({
         pe: pe ?? null,
@@ -177,15 +194,37 @@ export default async function PortfolioPage({
         fiftyTwoHigh: hl?.high ?? currentPrice,
         fiftyTwoLow: hl?.low ?? currentPrice,
       });
-      overallScore = ((scores.value + scores.growth + scores.dividend + scores.health + scores.momentum) / 25) * 100;
-    } catch { /* skip */ }
+      return ((scores.value + scores.growth + scores.dividend + scores.health + scores.momentum) / 25) * 100;
+    } catch {
+      return null;
+    }
+  }
 
-    // Fair value diff via P/E method
+  // ── Build HoldingRow[] ──
+  const holdings: HoldingRow[] = [];
+  for (const h of DEMO_HOLDINGS) {
+    const company = tickerToCompany.get(h.ticker);
+    if (!company) continue;
+    const priceData = priceMap.get(company.id);
+    const currentPrice = priceData?.close ?? h.avgCost;
+    const prevClose = priceData?.prevClose ?? currentPrice;
+    const totalCost = h.shares * h.avgCost;
+    const totalValue = h.shares * currentPrice;
+    const gainLoss = totalValue - totalCost;
+    const gainPct = totalCost > 0 ? (gainLoss / totalCost) * 100 : 0;
+    const todayChange = prevClose > 0 ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
+    const overallScore = computeScore(company.id, currentPrice, todayChange);
+
+    const fin = finMap.get(company.id);
+    const eps = fin?.earnings_per_share ? Number(fin.earnings_per_share) : null;
+    const pe = eps && eps > 0 ? currentPrice / eps : null;
     let fairValueDiff: number | null = null;
     if (pe && pe > 0) {
-      const fairPrice = (eps! * SECTOR_AVG_PE);
+      const fairPrice = eps! * SECTOR_AVG_PE;
       fairValueDiff = ((fairPrice - currentPrice) / currentPrice) * 100;
     }
+
+    const div = divMap.get(company.id);
 
     holdings.push({
       ticker: h.ticker,
@@ -198,7 +237,7 @@ export default async function PortfolioPage({
       gainLoss,
       gainPct,
       todayChange,
-      weight: 0, // computed below
+      weight: 0,
       overallScore,
       fairValueDiff,
       nextDivDate: div?.nextDate ?? null,
@@ -206,13 +245,12 @@ export default async function PortfolioPage({
     });
   }
 
-  // Compute weights
   const totalValue = holdings.reduce((s, h) => s + h.totalValue, 0);
   for (const h of holdings) {
     h.weight = totalValue > 0 ? (h.totalValue / totalValue) * 100 : 0;
   }
 
-  /* ── 7. Summary stats ── */
+  // ── Summary stats ──
   const totalCost = holdings.reduce((s, h) => s + h.shares * h.avgCost, 0);
   const totalGain = totalValue - totalCost;
   const totalGainPct = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
@@ -230,7 +268,7 @@ export default async function PortfolioPage({
     (h) => Math.abs(h.todayChange) > 3 || (h.overallScore !== null && h.overallScore <= 30)
   ).length;
 
-  /* ── 8. Sector allocation ── */
+  // ── Sector allocation ──
   const sectorBuckets = new Map<string, { value: number; count: number; change: number }>();
   for (const h of holdings) {
     const existing = sectorBuckets.get(h.sector);
@@ -253,9 +291,8 @@ export default async function PortfolioPage({
     }))
     .sort((a, b) => b.weight - a.weight);
 
-  /* ── 9. Feed items ── */
+  // ── Feed items ──
   const feedItems: FeedItem[] = [];
-  // Dividends
   for (const d of (dividendsRes.data || []).slice(0, 5)) {
     const comp = (companies || []).find((c) => c.id === d.company_id);
     if (!comp) continue;
@@ -270,7 +307,6 @@ export default async function PortfolioPage({
       link: `/${locale}/stock/${comp.ticker}`,
     });
   }
-  // News
   for (const n of (newsRes.data || []).slice(0, 5)) {
     const comp = (companies || []).find((c) => c.id === n.company_id);
     if (!comp) continue;
@@ -285,7 +321,6 @@ export default async function PortfolioPage({
       link: n.source_url || `/${locale}/stock/${comp.ticker}`,
     });
   }
-  // Score alerts
   for (const h of holdings) {
     if (h.overallScore !== null && h.overallScore >= 80) {
       feedItems.push({
@@ -311,7 +346,6 @@ export default async function PortfolioPage({
       });
     }
   }
-  // Price alerts (>3% move)
   for (const h of holdings) {
     if (Math.abs(h.todayChange) > 3) {
       feedItems.push({
@@ -328,7 +362,7 @@ export default async function PortfolioPage({
   }
   feedItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  /* ── 10. Performance chart data ── */
+  // ── Performance chart data ──
   const dateMap = new Map<string, { portfolio: number }>();
   for (const p of historyRes.data || []) {
     const holding = DEMO_HOLDINGS.find((h) => {
@@ -348,8 +382,176 @@ export default async function PortfolioPage({
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, d]) => ({ date, portfolio: d.portfolio }));
 
-  /* ── RENDER ── */
-  const isAr = locale === "ar";
+  // ── Watchlist stocks ──
+  const watchlistStocks: WatchlistStock[] = [];
+  for (const ticker of DEMO_WATCHLIST) {
+    const company = tickerToCompany.get(ticker);
+    if (!company) continue;
+    const priceData = priceMap.get(company.id);
+    if (!priceData) continue;
+    const prevClose = priceData.prevClose ?? priceData.close;
+    const todayChange = prevClose > 0 ? ((priceData.close - prevClose) / prevClose) * 100 : 0;
+    const score = computeScore(company.id, priceData.close, todayChange);
+
+    let signal = "neutral";
+    if (score !== null) {
+      if (score >= 75) signal = "strong";
+      else if (score >= 60) signal = "positive";
+      else if (score >= 40) signal = "neutral";
+      else if (score >= 25) signal = "caution";
+      else signal = "negative";
+    }
+
+    const div = divMap.get(company.id);
+    const divYield = div && div.annualEst > 0 ? (div.annualEst / priceData.close) * 100 : null;
+
+    watchlistStocks.push({
+      ticker,
+      name: displayName(locale, company.name_en, company.name_ar),
+      price: priceData.close,
+      change: todayChange,
+      score,
+      signal,
+      divYield,
+    });
+  }
+
+  // ── Opportunities (top-scoring stocks NOT in the portfolio) ──
+  const holdingTickers = new Set(DEMO_HOLDINGS.map((h) => h.ticker));
+  const opportunities: Opportunity[] = [];
+
+  // Fetch company info for opportunity candidates
+  const oppCandidateIds = (opportunitiesRes.data || [])
+    .map((r) => r.company_id)
+    .filter((id) => id);
+
+  let oppCompanies: Array<{ id: string; ticker: string; name_en: string; name_ar: string; sector: string }> = [];
+  if (oppCandidateIds.length > 0) {
+    const { data: oppComps } = await supabase
+      .from("companies")
+      .select("id, ticker, name_en, name_ar, sector")
+      .in("id", oppCandidateIds);
+    oppCompanies = oppComps || [];
+  }
+
+  const oppCompanyMap = new Map(oppCompanies.map((c) => [c.id, c]));
+
+  // Also get latest prices for opportunity stocks
+  const oppIds = oppCompanies.map((c) => c.id).filter((id) => !companyIds.includes(id));
+  let oppPriceMap = new Map<string, number>();
+  if (oppIds.length > 0) {
+    const { data: oppPrices } = await supabase
+      .from("stock_prices")
+      .select("company_id, close")
+      .in("company_id", oppIds)
+      .order("date", { ascending: false })
+      .limit(oppIds.length);
+    const seenOpp = new Set<string>();
+    for (const p of oppPrices || []) {
+      if (!seenOpp.has(p.company_id)) {
+        oppPriceMap.set(p.company_id, Number(p.close));
+        seenOpp.add(p.company_id);
+      }
+    }
+  }
+
+  for (const row of opportunitiesRes.data || []) {
+    if (opportunities.length >= 4) break;
+    const comp = oppCompanyMap.get(row.company_id);
+    if (!comp || holdingTickers.has(comp.ticker)) continue;
+
+    const price = priceMap.get(comp.id)?.close ?? oppPriceMap.get(comp.id) ?? 0;
+    if (price === 0) continue;
+
+    const score = Number(row.suqai_score);
+    if (score < 60) continue;
+
+    // Determine opportunity tag
+    const pe = row.pe_ratio ? Number(row.pe_ratio) : null;
+    const roe = row.roe ? Number(row.roe) : null;
+    const dy = row.dividend_yield ? Number(row.dividend_yield) : null;
+    const revG = row.revenue_growth_yoy ? Number(row.revenue_growth_yoy) : null;
+
+    let tag: Opportunity["tag"] = "high_quality";
+    let reason = { en: `SŪQAI Score ${Math.round(score)} — strong fundamentals`, ar: `تقييم SŪQAI ${Math.round(score)} — أساسيات قوية` };
+
+    if (pe !== null && pe > 0 && pe < 15) {
+      tag = "undervalued";
+      reason = {
+        en: `P/E ${pe.toFixed(1)} — trading below sector average`,
+        ar: `مكرر الأرباح ${pe.toFixed(1)} — يتداول أقل من متوسط القطاع`,
+      };
+    } else if (dy !== null && dy > 0.04) {
+      tag = "dividend_leader";
+      reason = {
+        en: `Dividend yield ${(dy * 100).toFixed(1)}% — above-average income`,
+        ar: `عائد التوزيعات ${(dy * 100).toFixed(1)}% — دخل فوق المتوسط`,
+      };
+    } else if (revG !== null && revG > 0.15) {
+      tag = "momentum";
+      reason = {
+        en: `Revenue growing ${(revG * 100).toFixed(0)}% YoY — strong momentum`,
+        ar: `الإيرادات تنمو ${(revG * 100).toFixed(0)}% سنويًا — زخم قوي`,
+      };
+    }
+
+    opportunities.push({
+      ticker: comp.ticker,
+      name: displayName(locale, comp.name_en, comp.name_ar),
+      price,
+      score,
+      reason,
+      tag,
+    });
+  }
+
+  // ── Recently Viewed (demo — will be client-side in production) ──
+  const recentStocks: RecentStock[] = [];
+  // Show first 6 companies that have prices as "recently viewed" demo
+  for (const company of (companies || []).slice(0, 8)) {
+    const priceData = priceMap.get(company.id);
+    if (!priceData) continue;
+    const prevClose = priceData.prevClose ?? priceData.close;
+    const todayChange = prevClose > 0 ? ((priceData.close - prevClose) / prevClose) * 100 : 0;
+    recentStocks.push({
+      ticker: company.ticker,
+      name: displayName(locale, company.name_en, company.name_ar),
+      price: priceData.close,
+      change: todayChange,
+    });
+    if (recentStocks.length >= 6) break;
+  }
+
+  // ── Today at a Glance data ──
+  const todayData: TodayData = {
+    tasiValue: marketData.index_value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    tasiChange: `${marketData.index_change >= 0 ? "+" : ""}${marketData.index_change_percent.toFixed(2)}%`,
+    tasiIsPositive: marketData.index_change >= 0,
+    isOpen: marketData.isOpen,
+    advancing: marketData.advancing,
+    declining: marketData.declining,
+    unchanged: marketData.unchanged,
+    tradedValue: marketData.total_volume > 1e9 ? `${(marketData.total_volume / 1e9).toFixed(1)}B` : `${(marketData.total_volume / 1e6).toFixed(0)}M`,
+    portfolioChange: todayGainPct,
+    portfolioChangeAmount: todayGainAmount,
+    upcomingDividends: (dividendsRes.data || []).filter((d) => {
+      const payDate = d.pay_date || d.ex_date;
+      if (!payDate) return false;
+      return new Date(payDate) >= new Date();
+    }).length,
+    alertCount,
+  };
+
+  // ── Upcoming dividends for count ──
+  const upcomingDivCount = (dividendsRes.data || []).filter((d) => {
+    const payDate = d.pay_date || d.ex_date;
+    if (!payDate) return false;
+    return new Date(payDate) >= new Date();
+  }).length;
+
+  // ══════════════════════════════════════════════════════════════
+  //  RENDER
+  // ══════════════════════════════════════════════════════════════
 
   return (
     <div className="page-wrap">
@@ -359,32 +561,35 @@ export default async function PortfolioPage({
           className="w-9 h-9 rounded-xl flex items-center justify-center"
           style={{ background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}
         >
-          <Briefcase size={16} style={{ color: "var(--c-gold)" }} />
+          <TrendingUp size={16} style={{ color: "var(--c-gold)" }} />
         </div>
         <div>
           <h1
             className="font-bold text-xl"
             style={{ color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}
           >
-            {t(locale, "portfolio.command_center")}
+            {isAr ? "سوقي" : "My SŪQAI"}
           </h1>
           <p style={{ fontSize: 12, color: "var(--c-muted)" }}>
-            {t(locale, "portfolio.command_center_desc")}
+            {isAr ? "لوحة المتابعة الشخصية" : "Your personal dashboard"}
           </p>
         </div>
       </div>
 
       {/* Demo Banner */}
-      <div className="card-gold fade-up mb-5" style={{ padding: "12px 18px" }}>
+      <div className="card-gold fade-up mb-4" style={{ padding: "10px 16px" }}>
         <div className="flex items-center gap-3">
-          <Info size={13} style={{ color: "var(--c-gold)" }} />
-          <p style={{ fontSize: 11, color: "var(--c-muted)" }}>
+          <Info size={12} style={{ color: "var(--c-gold)" }} />
+          <p style={{ fontSize: 10, color: "var(--c-muted)" }}>
             {t(locale, "portfolio.demo_desc")}
           </p>
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* ── Today at a Glance ── */}
+      <TodayAtGlance data={todayData} locale={locale} sar={sar} />
+
+      {/* ── Summary Cards ── */}
       <DashboardSummaryCards
         totalValue={totalValue}
         totalCost={totalCost}
@@ -399,31 +604,50 @@ export default async function PortfolioPage({
         locale={locale}
       />
 
-      {/* Performance Chart + Sector Allocation (2:1 grid) */}
+      {/* ── Performance Chart + Sector Allocation ── */}
       <div
-        className="stagger"
-        style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, marginBottom: 20 }}
+        className="dash-grid-2-1"
+        style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, marginBottom: 16 }}
       >
         <PortfolioPerformanceChart data={performanceData} locale={locale} sar={sar} />
         <SectorAllocationChart sectors={sectors} locale={locale} sar={sar} />
       </div>
 
-      {/* Responsive override for chart grid */}
-      <style>{`
-        @media (max-width: 900px) {
-          .stagger { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-
-      {/* Holdings Table */}
-      <div className="mb-5">
+      {/* ── Holdings Table ── */}
+      <div className="mb-4">
         <HoldingsTable holdings={holdings} locale={locale} sar={sar} />
       </div>
 
-      {/* Updates Feed */}
-      <div className="mb-8">
+      {/* ── Watchlist + Opportunities side by side ── */}
+      <div
+        className="dash-grid-1-1"
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}
+      >
+        <WatchlistModule stocks={watchlistStocks} locale={locale} sar={sar} />
+        <OpportunitiesModule opportunities={opportunities} locale={locale} sar={sar} />
+      </div>
+
+      {/* ── Wealth Calculator + Updates Feed side by side ── */}
+      <div
+        className="dash-grid-1-1"
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}
+      >
+        <WealthCalculator locale={locale} sar={sar} />
         <UpdatesFeed items={feedItems} locale={locale} />
       </div>
+
+      {/* ── Recently Viewed ── */}
+      <div className="mb-8">
+        <RecentlyViewed stocks={recentStocks} locale={locale} />
+      </div>
+
+      {/* Responsive grids */}
+      <style>{`
+        @media (max-width: 900px) {
+          .dash-grid-2-1 { grid-template-columns: 1fr !important; }
+          .dash-grid-1-1 { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
 
       <hr className="gold-line my-8" />
       <p style={{ fontSize: 11, color: "var(--c-dim)", textAlign: "center", letterSpacing: "0.02em" }}>

@@ -96,7 +96,7 @@ function SubMetricRow({ m, locale }: { m: SubMetric; locale: string }) {
           <p style={{ fontSize: 10, color: "var(--c-muted)", lineHeight: 1.45, margin: 0 }}>
             {isAr ? i.oneLiner.ar : i.oneLiner.en}
           </p>
-          <p style={{ fontSize: 10, color: "var(--c-gold)", marginTop: 4, margin: 0, marginTop: 4, opacity: 0.85 }}>
+          <p style={{ fontSize: 10, color: "var(--c-gold)", margin: 0, marginTop: 4, opacity: 0.85 }}>
             {isAr ? "👁 " : "👁 "}{isAr ? i.watch.ar : i.watch.en}
           </p>
         </div>
