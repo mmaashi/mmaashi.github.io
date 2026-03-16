@@ -654,25 +654,28 @@ export default async function MyDashboardPage({
               : "Create your own portfolio to unlock personal tracking, alerts, and health analysis"}
           </p>
         </div>
-        <button
+        <Link
+          href={`/${locale}/portfolio/create`}
           style={{
             display: "inline-flex",
             alignItems: "center",
             gap: 6,
             padding: "8px 18px",
             borderRadius: 8,
-            background: "var(--c-gold-dim)",
-            border: "1px solid var(--c-gold-ring)",
-            color: "var(--c-gold)",
+            background: "var(--c-gold)",
+            border: "none",
+            color: "var(--c-base)",
             fontSize: 11,
             fontWeight: 700,
             cursor: "pointer",
             flexShrink: 0,
+            textDecoration: "none",
+            fontFamily: "var(--font-grotesk)",
           }}
         >
           <Rocket size={11} />
           {isAr ? "أنشئ محفظتي" : "Create my portfolio"}
-        </button>
+        </Link>
       </div>
 
       {/* 1. HERO STRIP */}
