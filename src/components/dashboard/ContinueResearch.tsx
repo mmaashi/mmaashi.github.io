@@ -39,7 +39,7 @@ export default function ContinueResearch({ items, locale }: ContinueResearchProp
       <div className="flex items-center gap-2 mb-2">
         <Clock size={13} style={{ color: "var(--c-muted)" }} />
         <h3 className="font-bold" style={{ fontSize: 14, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
-          {isAr ? "أكمل من حيث توقفت" : "Continue where you left off"}
+          {isAr ? "عُد إلى بحثك" : "Pick up your research"}
         </h3>
       </div>
 

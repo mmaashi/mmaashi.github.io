@@ -122,7 +122,7 @@ export default function WatchlistModule({ stocks, insights, locale, sar }: Watch
         <div className="flex items-center gap-2 mb-3">
           <Info size={13} style={{ color: "var(--c-muted)" }} />
           <h3 className="font-bold" style={{ fontSize: 13, color: "var(--c-text)" }}>
-            {isAr ? "ما تغيّر في قائمتك" : "What changed in your watchlist"}
+            {isAr ? "ملخص قائمتك" : "Watchlist insights"}
           </h3>
         </div>
 
