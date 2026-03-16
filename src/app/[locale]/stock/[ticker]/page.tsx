@@ -9,6 +9,9 @@ import StockChat from "@/components/StockChat";
 import VerdictHeader from "@/components/VerdictHeader";
 // FairValueCard REMOVED — fair_value_estimate is a BLOCKED metric (0% coverage)
 import ScoreChecks from "@/components/ScoreChecks";
+import MetricCard from "@/components/MetricCard";
+import InterpretationCard from "@/components/InterpretationCard";
+import { metricGlossary, sectionExplainers } from "@/lib/metric-glossary";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -321,6 +324,18 @@ export default async function StockPage({
   const interpConfidence = scoreConfidenceLevel(metricCoverage);
   const tierInfo = scoreTierLabel(realScoreTier, locale);
   const { strengths: scoreStrengths, weaknesses: scoreWeaknesses } = dimensionStrengthsWeaknesses(dbScoreValue, dbScoreQuality, dbScoreGrowth, dbScoreMomentum, dbScoreDividend, dbScoreSafety, locale);
+
+  // ── Glossary helper (resolves locale-specific content) ─────
+  const g = (key: string) => {
+    const entry = metricGlossary[key];
+    if (!entry) return null;
+    return locale === "ar" ? entry.ar : entry.en;
+  };
+  const secExp = (section: string) => {
+    const entry = sectionExplainers[section];
+    if (!entry) return undefined;
+    return locale === "ar" ? entry.ar : entry.en;
+  };
 
   // Insight badges — only data-validated signals (no fair value)
   const insightBadges: string[] = [];
@@ -696,24 +711,27 @@ export default async function StockPage({
           ════════════════════════════════════════════════════ */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
             {([
-              { icon: BarChart3, label: t(locale, "stock.pe"), ...metricDisplayPolicy("pe_ratio", n("pe_ratio"), { hasNegativeEarnings }), sub: eps ? `EPS: ${sar} ${eps.toFixed(2)}` : undefined },
-              { icon: DollarSign, label: isAr ? "القيمة الدفترية" : "P/B Ratio", ...metricDisplayPolicy("pb_ratio", n("pb_ratio")), sub: undefined },
-              { icon: Calendar, label: t(locale, "stock.div_yield"), ...metricDisplayPolicy("dividend_yield", n("dividend_yield"), { isNonDividendPayer }), sub: annualDiv > 0 ? `${sar} ${annualDiv.toFixed(2)}/yr` : undefined },
-              { icon: TrendingUp, label: t(locale, "stock.revenue_short"), value: revenueFormatted ?? "—", raw: revenue, signal: "neutral" as Signal, hidden: false, sub: undefined, note: undefined },
-              { icon: BarChart3, label: t(locale, "stock.net_margin"), ...metricDisplayPolicy("net_margin", n("net_margin")), sub: undefined },
-              { icon: Building2, label: t(locale, "stock.debt_equity"), ...metricDisplayPolicy("debt_to_equity", n("debt_to_equity"), { isBankSector }), sub: undefined },
-              { icon: TrendingUp, label: t(locale, "stock.roe"), ...metricDisplayPolicy("roe", n("roe")), sub: undefined },
-              { icon: Activity, label: t(locale, "stock.52w"), value: fiftyTwoHigh && fiftyTwoLow ? `${fiftyTwoLow} – ${fiftyTwoHigh}` : "—", raw: null, signal: "neutral" as Signal, hidden: false, sub: fiftyTwoHigh ? sar : undefined, note: undefined },
-            ] as Array<{ icon: typeof BarChart3; label: string; value: string; raw: number | null; signal: Signal; hidden: boolean; sub?: string; note?: string }>).filter(item => !item.hidden).map(({ icon: Icon, label, value, signal, sub, note }) => (
-              <div key={label} className="card" style={{ padding: "16px 18px" }}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon size={13} style={{ color: "var(--c-muted)" }} />
-                  <span style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{label}</span>
-                </div>
-                <span className="font-num font-bold text-lg" style={{ color: signal !== "insufficient_data" ? "var(--c-text)" : "var(--c-dim)" }}>{value}</span>
-                {sub && <p className="font-num" style={{ fontSize: 11, color: "var(--c-dim)", marginTop: 2 }}>{sub}</p>}
-                {note && <p style={{ fontSize: 10, color: "var(--c-dim)", marginTop: 2, fontStyle: "italic" }}>{note}</p>}
-              </div>
+              { icon: BarChart3, mk: "pe_ratio", label: t(locale, "stock.pe"), ...metricDisplayPolicy("pe_ratio", n("pe_ratio"), { hasNegativeEarnings }), sub: eps ? `EPS: ${sar} ${eps.toFixed(2)}` : undefined },
+              { icon: DollarSign, mk: "pb_ratio", label: isAr ? "مكرر القيمة الدفترية" : "P/B Ratio", ...metricDisplayPolicy("pb_ratio", n("pb_ratio")), sub: undefined },
+              { icon: Calendar, mk: "dividend_yield", label: t(locale, "stock.div_yield"), ...metricDisplayPolicy("dividend_yield", n("dividend_yield"), { isNonDividendPayer }), sub: annualDiv > 0 ? `${sar} ${annualDiv.toFixed(2)}/${t(locale, "stock.per_year")}` : undefined },
+              { icon: TrendingUp, mk: "", label: t(locale, "stock.revenue_short"), value: revenueFormatted ?? "—", raw: revenue, signal: "neutral" as Signal, hidden: false, sub: undefined, note: undefined },
+              { icon: BarChart3, mk: "net_margin", label: t(locale, "stock.net_margin"), ...metricDisplayPolicy("net_margin", n("net_margin")), sub: undefined },
+              { icon: Building2, mk: "debt_to_equity", label: t(locale, "stock.debt_equity"), ...metricDisplayPolicy("debt_to_equity", n("debt_to_equity"), { isBankSector }), sub: undefined },
+              { icon: TrendingUp, mk: "roe", label: t(locale, "stock.roe"), ...metricDisplayPolicy("roe", n("roe")), sub: undefined },
+              { icon: Activity, mk: "", label: t(locale, "stock.52w"), value: fiftyTwoHigh && fiftyTwoLow ? `${fiftyTwoLow} – ${fiftyTwoHigh}` : "—", raw: null, signal: "neutral" as Signal, hidden: false, sub: fiftyTwoHigh ? sar : undefined, note: undefined },
+            ] as Array<{ icon: typeof BarChart3; mk: string; label: string; value: string; raw: number | null; signal: Signal; hidden: boolean; sub?: string; note?: string }>).filter(item => !item.hidden).map(({ icon, mk, label, value, signal, sub, note }) => (
+              <MetricCard
+                key={label}
+                icon={icon}
+                label={label}
+                value={value}
+                signal={signal}
+                sub={sub}
+                note={note}
+                glossary={mk ? g(mk) : null}
+                metricKey={mk || undefined}
+                locale={locale}
+              />
             ))}
           </div>
 
@@ -724,207 +742,154 @@ export default async function StockPage({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
             {/* Valuation */}
             {interpValuation.signal !== "insufficient_data" && (
-              <div className="card" style={{ padding: "20px 22px" }}>
-                <div className="flex items-center gap-2 mb-3">
-                  <Target size={14} style={{ color: "#C8A951" }} />
-                  <h3 className="font-bold" style={{ fontSize: 14, color: "var(--c-text)" }}>{isAr ? "التقييم" : "Valuation"}</h3>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: signalBg(interpValuation.signal), color: signalColor(interpValuation.signal) }}>
-                    {isAr ? interpValuation.labelAr : interpValuation.label}
-                  </span>
-                </div>
-                <p style={{ fontSize: 12, color: "var(--c-muted)", marginBottom: 12, lineHeight: 1.5 }}>
-                  {isAr ? interpValuation.detailAr : interpValuation.detail}
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { k: "pe_ratio", label: "P/E" }, { k: "pb_ratio", label: "P/B" },
-                    { k: "ps_ratio", label: "P/S" }, { k: "ev_ebitda", label: "EV/EBITDA" },
-                  ].map(({ k, label }) => {
-                    const d = metricDisplayPolicy(k, n(k), { hasNegativeEarnings });
-                    if (d.hidden) return null;
-                    return (
-                      <div key={k} style={{ padding: "8px 10px", background: "var(--c-elevated)", borderRadius: 6 }}>
-                        <p style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600, marginBottom: 2 }}>{label}</p>
-                        <span className="font-num font-semibold" style={{ fontSize: 14, color: d.signal !== "insufficient_data" ? "var(--c-text)" : "var(--c-dim)" }}>{d.value}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+              <InterpretationCard
+                icon={Target}
+                iconColor="#C8A951"
+                title={isAr ? "التقييم" : "Valuation"}
+                signalLabel={isAr ? interpValuation.labelAr : interpValuation.label}
+                signalBg={signalBg(interpValuation.signal)}
+                signalColor={signalColor(interpValuation.signal)}
+                detail={isAr ? interpValuation.detailAr : interpValuation.detail}
+                locale={locale}
+                sectionExplainer={secExp("valuation")}
+                subMetrics={[
+                  { key: "pe_ratio", label: isAr ? "مكرر الأرباح" : "P/E", ...metricDisplayPolicy("pe_ratio", n("pe_ratio"), { hasNegativeEarnings }), glossary: g("pe_ratio") },
+                  { key: "pb_ratio", label: isAr ? "مكرر الدفترية" : "P/B", ...metricDisplayPolicy("pb_ratio", n("pb_ratio")), glossary: g("pb_ratio") },
+                  { key: "ps_ratio", label: isAr ? "مكرر المبيعات" : "P/S", ...metricDisplayPolicy("ps_ratio", n("ps_ratio")), glossary: g("ps_ratio") },
+                  { key: "ev_ebitda", label: "EV/EBITDA", ...metricDisplayPolicy("ev_ebitda", n("ev_ebitda")), glossary: g("ev_ebitda") },
+                ]}
+              >
                 {/* Sector percentiles */}
                 {(n("sector_pctile_pe") !== null || n("sector_pctile_pb") !== null) && (
                   <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--c-border)" }}>
                     <p style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600, marginBottom: 6 }}>{isAr ? "المرتبة في القطاع" : "SECTOR RANK"}</p>
                     <div className="flex gap-3">
                       {n("sector_pctile_pe") !== null && (
-                        <span className="font-num" style={{ fontSize: 11, color: "var(--c-muted)" }}>PE: {n("sector_pctile_pe")!.toFixed(0)}th pctile</span>
+                        <span className="font-num" style={{ fontSize: 11, color: "var(--c-muted)" }}>{isAr ? "مكرر الأرباح" : "PE"}: {n("sector_pctile_pe")!.toFixed(0)}th pctile</span>
                       )}
                       {n("sector_pctile_pb") !== null && (
-                        <span className="font-num" style={{ fontSize: 11, color: "var(--c-muted)" }}>PB: {n("sector_pctile_pb")!.toFixed(0)}th pctile</span>
+                        <span className="font-num" style={{ fontSize: 11, color: "var(--c-muted)" }}>{isAr ? "مكرر الدفترية" : "PB"}: {n("sector_pctile_pb")!.toFixed(0)}th pctile</span>
                       )}
                     </div>
                   </div>
                 )}
-              </div>
+              </InterpretationCard>
             )}
 
             {/* Quality */}
             {interpQuality.signal !== "insufficient_data" && (
-              <div className="card" style={{ padding: "20px 22px" }}>
-                <div className="flex items-center gap-2 mb-3">
-                  <ShieldCheck size={14} style={{ color: "#A78BFA" }} />
-                  <h3 className="font-bold" style={{ fontSize: 14, color: "var(--c-text)" }}>{isAr ? "الجودة" : "Quality"}</h3>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: signalBg(interpQuality.signal), color: signalColor(interpQuality.signal) }}>
-                    {isAr ? interpQuality.labelAr : interpQuality.label}
-                  </span>
-                </div>
-                <p style={{ fontSize: 12, color: "var(--c-muted)", marginBottom: 12, lineHeight: 1.5 }}>
-                  {isAr ? interpQuality.detailAr : interpQuality.detail}
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { k: "roe", label: "ROE" }, { k: "roa", label: "ROA" },
-                    { k: "net_margin", label: isAr ? "هامش صافي" : "Net Margin" }, { k: "operating_margin", label: isAr ? "هامش تشغيلي" : "Op. Margin" },
-                  ].map(({ k, label }) => {
-                    const d = metricDisplayPolicy(k, n(k));
-                    return (
-                      <div key={k} style={{ padding: "8px 10px", background: "var(--c-elevated)", borderRadius: 6 }}>
-                        <p style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600, marginBottom: 2 }}>{label}</p>
-                        <span className="font-num font-semibold" style={{ fontSize: 14, color: d.signal !== "insufficient_data" ? "var(--c-text)" : "var(--c-dim)" }}>{d.value}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <InterpretationCard
+                icon={ShieldCheck}
+                iconColor="#A78BFA"
+                title={isAr ? "الجودة" : "Quality"}
+                signalLabel={isAr ? interpQuality.labelAr : interpQuality.label}
+                signalBg={signalBg(interpQuality.signal)}
+                signalColor={signalColor(interpQuality.signal)}
+                detail={isAr ? interpQuality.detailAr : interpQuality.detail}
+                locale={locale}
+                sectionExplainer={secExp("quality")}
+                subMetrics={[
+                  { key: "roe", label: isAr ? "العائد على الملكية" : "ROE", ...metricDisplayPolicy("roe", n("roe")), glossary: g("roe") },
+                  { key: "roa", label: isAr ? "العائد على الأصول" : "ROA", ...metricDisplayPolicy("roa", n("roa")), glossary: g("roa") },
+                  { key: "net_margin", label: isAr ? "هامش الربح الصافي" : "Net Margin", ...metricDisplayPolicy("net_margin", n("net_margin")), glossary: g("net_margin") },
+                  { key: "operating_margin", label: isAr ? "هامش الربح التشغيلي" : "Op. Margin", ...metricDisplayPolicy("operating_margin", n("operating_margin")), glossary: g("operating_margin") },
+                ]}
+              />
             )}
 
             {/* Growth */}
             {interpGrowth.signal !== "insufficient_data" && (
-              <div className="card" style={{ padding: "20px 22px" }}>
-                <div className="flex items-center gap-2 mb-3">
-                  <Zap size={14} style={{ color: "#0ECB81" }} />
-                  <h3 className="font-bold" style={{ fontSize: 14, color: "var(--c-text)" }}>{isAr ? "النمو" : "Growth"}</h3>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: signalBg(interpGrowth.signal), color: signalColor(interpGrowth.signal) }}>
-                    {isAr ? interpGrowth.labelAr : interpGrowth.label}
-                  </span>
-                </div>
-                <p style={{ fontSize: 12, color: "var(--c-muted)", marginBottom: 12, lineHeight: 1.5 }}>
-                  {isAr ? interpGrowth.detailAr : interpGrowth.detail}
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { k: "revenue_growth_yoy", label: isAr ? "نمو الإيرادات" : "Rev Growth" }, { k: "earnings_growth_yoy", label: isAr ? "نمو الأرباح" : "Earnings Growth" },
-                    { k: "eps_growth_yoy", label: isAr ? "نمو ربحية السهم" : "EPS Growth" }, { k: "revenue_cagr_3y", label: isAr ? "معدل نمو 3 سنوات" : "Rev CAGR 3Y" },
-                  ].map(({ k, label }) => {
-                    const d = metricDisplayPolicy(k, n(k));
-                    return (
-                      <div key={k} style={{ padding: "8px 10px", background: "var(--c-elevated)", borderRadius: 6 }}>
-                        <p style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600, marginBottom: 2 }}>{label}</p>
-                        <span className="font-num font-semibold" style={{ fontSize: 14, color: d.signal !== "insufficient_data" ? (d.raw && d.raw > 0 ? "var(--c-green)" : d.raw && d.raw < 0 ? "var(--c-red)" : "var(--c-text)") : "var(--c-dim)" }}>{d.value}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <InterpretationCard
+                icon={Zap}
+                iconColor="#0ECB81"
+                title={isAr ? "النمو" : "Growth"}
+                signalLabel={isAr ? interpGrowth.labelAr : interpGrowth.label}
+                signalBg={signalBg(interpGrowth.signal)}
+                signalColor={signalColor(interpGrowth.signal)}
+                detail={isAr ? interpGrowth.detailAr : interpGrowth.detail}
+                locale={locale}
+                sectionExplainer={secExp("growth")}
+                subMetrics={[
+                  { key: "revenue_growth_yoy", label: isAr ? "نمو الإيرادات" : "Rev Growth", ...metricDisplayPolicy("revenue_growth_yoy", n("revenue_growth_yoy")), glossary: g("revenue_growth_yoy"), colorBySign: true },
+                  { key: "earnings_growth_yoy", label: isAr ? "نمو الأرباح" : "Earnings Growth", ...metricDisplayPolicy("earnings_growth_yoy", n("earnings_growth_yoy")), glossary: g("earnings_growth_yoy"), colorBySign: true },
+                  { key: "eps_growth_yoy", label: isAr ? "نمو ربحية السهم" : "EPS Growth", ...metricDisplayPolicy("eps_growth_yoy", n("eps_growth_yoy")), glossary: g("eps_growth_yoy"), colorBySign: true },
+                  { key: "revenue_cagr_3y", label: isAr ? "معدل نمو الإيرادات 3 سنوات" : "Rev CAGR 3Y", ...metricDisplayPolicy("revenue_cagr_3y", n("revenue_cagr_3y")), glossary: g("revenue_cagr_3y"), colorBySign: true },
+                ]}
+              />
             )}
 
             {/* Safety */}
             {interpSafety.signal !== "insufficient_data" && (
-              <div className="card" style={{ padding: "20px 22px" }}>
-                <div className="flex items-center gap-2 mb-3">
-                  <Shield size={14} style={{ color: "#14B8A6" }} />
-                  <h3 className="font-bold" style={{ fontSize: 14, color: "var(--c-text)" }}>{isAr ? "الأمان" : "Safety"}</h3>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: signalBg(interpSafety.signal), color: signalColor(interpSafety.signal) }}>
-                    {isAr ? interpSafety.labelAr : interpSafety.label}
-                  </span>
-                </div>
-                <p style={{ fontSize: 12, color: "var(--c-muted)", marginBottom: 12, lineHeight: 1.5 }}>
-                  {isAr ? interpSafety.detailAr : interpSafety.detail}
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { k: "debt_to_equity", label: isAr ? "الدين/الملكية" : "D/E" }, { k: "current_ratio", label: isAr ? "نسبة التداول" : "Current Ratio" },
-                    { k: "interest_coverage", label: isAr ? "تغطية الفائدة" : "Int. Coverage" }, { k: "ocf_to_debt", label: isAr ? "التدفق/الدين" : "OCF/Debt" },
-                  ].map(({ k, label }) => {
-                    const d = metricDisplayPolicy(k, n(k), { isBankSector });
-                    return (
-                      <div key={k} style={{ padding: "8px 10px", background: "var(--c-elevated)", borderRadius: 6 }}>
-                        <p style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600, marginBottom: 2 }}>{label}</p>
-                        <span className="font-num font-semibold" style={{ fontSize: 14, color: d.signal !== "insufficient_data" ? "var(--c-text)" : "var(--c-dim)" }}>{d.value}{d.note ? ` *` : ""}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <InterpretationCard
+                icon={Shield}
+                iconColor="#14B8A6"
+                title={isAr ? "السلامة المالية" : "Safety"}
+                signalLabel={isAr ? interpSafety.labelAr : interpSafety.label}
+                signalBg={signalBg(interpSafety.signal)}
+                signalColor={signalColor(interpSafety.signal)}
+                detail={isAr ? interpSafety.detailAr : interpSafety.detail}
+                locale={locale}
+                sectionExplainer={secExp("safety")}
+                subMetrics={[
+                  { key: "debt_to_equity", label: isAr ? "الدين / حقوق الملكية" : "D/E", ...metricDisplayPolicy("debt_to_equity", n("debt_to_equity"), { isBankSector }), glossary: g("debt_to_equity") },
+                  { key: "current_ratio", label: isAr ? "النسبة الجارية" : "Current Ratio", ...metricDisplayPolicy("current_ratio", n("current_ratio"), { isBankSector }), glossary: g("current_ratio") },
+                  { key: "interest_coverage", label: isAr ? "تغطية الفوائد" : "Int. Coverage", ...metricDisplayPolicy("interest_coverage", n("interest_coverage")), glossary: g("interest_coverage") },
+                  { key: "ocf_to_debt", label: isAr ? "التدفق النقدي / الدين" : "OCF/Debt", ...metricDisplayPolicy("ocf_to_debt", n("ocf_to_debt")), glossary: g("ocf_to_debt") },
+                ]}
+              />
             )}
 
             {/* Dividend */}
-            <div className="card" style={{ padding: "20px 22px" }}>
-              <div className="flex items-center gap-2 mb-3">
-                <DollarSign size={14} style={{ color: "#F59E0B" }} />
-                <h3 className="font-bold" style={{ fontSize: 14, color: "var(--c-text)" }}>{isAr ? "التوزيعات" : "Dividend"}</h3>
-                <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: signalBg(interpDividend.signal), color: signalColor(interpDividend.signal) }}>
-                  {isAr ? interpDividend.labelAr : interpDividend.label}
-                </span>
-              </div>
-              <p style={{ fontSize: 12, color: "var(--c-muted)", marginBottom: 12, lineHeight: 1.5 }}>
-                {isAr ? interpDividend.detailAr : interpDividend.detail}
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { k: "dividend_yield", label: isAr ? "العائد" : "Yield" }, { k: "payout_ratio", label: isAr ? "نسبة التوزيع" : "Payout" },
-                  { k: "dividend_cagr_3y", label: isAr ? "نمو التوزيعات" : "Div Growth 3Y" }, { k: "years_of_dividends", label: isAr ? "سنوات التوزيع" : "Years Paying" },
-                ].map(({ k, label }) => {
-                  const d = metricDisplayPolicy(k, n(k), { isNonDividendPayer });
-                  return (
-                    <div key={k} style={{ padding: "8px 10px", background: "var(--c-elevated)", borderRadius: 6 }}>
-                      <p style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600, marginBottom: 2 }}>{label}</p>
-                      <span className="font-num font-semibold" style={{ fontSize: 14, color: d.signal !== "insufficient_data" ? "var(--c-text)" : "var(--c-dim)" }}>{d.value}</span>
-                      {d.note && <p style={{ fontSize: 9, color: "var(--c-dim)", marginTop: 1, fontStyle: "italic" }}>{d.note}</p>}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <InterpretationCard
+              icon={DollarSign}
+              iconColor="#F59E0B"
+              title={isAr ? "التوزيعات" : "Dividend"}
+              signalLabel={isAr ? interpDividend.labelAr : interpDividend.label}
+              signalBg={signalBg(interpDividend.signal)}
+              signalColor={signalColor(interpDividend.signal)}
+              detail={isAr ? interpDividend.detailAr : interpDividend.detail}
+              locale={locale}
+              sectionExplainer={secExp("dividend")}
+              subMetrics={[
+                { key: "dividend_yield", label: isAr ? "عائد التوزيعات" : "Yield", ...metricDisplayPolicy("dividend_yield", n("dividend_yield"), { isNonDividendPayer }), glossary: g("dividend_yield") },
+                { key: "payout_ratio", label: isAr ? "نسبة التوزيع" : "Payout", ...metricDisplayPolicy("payout_ratio", n("payout_ratio"), { isNonDividendPayer }), glossary: g("payout_ratio") },
+                { key: "dividend_cagr_3y", label: isAr ? "نمو التوزيعات 3 سنوات" : "Div Growth 3Y", ...metricDisplayPolicy("dividend_cagr_3y", n("dividend_cagr_3y"), { isNonDividendPayer }), glossary: g("dividend_cagr_3y") },
+                { key: "years_of_dividends", label: isAr ? "سنوات التوزيع" : "Years Paying", ...metricDisplayPolicy("years_of_dividends", n("years_of_dividends"), { isNonDividendPayer }), glossary: g("years_of_dividends") },
+              ]}
+            />
 
             {/* Momentum */}
             {interpMomentum.signal !== "insufficient_data" && (
-              <div className="card" style={{ padding: "20px 22px" }}>
-                <div className="flex items-center gap-2 mb-3">
-                  <LineChart size={14} style={{ color: "#60A5FA" }} />
-                  <h3 className="font-bold" style={{ fontSize: 14, color: "var(--c-text)" }}>{isAr ? "الزخم" : "Momentum"}</h3>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: signalBg(interpMomentum.signal), color: signalColor(interpMomentum.signal) }}>
-                    {isAr ? interpMomentum.labelAr : interpMomentum.label}
-                  </span>
-                </div>
-                <p style={{ fontSize: 12, color: "var(--c-muted)", marginBottom: 12, lineHeight: 1.5 }}>
-                  {isAr ? interpMomentum.detailAr : interpMomentum.detail}
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { k: "return_1m", label: "1M" }, { k: "return_3m", label: "3M" }, { k: "return_1y", label: "1Y" },
-                  ].map(({ k, label }) => {
-                    const d = metricDisplayPolicy(k, n(k));
-                    return (
-                      <div key={k} style={{ padding: "8px 10px", background: "var(--c-elevated)", borderRadius: 6, textAlign: "center" }}>
-                        <p style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600, marginBottom: 2 }}>{label}</p>
-                        <span className="font-num font-semibold" style={{ fontSize: 14, color: d.raw && d.raw > 0 ? "var(--c-green)" : d.raw && d.raw < 0 ? "var(--c-red)" : "var(--c-dim)" }}>{d.value}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+              <InterpretationCard
+                icon={LineChart}
+                iconColor="#60A5FA"
+                title={isAr ? "الزخم" : "Momentum"}
+                signalLabel={isAr ? interpMomentum.labelAr : interpMomentum.label}
+                signalBg={signalBg(interpMomentum.signal)}
+                signalColor={signalColor(interpMomentum.signal)}
+                detail={isAr ? interpMomentum.detailAr : interpMomentum.detail}
+                locale={locale}
+                sectionExplainer={secExp("momentum")}
+                cols={3}
+                subMetrics={[
+                  { key: "return_1m", label: isAr ? "شهر" : "1M", ...metricDisplayPolicy("return_1m", n("return_1m")), glossary: g("return_1m"), colorBySign: true },
+                  { key: "return_3m", label: isAr ? "3 أشهر" : "3M", ...metricDisplayPolicy("return_3m", n("return_3m")), glossary: g("return_3m"), colorBySign: true },
+                  { key: "return_1y", label: isAr ? "سنة" : "1Y", ...metricDisplayPolicy("return_1y", n("return_1y")), glossary: g("return_1y"), colorBySign: true },
+                ]}
+              >
                 {(n("volatility_30d") !== null || n("relative_perf_vs_tasi") !== null) && (
                   <div className="flex gap-3 mt-2">
                     {n("volatility_30d") !== null && (
-                      <span className="font-num" style={{ fontSize: 11, color: "var(--c-muted)" }}>Vol 30d: {(n("volatility_30d")! * 100).toFixed(1)}%</span>
+                      <span className="font-num" style={{ fontSize: 11, color: "var(--c-muted)" }}>{isAr ? "التذبذب 30 يوم" : "Vol 30d"}: {(n("volatility_30d")! * 100).toFixed(1)}%</span>
                     )}
                     {n("relative_perf_vs_tasi") !== null && (
                       <span className="font-num" style={{ fontSize: 11, color: n("relative_perf_vs_tasi")! > 0 ? "var(--c-green)" : "var(--c-red)" }}>
-                        vs TASI: {n("relative_perf_vs_tasi")! > 0 ? "+" : ""}{(n("relative_perf_vs_tasi")! * 100).toFixed(1)}%
+                        {isAr ? "مقابل تاسي" : "vs TASI"}: {n("relative_perf_vs_tasi")! > 0 ? "+" : ""}{(n("relative_perf_vs_tasi")! * 100).toFixed(1)}%
                       </span>
                     )}
                   </div>
                 )}
-              </div>
+              </InterpretationCard>
             )}
           </div>
 
