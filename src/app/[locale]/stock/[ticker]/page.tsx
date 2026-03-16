@@ -11,8 +11,10 @@ import VerdictHeader from "@/components/VerdictHeader";
 import ScoreChecks from "@/components/ScoreChecks";
 import MetricCard from "@/components/MetricCard";
 import InterpretationCard from "@/components/InterpretationCard";
+import StockVerdictCard from "@/components/StockVerdictCard";
 import { sectionExplainers } from "@/lib/metric-glossary";
 import { interpretAllMetrics, judgmentBadgeColor, judgmentBadgeBg } from "@/lib/metric-interpretation";
+import { generateVerdict } from "@/lib/verdict-engine";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -350,6 +352,23 @@ export default async function StockPage({
     if (!entry) return undefined;
     return locale === "ar" ? entry.ar : entry.en;
   };
+
+  // ── Stock Verdict (top-of-page intelligence card) ───────────
+  const stockVerdict = generateVerdict({
+    n,
+    interpValuation,
+    interpQuality,
+    interpGrowth,
+    interpSafety,
+    interpDividend,
+    interpMomentum,
+    interpConfidence,
+    isBankSector,
+    isNonDividendPayer,
+    hasNegativeEarnings,
+    suqaiScore: realSuqaiScore,
+    scoreTier: realScoreTier,
+  });
 
   // Insight badges — only data-validated signals (no fair value)
   const insightBadges: string[] = [];
@@ -719,6 +738,21 @@ export default async function StockPage({
             riskFlags={riskFlags}
             locale={locale}
           />
+
+          {/* ════════════════════════════════════════════════════
+              STOCK VERDICT — intelligence summary
+          ════════════════════════════════════════════════════ */}
+          {(stockVerdict.strengths.length > 0 || stockVerdict.watchouts.length > 0) && (
+            <StockVerdictCard
+              locale={locale}
+              verdict={stockVerdict.verdict}
+              strengths={stockVerdict.strengths}
+              watchouts={stockVerdict.watchouts}
+              peerContext={stockVerdict.peerContext}
+              confidenceLabel={stockVerdict.confidenceLabel}
+              confidenceColor={stockVerdict.confidenceColor}
+            />
+          )}
 
           {/* ════════════════════════════════════════════════════
               SECTION 1: OVERVIEW — Key Metrics at a Glance
