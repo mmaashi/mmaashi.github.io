@@ -31,12 +31,7 @@ import {
   ArrowDownRight,
   Newspaper,
   ExternalLink,
-  Gauge,
-  Target,
-  Zap,
   PieChart,
-  ShieldCheck,
-  LineChart,
 } from "lucide-react";
 import { t, tSector } from "@/lib/i18n";
 import {
@@ -711,18 +706,18 @@ export default async function StockPage({
           ════════════════════════════════════════════════════ */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
             {([
-              { icon: BarChart3, mk: "pe_ratio", label: t(locale, "stock.pe"), ...metricDisplayPolicy("pe_ratio", n("pe_ratio"), { hasNegativeEarnings }), sub: eps ? `EPS: ${sar} ${eps.toFixed(2)}` : undefined },
-              { icon: DollarSign, mk: "pb_ratio", label: isAr ? "مكرر القيمة الدفترية" : "P/B Ratio", ...metricDisplayPolicy("pb_ratio", n("pb_ratio")), sub: undefined },
-              { icon: Calendar, mk: "dividend_yield", label: t(locale, "stock.div_yield"), ...metricDisplayPolicy("dividend_yield", n("dividend_yield"), { isNonDividendPayer }), sub: annualDiv > 0 ? `${sar} ${annualDiv.toFixed(2)}/${t(locale, "stock.per_year")}` : undefined },
-              { icon: TrendingUp, mk: "", label: t(locale, "stock.revenue_short"), value: revenueFormatted ?? "—", raw: revenue, signal: "neutral" as Signal, hidden: false, sub: undefined, note: undefined },
-              { icon: BarChart3, mk: "net_margin", label: t(locale, "stock.net_margin"), ...metricDisplayPolicy("net_margin", n("net_margin")), sub: undefined },
-              { icon: Building2, mk: "debt_to_equity", label: t(locale, "stock.debt_equity"), ...metricDisplayPolicy("debt_to_equity", n("debt_to_equity"), { isBankSector }), sub: undefined },
-              { icon: TrendingUp, mk: "roe", label: t(locale, "stock.roe"), ...metricDisplayPolicy("roe", n("roe")), sub: undefined },
-              { icon: Activity, mk: "", label: t(locale, "stock.52w"), value: fiftyTwoHigh && fiftyTwoLow ? `${fiftyTwoLow} – ${fiftyTwoHigh}` : "—", raw: null, signal: "neutral" as Signal, hidden: false, sub: fiftyTwoHigh ? sar : undefined, note: undefined },
-            ] as Array<{ icon: typeof BarChart3; mk: string; label: string; value: string; raw: number | null; signal: Signal; hidden: boolean; sub?: string; note?: string }>).filter(item => !item.hidden).map(({ icon, mk, label, value, signal, sub, note }) => (
+              { iconName: "BarChart3", mk: "pe_ratio", label: t(locale, "stock.pe"), ...metricDisplayPolicy("pe_ratio", n("pe_ratio"), { hasNegativeEarnings }), sub: eps ? `EPS: ${sar} ${eps.toFixed(2)}` : undefined },
+              { iconName: "DollarSign", mk: "pb_ratio", label: isAr ? "مكرر القيمة الدفترية" : "P/B Ratio", ...metricDisplayPolicy("pb_ratio", n("pb_ratio")), sub: undefined },
+              { iconName: "Calendar", mk: "dividend_yield", label: t(locale, "stock.div_yield"), ...metricDisplayPolicy("dividend_yield", n("dividend_yield"), { isNonDividendPayer }), sub: annualDiv > 0 ? `${sar} ${annualDiv.toFixed(2)}/${t(locale, "stock.per_year")}` : undefined },
+              { iconName: "TrendingUp", mk: "", label: t(locale, "stock.revenue_short"), value: revenueFormatted ?? "—", raw: revenue, signal: "neutral" as Signal, hidden: false, sub: undefined, note: undefined },
+              { iconName: "BarChart3", mk: "net_margin", label: t(locale, "stock.net_margin"), ...metricDisplayPolicy("net_margin", n("net_margin")), sub: undefined },
+              { iconName: "Building2", mk: "debt_to_equity", label: t(locale, "stock.debt_equity"), ...metricDisplayPolicy("debt_to_equity", n("debt_to_equity"), { isBankSector }), sub: undefined },
+              { iconName: "TrendingUp", mk: "roe", label: t(locale, "stock.roe"), ...metricDisplayPolicy("roe", n("roe")), sub: undefined },
+              { iconName: "Activity", mk: "", label: t(locale, "stock.52w"), value: fiftyTwoHigh && fiftyTwoLow ? `${fiftyTwoLow} – ${fiftyTwoHigh}` : "—", raw: null, signal: "neutral" as Signal, hidden: false, sub: fiftyTwoHigh ? sar : undefined, note: undefined },
+            ] as Array<{ iconName: string; mk: string; label: string; value: string; raw: number | null; signal: Signal; hidden: boolean; sub?: string; note?: string }>).filter(item => !item.hidden).map(({ iconName, mk, label, value, signal, sub, note }) => (
               <MetricCard
                 key={label}
-                icon={icon}
+                iconName={iconName}
                 label={label}
                 value={value}
                 signal={signal}
@@ -743,7 +738,7 @@ export default async function StockPage({
             {/* Valuation */}
             {interpValuation.signal !== "insufficient_data" && (
               <InterpretationCard
-                icon={Target}
+                iconName="Target"
                 iconColor="#C8A951"
                 title={isAr ? "التقييم" : "Valuation"}
                 signalLabel={isAr ? interpValuation.labelAr : interpValuation.label}
@@ -779,7 +774,7 @@ export default async function StockPage({
             {/* Quality */}
             {interpQuality.signal !== "insufficient_data" && (
               <InterpretationCard
-                icon={ShieldCheck}
+                iconName="ShieldCheck"
                 iconColor="#A78BFA"
                 title={isAr ? "الجودة" : "Quality"}
                 signalLabel={isAr ? interpQuality.labelAr : interpQuality.label}
@@ -800,7 +795,7 @@ export default async function StockPage({
             {/* Growth */}
             {interpGrowth.signal !== "insufficient_data" && (
               <InterpretationCard
-                icon={Zap}
+                iconName="Zap"
                 iconColor="#0ECB81"
                 title={isAr ? "النمو" : "Growth"}
                 signalLabel={isAr ? interpGrowth.labelAr : interpGrowth.label}
@@ -821,7 +816,7 @@ export default async function StockPage({
             {/* Safety */}
             {interpSafety.signal !== "insufficient_data" && (
               <InterpretationCard
-                icon={Shield}
+                iconName="Shield"
                 iconColor="#14B8A6"
                 title={isAr ? "السلامة المالية" : "Safety"}
                 signalLabel={isAr ? interpSafety.labelAr : interpSafety.label}
@@ -841,7 +836,7 @@ export default async function StockPage({
 
             {/* Dividend */}
             <InterpretationCard
-              icon={DollarSign}
+              iconName="DollarSign"
               iconColor="#F59E0B"
               title={isAr ? "التوزيعات" : "Dividend"}
               signalLabel={isAr ? interpDividend.labelAr : interpDividend.label}
@@ -861,7 +856,7 @@ export default async function StockPage({
             {/* Momentum */}
             {interpMomentum.signal !== "insufficient_data" && (
               <InterpretationCard
-                icon={LineChart}
+                iconName="LineChart"
                 iconColor="#60A5FA"
                 title={isAr ? "الزخم" : "Momentum"}
                 signalLabel={isAr ? interpMomentum.labelAr : interpMomentum.label}

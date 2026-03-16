@@ -1,7 +1,39 @@
 "use client";
 
 import { MetricExplainer } from "./MetricExplainer";
+import {
+  BarChart3,
+  DollarSign,
+  Calendar,
+  TrendingUp,
+  Building2,
+  Activity,
+  Target,
+  ShieldCheck,
+  Zap,
+  Shield,
+  LineChart,
+  PieChart,
+  Gauge,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+
+/* ── Icon registry (avoids passing component refs across RSC boundary) ── */
+const iconMap: Record<string, LucideIcon> = {
+  BarChart3,
+  DollarSign,
+  Calendar,
+  TrendingUp,
+  Building2,
+  Activity,
+  Target,
+  ShieldCheck,
+  Zap,
+  Shield,
+  LineChart,
+  PieChart,
+  Gauge,
+};
 
 interface GlossaryData {
   what: string;
@@ -11,7 +43,8 @@ interface GlossaryData {
 }
 
 interface MetricCardProps {
-  icon: LucideIcon;
+  /** Icon name — must match a key in the internal iconMap */
+  iconName: string;
   label: string;
   value: string;
   signal: string;
@@ -23,7 +56,7 @@ interface MetricCardProps {
 }
 
 export default function MetricCard({
-  icon: Icon,
+  iconName,
   label,
   value,
   signal,
@@ -33,6 +66,8 @@ export default function MetricCard({
   metricKey,
   locale,
 }: MetricCardProps) {
+  const Icon = iconMap[iconName] || BarChart3;
+
   return (
     <div className="card" style={{ padding: "16px 18px" }}>
       <div className="flex items-center gap-2 mb-2">

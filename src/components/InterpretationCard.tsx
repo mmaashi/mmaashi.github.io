@@ -1,7 +1,39 @@
 "use client";
 
 import { MetricExplainer, SectionExplainerToggle } from "./MetricExplainer";
+import {
+  BarChart3,
+  DollarSign,
+  Calendar,
+  TrendingUp,
+  Building2,
+  Activity,
+  Target,
+  ShieldCheck,
+  Zap,
+  Shield,
+  LineChart,
+  PieChart,
+  Gauge,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+
+/* ── Icon registry (avoids passing component refs across RSC boundary) ── */
+const iconMap: Record<string, LucideIcon> = {
+  BarChart3,
+  DollarSign,
+  Calendar,
+  TrendingUp,
+  Building2,
+  Activity,
+  Target,
+  ShieldCheck,
+  Zap,
+  Shield,
+  LineChart,
+  PieChart,
+  Gauge,
+};
 
 interface GlossaryData {
   what: string;
@@ -24,7 +56,8 @@ interface SubMetric {
 }
 
 interface InterpretationCardProps {
-  icon: LucideIcon;
+  /** Icon name — must match a key in the internal iconMap */
+  iconName: string;
   iconColor: string;
   title: string;
   signalLabel: string;
@@ -42,7 +75,7 @@ interface InterpretationCardProps {
 }
 
 export default function InterpretationCard({
-  icon: Icon,
+  iconName,
   iconColor,
   title,
   signalLabel,
@@ -56,6 +89,7 @@ export default function InterpretationCard({
   cols = 2,
 }: InterpretationCardProps) {
   const isAr = locale === "ar";
+  const Icon = iconMap[iconName] || Target;
 
   return (
     <div className="card" style={{ padding: "20px 22px" }}>
