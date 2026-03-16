@@ -11,7 +11,8 @@ import VerdictHeader from "@/components/VerdictHeader";
 import ScoreChecks from "@/components/ScoreChecks";
 import MetricCard from "@/components/MetricCard";
 import InterpretationCard from "@/components/InterpretationCard";
-import { metricGlossary, sectionExplainers } from "@/lib/metric-glossary";
+import { sectionExplainers } from "@/lib/metric-glossary";
+import { interpretAllMetrics, judgmentBadgeColor, judgmentBadgeBg } from "@/lib/metric-interpretation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -320,12 +321,30 @@ export default async function StockPage({
   const tierInfo = scoreTierLabel(realScoreTier, locale);
   const { strengths: scoreStrengths, weaknesses: scoreWeaknesses } = dimensionStrengthsWeaknesses(dbScoreValue, dbScoreQuality, dbScoreGrowth, dbScoreMomentum, dbScoreDividend, dbScoreSafety, locale);
 
-  // ── Glossary helper (resolves locale-specific content) ─────
-  const g = (key: string) => {
-    const entry = metricGlossary[key];
-    if (!entry) return null;
-    return locale === "ar" ? entry.ar : entry.en;
+  // ── Metric Interpretation Engine ─────────────────────────────
+  const metricInterps = interpretAllMetrics({
+    n,
+    isBankSector,
+    isNonDividendPayer,
+    hasNegativeEarnings,
+    companyName: displayName,
+  });
+
+  /** Get serializable interpretation data for a metric (safe for client components) */
+  const mi = (key: string) => {
+    const interp = metricInterps[key];
+    if (!interp) return null;
+    return {
+      signal: interp.signal,
+      badge: interp.badge,
+      oneLiner: interp.oneLiner,
+      detail: interp.detail,
+      watch: interp.watch,
+      badgeColor: judgmentBadgeColor(interp.signal),
+      badgeBg: judgmentBadgeBg(interp.signal),
+    };
   };
+
   const secExp = (section: string) => {
     const entry = sectionExplainers[section];
     if (!entry) return undefined;
@@ -723,9 +742,8 @@ export default async function StockPage({
                 signal={signal}
                 sub={sub}
                 note={note}
-                glossary={mk ? g(mk) : null}
-                metricKey={mk || undefined}
                 locale={locale}
+                interpretation={mk ? mi(mk) : null}
               />
             ))}
           </div>
@@ -748,10 +766,10 @@ export default async function StockPage({
                 locale={locale}
                 sectionExplainer={secExp("valuation")}
                 subMetrics={[
-                  { key: "pe_ratio", label: isAr ? "مكرر الأرباح" : "P/E", ...metricDisplayPolicy("pe_ratio", n("pe_ratio"), { hasNegativeEarnings }), glossary: g("pe_ratio") },
-                  { key: "pb_ratio", label: isAr ? "مكرر الدفترية" : "P/B", ...metricDisplayPolicy("pb_ratio", n("pb_ratio")), glossary: g("pb_ratio") },
-                  { key: "ps_ratio", label: isAr ? "مكرر المبيعات" : "P/S", ...metricDisplayPolicy("ps_ratio", n("ps_ratio")), glossary: g("ps_ratio") },
-                  { key: "ev_ebitda", label: "EV/EBITDA", ...metricDisplayPolicy("ev_ebitda", n("ev_ebitda")), glossary: g("ev_ebitda") },
+                  { key: "pe_ratio", label: isAr ? "مكرر الأرباح" : "P/E", ...metricDisplayPolicy("pe_ratio", n("pe_ratio"), { hasNegativeEarnings }), interpretation: mi("pe_ratio") },
+                  { key: "pb_ratio", label: isAr ? "مكرر الدفترية" : "P/B", ...metricDisplayPolicy("pb_ratio", n("pb_ratio")), interpretation: mi("pb_ratio") },
+                  { key: "ps_ratio", label: isAr ? "مكرر المبيعات" : "P/S", ...metricDisplayPolicy("ps_ratio", n("ps_ratio")), interpretation: mi("ps_ratio") },
+                  { key: "ev_ebitda", label: "EV/EBITDA", ...metricDisplayPolicy("ev_ebitda", n("ev_ebitda")), interpretation: mi("ev_ebitda") },
                 ]}
               >
                 {/* Sector percentiles */}
@@ -784,10 +802,10 @@ export default async function StockPage({
                 locale={locale}
                 sectionExplainer={secExp("quality")}
                 subMetrics={[
-                  { key: "roe", label: isAr ? "العائد على الملكية" : "ROE", ...metricDisplayPolicy("roe", n("roe")), glossary: g("roe") },
-                  { key: "roa", label: isAr ? "العائد على الأصول" : "ROA", ...metricDisplayPolicy("roa", n("roa")), glossary: g("roa") },
-                  { key: "net_margin", label: isAr ? "هامش الربح الصافي" : "Net Margin", ...metricDisplayPolicy("net_margin", n("net_margin")), glossary: g("net_margin") },
-                  { key: "operating_margin", label: isAr ? "هامش الربح التشغيلي" : "Op. Margin", ...metricDisplayPolicy("operating_margin", n("operating_margin")), glossary: g("operating_margin") },
+                  { key: "roe", label: isAr ? "العائد على الملكية" : "ROE", ...metricDisplayPolicy("roe", n("roe")), interpretation: mi("roe") },
+                  { key: "roa", label: isAr ? "العائد على الأصول" : "ROA", ...metricDisplayPolicy("roa", n("roa")), interpretation: mi("roa") },
+                  { key: "net_margin", label: isAr ? "هامش الربح الصافي" : "Net Margin", ...metricDisplayPolicy("net_margin", n("net_margin")), interpretation: mi("net_margin") },
+                  { key: "operating_margin", label: isAr ? "هامش الربح التشغيلي" : "Op. Margin", ...metricDisplayPolicy("operating_margin", n("operating_margin")), interpretation: mi("operating_margin") },
                 ]}
               />
             )}
@@ -805,10 +823,10 @@ export default async function StockPage({
                 locale={locale}
                 sectionExplainer={secExp("growth")}
                 subMetrics={[
-                  { key: "revenue_growth_yoy", label: isAr ? "نمو الإيرادات" : "Rev Growth", ...metricDisplayPolicy("revenue_growth_yoy", n("revenue_growth_yoy")), glossary: g("revenue_growth_yoy"), colorBySign: true },
-                  { key: "earnings_growth_yoy", label: isAr ? "نمو الأرباح" : "Earnings Growth", ...metricDisplayPolicy("earnings_growth_yoy", n("earnings_growth_yoy")), glossary: g("earnings_growth_yoy"), colorBySign: true },
-                  { key: "eps_growth_yoy", label: isAr ? "نمو ربحية السهم" : "EPS Growth", ...metricDisplayPolicy("eps_growth_yoy", n("eps_growth_yoy")), glossary: g("eps_growth_yoy"), colorBySign: true },
-                  { key: "revenue_cagr_3y", label: isAr ? "معدل نمو الإيرادات 3 سنوات" : "Rev CAGR 3Y", ...metricDisplayPolicy("revenue_cagr_3y", n("revenue_cagr_3y")), glossary: g("revenue_cagr_3y"), colorBySign: true },
+                  { key: "revenue_growth_yoy", label: isAr ? "نمو الإيرادات" : "Rev Growth", ...metricDisplayPolicy("revenue_growth_yoy", n("revenue_growth_yoy")), interpretation: mi("revenue_growth_yoy"), colorBySign: true },
+                  { key: "earnings_growth_yoy", label: isAr ? "نمو الأرباح" : "Earnings Growth", ...metricDisplayPolicy("earnings_growth_yoy", n("earnings_growth_yoy")), interpretation: mi("earnings_growth_yoy"), colorBySign: true },
+                  { key: "eps_growth_yoy", label: isAr ? "نمو ربحية السهم" : "EPS Growth", ...metricDisplayPolicy("eps_growth_yoy", n("eps_growth_yoy")), interpretation: mi("eps_growth_yoy"), colorBySign: true },
+                  { key: "revenue_cagr_3y", label: isAr ? "معدل نمو الإيرادات 3 سنوات" : "Rev CAGR 3Y", ...metricDisplayPolicy("revenue_cagr_3y", n("revenue_cagr_3y")), interpretation: mi("revenue_cagr_3y"), colorBySign: true },
                 ]}
               />
             )}
@@ -826,10 +844,10 @@ export default async function StockPage({
                 locale={locale}
                 sectionExplainer={secExp("safety")}
                 subMetrics={[
-                  { key: "debt_to_equity", label: isAr ? "الدين / حقوق الملكية" : "D/E", ...metricDisplayPolicy("debt_to_equity", n("debt_to_equity"), { isBankSector }), glossary: g("debt_to_equity") },
-                  { key: "current_ratio", label: isAr ? "النسبة الجارية" : "Current Ratio", ...metricDisplayPolicy("current_ratio", n("current_ratio"), { isBankSector }), glossary: g("current_ratio") },
-                  { key: "interest_coverage", label: isAr ? "تغطية الفوائد" : "Int. Coverage", ...metricDisplayPolicy("interest_coverage", n("interest_coverage")), glossary: g("interest_coverage") },
-                  { key: "ocf_to_debt", label: isAr ? "التدفق النقدي / الدين" : "OCF/Debt", ...metricDisplayPolicy("ocf_to_debt", n("ocf_to_debt")), glossary: g("ocf_to_debt") },
+                  { key: "debt_to_equity", label: isAr ? "الدين / حقوق الملكية" : "D/E", ...metricDisplayPolicy("debt_to_equity", n("debt_to_equity"), { isBankSector }), interpretation: mi("debt_to_equity") },
+                  { key: "current_ratio", label: isAr ? "النسبة الجارية" : "Current Ratio", ...metricDisplayPolicy("current_ratio", n("current_ratio"), { isBankSector }), interpretation: mi("current_ratio") },
+                  { key: "interest_coverage", label: isAr ? "تغطية الفوائد" : "Int. Coverage", ...metricDisplayPolicy("interest_coverage", n("interest_coverage")), interpretation: mi("interest_coverage") },
+                  { key: "ocf_to_debt", label: isAr ? "التدفق النقدي / الدين" : "OCF/Debt", ...metricDisplayPolicy("ocf_to_debt", n("ocf_to_debt")), interpretation: mi("ocf_to_debt") },
                 ]}
               />
             )}
@@ -846,10 +864,10 @@ export default async function StockPage({
               locale={locale}
               sectionExplainer={secExp("dividend")}
               subMetrics={[
-                { key: "dividend_yield", label: isAr ? "عائد التوزيعات" : "Yield", ...metricDisplayPolicy("dividend_yield", n("dividend_yield"), { isNonDividendPayer }), glossary: g("dividend_yield") },
-                { key: "payout_ratio", label: isAr ? "نسبة التوزيع" : "Payout", ...metricDisplayPolicy("payout_ratio", n("payout_ratio"), { isNonDividendPayer }), glossary: g("payout_ratio") },
-                { key: "dividend_cagr_3y", label: isAr ? "نمو التوزيعات 3 سنوات" : "Div Growth 3Y", ...metricDisplayPolicy("dividend_cagr_3y", n("dividend_cagr_3y"), { isNonDividendPayer }), glossary: g("dividend_cagr_3y") },
-                { key: "years_of_dividends", label: isAr ? "سنوات التوزيع" : "Years Paying", ...metricDisplayPolicy("years_of_dividends", n("years_of_dividends"), { isNonDividendPayer }), glossary: g("years_of_dividends") },
+                { key: "dividend_yield", label: isAr ? "عائد التوزيعات" : "Yield", ...metricDisplayPolicy("dividend_yield", n("dividend_yield"), { isNonDividendPayer }), interpretation: mi("dividend_yield") },
+                { key: "payout_ratio", label: isAr ? "نسبة التوزيع" : "Payout", ...metricDisplayPolicy("payout_ratio", n("payout_ratio"), { isNonDividendPayer }), interpretation: mi("payout_ratio") },
+                { key: "dividend_cagr_3y", label: isAr ? "نمو التوزيعات 3 سنوات" : "Div Growth 3Y", ...metricDisplayPolicy("dividend_cagr_3y", n("dividend_cagr_3y"), { isNonDividendPayer }), interpretation: mi("dividend_cagr_3y") },
+                { key: "years_of_dividends", label: isAr ? "سنوات التوزيع" : "Years Paying", ...metricDisplayPolicy("years_of_dividends", n("years_of_dividends"), { isNonDividendPayer }), interpretation: mi("years_of_dividends") },
               ]}
             />
 
@@ -867,9 +885,9 @@ export default async function StockPage({
                 sectionExplainer={secExp("momentum")}
                 cols={3}
                 subMetrics={[
-                  { key: "return_1m", label: isAr ? "شهر" : "1M", ...metricDisplayPolicy("return_1m", n("return_1m")), glossary: g("return_1m"), colorBySign: true },
-                  { key: "return_3m", label: isAr ? "3 أشهر" : "3M", ...metricDisplayPolicy("return_3m", n("return_3m")), glossary: g("return_3m"), colorBySign: true },
-                  { key: "return_1y", label: isAr ? "سنة" : "1Y", ...metricDisplayPolicy("return_1y", n("return_1y")), glossary: g("return_1y"), colorBySign: true },
+                  { key: "return_1m", label: isAr ? "شهر" : "1M", ...metricDisplayPolicy("return_1m", n("return_1m")), interpretation: mi("return_1m"), colorBySign: true },
+                  { key: "return_3m", label: isAr ? "3 أشهر" : "3M", ...metricDisplayPolicy("return_3m", n("return_3m")), interpretation: mi("return_3m"), colorBySign: true },
+                  { key: "return_1y", label: isAr ? "سنة" : "1Y", ...metricDisplayPolicy("return_1y", n("return_1y")), interpretation: mi("return_1y"), colorBySign: true },
                 ]}
               >
                 {(n("volatility_30d") !== null || n("relative_perf_vs_tasi") !== null) && (
