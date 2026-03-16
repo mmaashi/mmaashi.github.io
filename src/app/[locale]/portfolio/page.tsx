@@ -20,6 +20,7 @@ import OpportunitiesModule, { type Opportunity } from "@/components/dashboard/Op
 import SavedScreens, { type SavedScreen } from "@/components/dashboard/SavedScreens";
 import WealthCalculator from "@/components/dashboard/WealthCalculator";
 import ContinueResearch, { type ContinueItem } from "@/components/dashboard/ContinueResearch";
+import ContractAlerts, { type ContractAlert } from "@/components/contracts/ContractAlerts";
 
 // Demo data
 const DEMO_HOLDINGS = [
@@ -378,7 +379,26 @@ export default async function MyDashboardPage({
     watchlistStocks.push({ ticker, name: displayName(locale, company.name_en, company.name_ar), price: priceData.close, change: todayChange, score, signal, signalLine, divYield: div && div.annualEst > 0 ? (div.annualEst / priceData.close) * 100 : null });
   }
 
+  // Watchlist contract activity
+  let wlContractCount = 0;
+  try {
+    const wlCompanyIds = DEMO_WATCHLIST.map((t) => tickerToCompany.get(t)?.id).filter(Boolean) as string[];
+    if (wlCompanyIds.length > 0) {
+      const thirtyDaysAgo2 = new Date();
+      thirtyDaysAgo2.setDate(thirtyDaysAgo2.getDate() - 30);
+      const { count } = await (supabase as any)
+        .from("company_contracts")
+        .select("id", { count: "exact", head: true })
+        .in("company_id", wlCompanyIds)
+        .gte("announcement_date", thirtyDaysAgo2.toISOString().slice(0, 10)) as unknown as { count: number | null; error: any };
+      wlContractCount = count ?? 0;
+    }
+  } catch {
+    // Contract table may not exist yet
+  }
+
   const wlInsights: WatchlistInsight[] = [];
+  if (wlContractCount > 0) wlInsights.push({ line: { en: `${wlContractCount} new contract${wlContractCount > 1 ? "s" : ""} announced by watchlist companies`, ar: `${wlContractCount} ${wlContractCount > 1 ? "عقود جديدة" : "عقد جديد"} من شركات قائمة المتابعة` }, color: "var(--c-green)" });
   const highScoreWL = watchlistStocks.filter((s) => s.score !== null && s.score >= 70);
   if (highScoreWL.length > 0) wlInsights.push({ line: { en: `${highScoreWL.length} stock${highScoreWL.length > 1 ? "s" : ""} in your watchlist rank${highScoreWL.length === 1 ? "s" : ""} highly on quality`, ar: `${highScoreWL.length} ${highScoreWL.length > 1 ? "أسهم" : "سهم"} في قائمتك ${highScoreWL.length > 1 ? "تحقق" : "يحقق"} جودة عالية` }, color: "var(--c-green)" });
   const weakWL = watchlistStocks.filter((s) => s.change < -2);
@@ -452,6 +472,86 @@ export default async function MyDashboardPage({
 
   // Sort attention items by priority
   attentionItems.sort((a, b) => a.priority - b.priority);
+
+  // ══════════════════════════════════════════════════
+  //  CONTRACT ALERTS FOR HOLDINGS
+  // ══════════════════════════════════════════════════
+
+  const contractAlerts: ContractAlert[] = [];
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysStr = thirtyDaysAgo.toISOString().slice(0, 10);
+    const holdingCompanyIds = DEMO_HOLDINGS.map((h) => tickerToCompany.get(h.ticker)?.id).filter(Boolean) as string[];
+
+    if (holdingCompanyIds.length > 0) {
+      const { data: recentContracts } = await (supabase as any)
+        .from("company_contracts")
+        .select("ticker, disclosure_type, contract_value, currency, counterparty, materiality_label, announcement_date, what_happened_en, what_happened_ar, value_disclosed")
+        .in("company_id", holdingCompanyIds)
+        .gte("announcement_date", thirtyDaysStr)
+        .order("announcement_date", { ascending: false })
+        .limit(5) as unknown as { data: Array<{
+          ticker: string; disclosure_type: string; contract_value: number | null;
+          currency: string; counterparty: string | null; materiality_label: string;
+          announcement_date: string; what_happened_en: string | null; what_happened_ar: string | null;
+          value_disclosed: boolean;
+        }> | null; error: any };
+
+      const discLabelEn: Record<string, string> = {
+        contract_award: "New award", signed_contract: "Signed", extension: "Extension",
+        renewal: "Renewal", framework_agreement: "Framework", mou: "MOU",
+        supply_agreement: "Supply", service_agreement: "Service", project_execution: "Project",
+      };
+      const discLabelAr: Record<string, string> = {
+        contract_award: "عقد جديد", signed_contract: "توقيع", extension: "تمديد",
+        renewal: "تجديد", framework_agreement: "إطاري", mou: "مذكرة تفاهم",
+        supply_agreement: "توريد", service_agreement: "خدمات", project_execution: "تنفيذ مشروع",
+      };
+
+      for (const c of recentContracts || []) {
+        const company = tickerToCompany.get(c.ticker);
+        if (!company) continue;
+        const daysAgo = Math.floor((Date.now() - new Date(c.announcement_date).getTime()) / 86400000);
+        contractAlerts.push({
+          ticker: c.ticker,
+          companyName: displayName(locale, company.name_en, company.name_ar),
+          disclosureType: c.disclosure_type,
+          disclosureLabelEn: discLabelEn[c.disclosure_type] || "Contract",
+          disclosureLabelAr: discLabelAr[c.disclosure_type] || "عقد",
+          value: c.value_disclosed && c.contract_value ? Number(c.contract_value) : null,
+          currency: c.currency || "SAR",
+          counterparty: c.counterparty,
+          materialityLabel: c.materiality_label || "unknown",
+          announcementDate: c.announcement_date,
+          daysAgo,
+          interpretation: {
+            en: c.what_happened_en || `${displayName("en", company.name_en, company.name_ar)} announced a new ${discLabelEn[c.disclosure_type]?.toLowerCase() || "contract"}.`,
+            ar: c.what_happened_ar || `أعلنت ${displayName("ar", company.name_en, company.name_ar)} عن ${discLabelAr[c.disclosure_type] || "عقد"} جديد.`,
+          },
+        });
+      }
+    }
+  } catch {
+    // Contract table may not exist yet — graceful degradation
+  }
+
+  // Add contract alert to attention module if we have any
+  if (contractAlerts.length > 0) {
+    const topContract = contractAlerts[0];
+    attentionItems.push({
+      priority: 1.5, // High priority — between weakest holding and concentration
+      line: {
+        en: `New contract: ${topContract.companyName} announced a ${topContract.disclosureLabelEn.toLowerCase()}${topContract.value ? ` worth ${topContract.currency} ${topContract.value >= 1e6 ? (topContract.value / 1e6).toFixed(0) + "M" : topContract.value.toLocaleString()}` : ""}`,
+        ar: `عقد جديد: أعلنت ${topContract.companyName} عن ${topContract.disclosureLabelAr}${topContract.value ? ` بقيمة ${topContract.currency} ${topContract.value >= 1e6 ? (topContract.value / 1e6).toFixed(0) + "M" : topContract.value.toLocaleString()}` : ""}`,
+      },
+      action: { en: "View contract", ar: "عرض العقد" },
+      href: `/${locale}/stock/${topContract.ticker}`,
+      color: "var(--c-green)",
+    });
+    // Re-sort attention items
+    attentionItems.sort((a, b) => a.priority - b.priority);
+  }
 
   // ══════════════════════════════════════════════════
   //  PERFORMANCE CHART
@@ -606,6 +706,11 @@ export default async function MyDashboardPage({
       <div style={{ marginBottom: 28 }}>
         <HoldingsTable holdings={holdings} locale={locale} sar={sar} />
       </div>
+
+      {/* CONTRACT ALERTS FOR HOLDINGS */}
+      {contractAlerts.length > 0 && (
+        <ContractAlerts alerts={contractAlerts} locale={locale} sar={sar} />
+      )}
 
       {/* 5. WATCHLIST BLOCK */}
       <div style={{ marginBottom: 28 }}>

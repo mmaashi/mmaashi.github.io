@@ -15,6 +15,7 @@ import { calculateScores } from "@/lib/scores";
 import { scoreVerdict } from "@/lib/format";
 import { displayName } from "@/lib/display-names";
 import SectorHeatMap from "@/components/SectorHeatMap";
+import ContractWinsSection, { type ContractWin, type ContractWinner } from "@/components/contracts/ContractWinsSection";
 
 // ════════════════════════════════════════════════════════════════
 // Helpers — compute SŪQAI score & fetch stock fundamentals
@@ -1191,6 +1192,122 @@ async function IntelligenceCards({ locale }: { locale: string }) {
 }
 
 // ════════════════════════════════════════════════════════════════
+// Section 7.5 — Contract & Business Wins
+// ════════════════════════════════════════════════════════════════
+async function ContractWins({ locale }: { locale: string }) {
+  const isAr = locale === "ar";
+  const supabase = createServiceClient();
+
+  try {
+    // Recent wins (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysStr = sevenDaysAgo.toISOString().slice(0, 10);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: recentRaw } = await (supabase as any)
+      .from("company_contracts")
+      .select("ticker, company_id, disclosure_type, contract_value, currency, counterparty, materiality_label, announcement_date, what_happened_en, what_happened_ar, value_disclosed")
+      .gte("announcement_date", sevenDaysStr)
+      .order("announcement_date", { ascending: false })
+      .limit(5) as unknown as { data: Array<{
+        ticker: string; company_id: string; disclosure_type: string;
+        contract_value: number | null; currency: string; counterparty: string | null;
+        materiality_label: string; announcement_date: string;
+        what_happened_en: string | null; what_happened_ar: string | null;
+        value_disclosed: boolean;
+      }> | null; error: any };
+
+    // Top winners (from momentum table)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: winnersRaw } = await (supabase as any)
+      .from("company_contract_momentum")
+      .select("ticker, company_id, contracts_12m, disclosed_value_12m, momentum_signal, signal_line_en, signal_line_ar")
+      .order("contracts_12m", { ascending: false })
+      .limit(5) as unknown as { data: Array<{
+        ticker: string; company_id: string; contracts_12m: number;
+        disclosed_value_12m: number; momentum_signal: string;
+        signal_line_en: string | null; signal_line_ar: string | null;
+      }> | null; error: any };
+
+    const recent = recentRaw || [];
+    const winners = winnersRaw || [];
+
+    if (recent.length === 0 && winners.length === 0) return null;
+
+    // Get company names for recent contracts and winners
+    const allCids = [...new Set([...recent.map((r) => r.company_id), ...winners.map((w) => w.company_id)])];
+    const { data: companiesForContracts } = await supabase
+      .from("companies")
+      .select("id, ticker, name_en, name_ar")
+      .in("id", allCids.length > 0 ? allCids : ["none"]);
+    const cMap = new Map((companiesForContracts || []).map((c) => [c.id, c]));
+
+    const discLabelEn: Record<string, string> = {
+      contract_award: "New award", signed_contract: "Signed", extension: "Extension",
+      renewal: "Renewal", framework_agreement: "Framework", mou: "MOU",
+      supply_agreement: "Supply", service_agreement: "Service", project_execution: "Project",
+    };
+    const discLabelAr: Record<string, string> = {
+      contract_award: "عقد جديد", signed_contract: "توقيع", extension: "تمديد",
+      renewal: "تجديد", framework_agreement: "إطاري", mou: "مذكرة تفاهم",
+      supply_agreement: "توريد", service_agreement: "خدمات", project_execution: "تنفيذ مشروع",
+    };
+    const momentumSignalArMap: Record<string, string> = {
+      active: "نشط", improving: "متحسن", steady: "مستقر",
+      slowing: "متراجع", limited: "محدود", dormant: "خامل",
+    };
+
+    const recentWins: ContractWin[] = recent.map((c) => {
+      const comp = cMap.get(c.company_id);
+      const daysAgo = Math.floor((Date.now() - new Date(c.announcement_date).getTime()) / 86400000);
+      return {
+        ticker: c.ticker,
+        companyName: comp ? displayName(locale, comp.name_en, comp.name_ar) : c.ticker,
+        disclosureLabelEn: discLabelEn[c.disclosure_type] || "Contract",
+        disclosureLabelAr: discLabelAr[c.disclosure_type] || "عقد",
+        value: c.value_disclosed && c.contract_value ? Number(c.contract_value) : null,
+        currency: c.currency || "SAR",
+        counterparty: c.counterparty,
+        materialityLabel: c.materiality_label || "unknown",
+        announcementDate: c.announcement_date,
+        daysAgo,
+        whatHappened: {
+          en: c.what_happened_en || `${comp ? displayName("en", comp.name_en, comp.name_ar) : c.ticker} announced a new ${discLabelEn[c.disclosure_type]?.toLowerCase() || "contract"}.`,
+          ar: c.what_happened_ar || `أعلنت ${comp ? displayName("ar", comp.name_en, comp.name_ar) : c.ticker} عن ${discLabelAr[c.disclosure_type] || "عقد"} جديد.`,
+        },
+      };
+    });
+
+    const topWinners: ContractWinner[] = winners
+      .filter((w) => w.contracts_12m > 0)
+      .map((w) => {
+        const comp = cMap.get(w.company_id);
+        return {
+          ticker: w.ticker,
+          companyName: comp ? displayName(locale, comp.name_en, comp.name_ar) : w.ticker,
+          contractCount12m: w.contracts_12m,
+          disclosedValue12m: Number(w.disclosed_value_12m) || 0,
+          momentumSignal: w.momentum_signal,
+          momentumSignalAr: momentumSignalArMap[w.momentum_signal] || w.momentum_signal,
+        };
+      });
+
+    return (
+      <ContractWinsSection
+        recentWins={recentWins}
+        topWinners={topWinners}
+        locale={locale}
+        sar={t(locale, "common.sar")}
+      />
+    );
+  } catch {
+    // Contract tables may not exist yet — graceful degradation
+    return null;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
 // Page — assembled in the user's specified order
 // ════════════════════════════════════════════════════════════════
 export default async function DashboardPage({
@@ -1226,6 +1343,11 @@ export default async function DashboardPage({
       {/* Section 5.5 — SŪQAI Intelligence Cards */}
       <Suspense fallback={<SkeletonCard height={320} />}>
         <IntelligenceCards locale={locale} />
+      </Suspense>
+
+      {/* Section 5.7 — Contract & Business Wins */}
+      <Suspense fallback={null}>
+        <ContractWins locale={locale} />
       </Suspense>
 
       {/* Section 6 — Market Snapshot */}

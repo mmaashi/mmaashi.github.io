@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Zap, ArrowRight } from "lucide-react";
 
 export interface AttentionItem {
-  priority: 1 | 2 | 3 | 4;
+  priority: number;
   line: { en: string; ar: string };
   action: { en: string; ar: string };
   href: string;
