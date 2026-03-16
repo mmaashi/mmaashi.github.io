@@ -11,7 +11,12 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createServiceClient();
-  const searchTerm = q.trim();
+  // Sanitize: remove characters that could interfere with PostgREST filter syntax
+  const searchTerm = q.trim().replace(/[,().*\\]/g, "");
+
+  if (!searchTerm) {
+    return NextResponse.json([]);
+  }
 
   try {
     // Get companies matching the search criteria

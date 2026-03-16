@@ -22,7 +22,7 @@ import WealthCalculator from "@/components/dashboard/WealthCalculator";
 import ContinueResearch, { type ContinueItem } from "@/components/dashboard/ContinueResearch";
 import ContractAlerts, { type ContractAlert } from "@/components/contracts/ContractAlerts";
 
-// Demo data
+// Demo data (fallback when no real portfolio exists)
 const DEMO_HOLDINGS = [
   { ticker: "2222", shares: 50, avgCost: 28.5 },
   { ticker: "1120", shares: 200, avgCost: 82.0 },
@@ -45,6 +45,35 @@ export default async function MyDashboardPage({
   const supabase = createServiceClient();
 
   // ══════════════════════════════════════════════════
+  //  REAL PORTFOLIO CHECK
+  // ══════════════════════════════════════════════════
+
+  const DEMO_USER_ID = "00000000-0000-0000-0000-000000000001";
+  let isDemo = true;
+  let activeHoldingsInput: Array<{ ticker: string; shares: number; avgCost: number }> = DEMO_HOLDINGS;
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: realPortfolio } = (await (supabase as any)
+      .from("portfolios")
+      .select("id, portfolio_holdings (id, ticker, company_id, quantity, average_cost)")
+      .eq("user_id", DEMO_USER_ID)
+      .eq("is_default", true)
+      .single()) as { data: { id: string; portfolio_holdings: Array<{ id: string; ticker: string; company_id: string | null; quantity: number; average_cost: number | null }> } | null; error: any };
+
+    if (realPortfolio?.portfolio_holdings && realPortfolio.portfolio_holdings.length > 0) {
+      isDemo = false;
+      activeHoldingsInput = realPortfolio.portfolio_holdings.map((h) => ({
+        ticker: h.ticker,
+        shares: Number(h.quantity),
+        avgCost: h.average_cost ? Number(h.average_cost) : 0,
+      }));
+    }
+  } catch {
+    // Portfolio tables may not exist yet — fall back to demo
+  }
+
+  // ══════════════════════════════════════════════════
   //  DATA FETCHING
   // ══════════════════════════════════════════════════
 
@@ -57,7 +86,7 @@ export default async function MyDashboardPage({
     mkt = { index_value: s.index_value, index_change: s.index_change, index_change_percent: s.index_change_percent, advancing: s.advancing, declining: s.declining, unchanged: s.unchanged, total_volume: s.total_volume, isOpen: day >= 0 && day <= 4 && min >= 600 && min <= 900 };
   } catch {}
 
-  const allTickers = [...new Set([...DEMO_HOLDINGS.map((h) => h.ticker), ...DEMO_WATCHLIST])];
+  const allTickers = [...new Set([...activeHoldingsInput.map((h) => h.ticker), ...DEMO_WATCHLIST])];
   const { data: companies } = await supabase.from("companies").select("id, ticker, name_en, name_ar, sector").in("ticker", allTickers);
   const companyIds = (companies || []).map((c) => c.id);
   const tickerToCompany = new Map((companies || []).map((c) => [c.ticker, c]));
@@ -132,13 +161,14 @@ export default async function MyDashboardPage({
   // ══════════════════════════════════════════════════
 
   const holdings: HoldingRow[] = [];
-  for (const h of DEMO_HOLDINGS) {
+  for (const h of activeHoldingsInput) {
     const company = tickerToCompany.get(h.ticker);
     if (!company) continue;
     const priceData = priceMap.get(company.id);
-    const currentPrice = priceData?.close ?? h.avgCost;
+    // Use live price if available; fall back to avgCost only if > 0; otherwise 0 (honest display)
+    const currentPrice = priceData?.close ?? (h.avgCost > 0 ? h.avgCost : 0);
     const prevClose = priceData?.prevClose ?? currentPrice;
-    const totalCost = h.shares * h.avgCost;
+    const totalCost = h.avgCost > 0 ? h.shares * h.avgCost : 0;
     const totalValue = h.shares * currentPrice;
     const gainLoss = totalValue - totalCost;
     const gainPct = totalCost > 0 ? (gainLoss / totalCost) * 100 : 0;
@@ -411,7 +441,7 @@ export default async function MyDashboardPage({
   //  OPPORTUNITIES
   // ══════════════════════════════════════════════════
 
-  const holdingTickers = new Set(DEMO_HOLDINGS.map((h) => h.ticker));
+  const holdingTickers = new Set(activeHoldingsInput.map((h) => h.ticker));
   const opportunities: Opportunity[] = [];
   const oppCandidateIds = (opportunitiesRes.data || []).map((r) => r.company_id).filter(Boolean);
   let oppCompanies: Array<{ id: string; ticker: string; name_en: string; name_ar: string; sector: string }> = [];
@@ -482,7 +512,7 @@ export default async function MyDashboardPage({
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const thirtyDaysStr = thirtyDaysAgo.toISOString().slice(0, 10);
-    const holdingCompanyIds = DEMO_HOLDINGS.map((h) => tickerToCompany.get(h.ticker)?.id).filter(Boolean) as string[];
+    const holdingCompanyIds = activeHoldingsInput.map((h) => tickerToCompany.get(h.ticker)?.id).filter(Boolean) as string[];
 
     if (holdingCompanyIds.length > 0) {
       const { data: recentContracts } = await (supabase as any)
@@ -559,7 +589,7 @@ export default async function MyDashboardPage({
 
   const dateMap = new Map<string, { portfolio: number }>();
   for (const p of historyRes.data || []) {
-    const holding = DEMO_HOLDINGS.find((h) => tickerToCompany.get(h.ticker)?.id === p.company_id);
+    const holding = activeHoldingsInput.find((h) => tickerToCompany.get(h.ticker)?.id === p.company_id);
     if (!holding) continue;
     const val = Number(p.close) * holding.shares;
     const ex = dateMap.get(p.date);
@@ -628,55 +658,57 @@ export default async function MyDashboardPage({
 
   return (
     <div className="page-wrap">
-      {/* ── PREMIUM DEMO BANNER ── */}
-      <div
-        className="fade-up"
-        style={{
-          padding: "16px 20px",
-          borderRadius: 12,
-          background: "linear-gradient(135deg, rgba(200,169,81,0.06), rgba(6,13,24,0.8))",
-          border: "1px solid var(--c-gold-ring)",
-          marginBottom: 20,
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          flexWrap: "wrap",
-        }}
-      >
-        <Sparkles size={16} style={{ color: "var(--c-gold)", flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <p style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)", margin: 0, marginBottom: 3 }}>
-            {isAr ? "أنت تشاهد محفظة تجريبية" : "You\u2019re viewing a sample portfolio"}
-          </p>
-          <p style={{ fontSize: 10, color: "var(--c-muted)", margin: 0, lineHeight: 1.5 }}>
-            {isAr
-              ? "أنشئ محفظتك الخاصة لتفعيل التتبع الشخصي والتنبيهات وتحليل الصحة"
-              : "Create your own portfolio to unlock personal tracking, alerts, and health analysis"}
-          </p>
-        </div>
-        <Link
-          href={`/${locale}/portfolio/create`}
+      {/* ── DEMO BANNER (only when viewing sample portfolio) ── */}
+      {isDemo && (
+        <div
+          className="fade-up"
           style={{
-            display: "inline-flex",
+            padding: "16px 20px",
+            borderRadius: 12,
+            background: "linear-gradient(135deg, rgba(200,169,81,0.06), rgba(6,13,24,0.8))",
+            border: "1px solid var(--c-gold-ring)",
+            marginBottom: 20,
+            display: "flex",
             alignItems: "center",
-            gap: 6,
-            padding: "8px 18px",
-            borderRadius: 8,
-            background: "var(--c-gold)",
-            border: "none",
-            color: "var(--c-base)",
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: "pointer",
-            flexShrink: 0,
-            textDecoration: "none",
-            fontFamily: "var(--font-grotesk)",
+            gap: 14,
+            flexWrap: "wrap",
           }}
         >
-          <Rocket size={11} />
-          {isAr ? "أنشئ محفظتي" : "Create my portfolio"}
-        </Link>
-      </div>
+          <Sparkles size={16} style={{ color: "var(--c-gold)", flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)", margin: 0, marginBottom: 3 }}>
+              {isAr ? "أنت تشاهد محفظة تجريبية" : "You\u2019re viewing a sample portfolio"}
+            </p>
+            <p style={{ fontSize: 10, color: "var(--c-muted)", margin: 0, lineHeight: 1.5 }}>
+              {isAr
+                ? "أنشئ محفظتك الخاصة لتفعيل التتبع الشخصي والتنبيهات وتحليل الصحة"
+                : "Create your own portfolio to unlock personal tracking, alerts, and health analysis"}
+            </p>
+          </div>
+          <Link
+            href={`/${locale}/portfolio/create`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 18px",
+              borderRadius: 8,
+              background: "var(--c-gold)",
+              border: "none",
+              color: "var(--c-base)",
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: "pointer",
+              flexShrink: 0,
+              textDecoration: "none",
+              fontFamily: "var(--font-grotesk)",
+            }}
+          >
+            <Rocket size={11} />
+            {isAr ? "أنشئ محفظتي" : "Create my portfolio"}
+          </Link>
+        </div>
+      )}
 
       {/* 1. HERO STRIP */}
       <HeroStrip data={heroData} locale={locale} />
