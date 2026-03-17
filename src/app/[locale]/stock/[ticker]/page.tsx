@@ -12,6 +12,7 @@ import ScoreChecks from "@/components/ScoreChecks";
 import MetricCard from "@/components/MetricCard";
 import InterpretationCard from "@/components/InterpretationCard";
 import StockVerdictCard from "@/components/StockVerdictCard";
+import PortfolioButton from "@/components/portfolio/PortfolioButton";
 import { sectionExplainers } from "@/lib/metric-glossary";
 import { interpretAllMetrics, judgmentBadgeColor, judgmentBadgeBg } from "@/lib/metric-interpretation";
 import { generateVerdict } from "@/lib/verdict-engine";
@@ -589,6 +590,17 @@ export default async function StockPage({
           ) : (
             <p style={{ color: "var(--c-muted)", fontSize: 14 }}>{t(locale, "stock.price_unavail")}</p>
           )}
+        </div>
+
+        {/* Portfolio action */}
+        <div style={{ marginTop: 10, display: "flex", justifyContent: isAr ? "flex-start" : "flex-end" }}>
+          <PortfolioButton
+            ticker={ticker}
+            companyName={displayName}
+            companyId={company.id}
+            currentPrice={currentPrice ?? undefined}
+            locale={locale}
+          />
         </div>
 
         {/* OHLCV row */}
