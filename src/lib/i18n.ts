@@ -135,6 +135,22 @@ const translations: Record<string, Record<string, string>> = {
     "stock.gross_profit":   "Gross Profit",
     "stock.op_income":      "Operating Income",
 
+    "stock.updated_ago":       "Updated",
+    "stock.upcoming_ex_div":   "Ex-Dividend Date",
+    "stock.days_label":        "days",
+    "stock.day_label":         "day",
+    "stock.beta":              "Beta vs TASI",
+    "stock.risk_alerts":       "Risk Alerts",
+    "stock.see_all_checks":    "See all checks →",
+    "stock.next_earnings":     "Next Earnings",
+    "stock.gross_margin":      "Gross Margin",
+
+    // Risk
+    "risk.high_debt":          "High Debt",
+    "risk.negative_earnings":  "Negative Earnings",
+    "risk.declining_revenue":  "Declining Revenue",
+    "risk.no_dividend":        "No Dividend",
+
     // Calendar
     "calendar.title": "Dividend Calendar",
     "calendar.subtitle_records": "records",
@@ -447,6 +463,22 @@ const translations: Record<string, Record<string, string>> = {
     "stock.op_income":      "الدخل التشغيلي",
 
     // Calendar
+    "stock.updated_ago":       "تم التحديث",
+    "stock.upcoming_ex_div":   "موعد الاستحقاق القادم",
+    "stock.days_label":        "أيام",
+    "stock.day_label":         "يوم",
+    "stock.beta":              "بيتا مقابل تاسي",
+    "stock.risk_alerts":       "تنبيهات المخاطر",
+    "stock.see_all_checks":    "جميع الفحوصات →",
+    "stock.next_earnings":     "الأرباح القادمة",
+    "stock.gross_margin":      "هامش الربح الإجمالي",
+
+    // المخاطر
+    "risk.high_debt":          "دين مرتفع",
+    "risk.negative_earnings":  "أرباح سالبة",
+    "risk.declining_revenue":  "انخفاض الإيرادات",
+    "risk.no_dividend":        "بدون توزيعات",
+
     "calendar.title": "تقويم الأرباح الموزعة",
     "calendar.subtitle_records": "سجل",
     "calendar.subtitle_companies": "شركة",

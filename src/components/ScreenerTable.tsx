@@ -2,9 +2,10 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Gauge } from "lucide-react";
+import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Gauge, Sparkles, TrendingUp, DollarSign, Shield, Zap, BarChart3, Crown, Target } from "lucide-react";
 import { t, tSector } from "@/lib/i18n";
 import { displayName } from "@/lib/display-names";
+import MiniSnowflake from "@/components/stock/MiniSnowflake";
 
 interface Company {
   id: string;
@@ -31,6 +32,128 @@ interface Company {
   net_margin: number | null;
 }
 
+/* ── Smart Category Presets ── */
+interface CategoryPreset {
+  key: string;
+  labelEn: string;
+  labelAr: string;
+  icon: React.ReactNode;
+  color: string;
+  bg: string;
+  descEn: string;
+  descAr: string;
+  filter: (c: Company) => boolean;
+  sort?: SortKey;
+  sortDir?: SortDir;
+}
+
+const CATEGORY_PRESETS: CategoryPreset[] = [
+  {
+    key: "undervalued",
+    labelEn: "Undervalued",
+    labelAr: "مقيّمة بأقل",
+    icon: <Target size={13} />,
+    color: "#22c55e",
+    bg: "rgba(34,197,94,0.10)",
+    descEn: "P/E below 15 with positive earnings",
+    descAr: "مكرر أرباح أقل من 15 مع أرباح إيجابية",
+    filter: (c) => c.pe_ratio !== null && c.pe_ratio > 0 && c.pe_ratio < 15 && c.roe !== null && c.roe > 0,
+    sort: "pe_ratio",
+    sortDir: "asc",
+  },
+  {
+    key: "growth",
+    labelEn: "Growth",
+    labelAr: "نمو",
+    icon: <TrendingUp size={13} />,
+    color: "#0ECB81",
+    bg: "rgba(14,203,129,0.10)",
+    descEn: "Revenue growing with strong momentum",
+    descAr: "إيرادات متنامية مع زخم قوي",
+    filter: (c) => c.revenue_growth_yoy !== null && c.revenue_growth_yoy > 0.05 && c.suqai_score !== null && c.suqai_score > 40,
+    sort: "suqai_score",
+    sortDir: "desc",
+  },
+  {
+    key: "dividend",
+    labelEn: "High Dividend",
+    labelAr: "توزيعات عالية",
+    icon: <DollarSign size={13} />,
+    color: "#F59E0B",
+    bg: "rgba(245,158,11,0.10)",
+    descEn: "Yield above 4% with consistent payouts",
+    descAr: "عائد أعلى من 4% مع توزيعات مستمرة",
+    filter: (c) => c.dividend_yield !== null && c.dividend_yield > 0.04,
+    sort: "dividend_yield",
+    sortDir: "desc",
+  },
+  {
+    key: "quality",
+    labelEn: "Quality",
+    labelAr: "جودة عالية",
+    icon: <Crown size={13} />,
+    color: "#A78BFA",
+    bg: "rgba(167,139,250,0.10)",
+    descEn: "ROE above 15% and positive margins",
+    descAr: "عائد على الملكية أعلى من 15% وهوامش إيجابية",
+    filter: (c) => c.roe !== null && c.roe > 0.15 && c.net_margin !== null && c.net_margin > 0.05,
+    sort: "roe",
+    sortDir: "desc",
+  },
+  {
+    key: "safe_haven",
+    labelEn: "Safe Haven",
+    labelAr: "ملاذ آمن",
+    icon: <Shield size={13} />,
+    color: "#14B8A6",
+    bg: "rgba(20,184,166,0.10)",
+    descEn: "Low debt with strong balance sheet",
+    descAr: "ديون منخفضة وميزانية قوية",
+    filter: (c) => c.debt_to_equity !== null && c.debt_to_equity < 0.5 && c.debt_to_equity >= 0 && c.suqai_score !== null && c.suqai_score > 30,
+    sort: "suqai_score",
+    sortDir: "desc",
+  },
+  {
+    key: "momentum",
+    labelEn: "Momentum",
+    labelAr: "زخم",
+    icon: <Zap size={13} />,
+    color: "#60A5FA",
+    bg: "rgba(96,165,250,0.10)",
+    descEn: "Positive price action today",
+    descAr: "حركة سعرية إيجابية اليوم",
+    filter: (c) => c.change_pct !== null && c.change_pct > 1,
+    sort: "change_pct",
+    sortDir: "desc",
+  },
+  {
+    key: "top_rated",
+    labelEn: "Top Rated",
+    labelAr: "الأعلى تقييماً",
+    icon: <Sparkles size={13} />,
+    color: "#C8A951",
+    bg: "rgba(200,169,81,0.10)",
+    descEn: "SŪQAI Score 70+ (Strong Buy / Buy)",
+    descAr: "نتيجة سوقاي 70+ (شراء قوي / شراء)",
+    filter: (c) => c.suqai_score !== null && c.suqai_score >= 70,
+    sort: "suqai_score",
+    sortDir: "desc",
+  },
+  {
+    key: "large_cap",
+    labelEn: "Large Cap",
+    labelAr: "رأس مال كبير",
+    icon: <BarChart3 size={13} />,
+    color: "#818CF8",
+    bg: "rgba(129,140,248,0.10)",
+    descEn: "Market cap above 50B SAR",
+    descAr: "قيمة سوقية أعلى من 50 مليار ريال",
+    filter: (c) => c.market_cap !== null && c.market_cap > 50e9,
+    sort: "market_cap",
+    sortDir: "desc",
+  },
+];
+
 type SortKey = "ticker" | "name_en" | "price" | "change_pct" | "volume" | "suqai_score" | "pe_ratio" | "dividend_yield" | "roe" | "market_cap";
 type SortDir = "asc" | "desc";
 
@@ -56,6 +179,42 @@ function tierBg(tier: string | null): string {
   }
 }
 
+// Helper function to calculate pillar scores (0-5 scale) from company metrics
+function calculatePillarScores(company: Company) {
+  // Value pillar: based on P/E ratio (lower is better, capped at 5)
+  const valuePillar = company.pe_ratio !== null && company.pe_ratio > 0
+    ? Math.max(1, 5 - (company.pe_ratio / 10))
+    : null;
+
+  // Growth pillar: based on revenue growth YoY
+  const growthPillar = company.revenue_growth_yoy !== null
+    ? Math.min(5, Math.max(1, company.revenue_growth_yoy * 25))
+    : null;
+
+  // Dividend pillar: based on dividend yield
+  const dividendPillar = company.dividend_yield !== null
+    ? Math.min(5, Math.max(1, company.dividend_yield * 100))
+    : null;
+
+  // Health pillar: based on debt_to_equity (lower is better)
+  const healthPillar = company.debt_to_equity !== null && company.debt_to_equity >= 0
+    ? Math.max(1, 5 - (company.debt_to_equity * 2))
+    : null;
+
+  // Momentum pillar: estimated from price change (approximation)
+  const momentumPillar = company.change_pct !== null
+    ? Math.min(5, Math.max(1, 2.5 + (company.change_pct * 10)))
+    : null;
+
+  return {
+    value: valuePillar,
+    growth: growthPillar,
+    dividend: dividendPillar,
+    health: healthPillar,
+    momentum: momentumPillar,
+  };
+}
+
 export default function ScreenerTable({
   companies,
   sectors,
@@ -73,6 +232,7 @@ export default function ScreenerTable({
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [shariah, setShariah] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   // Advanced filters
   const [minScore, setMinScore] = useState<string>("");
@@ -84,6 +244,24 @@ export default function ScreenerTable({
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortKey(key); setSortDir(key === "ticker" || key === "name_en" ? "asc" : "desc"); }
+  }
+
+  // Category preset handler
+  const activeCategoryObj = CATEGORY_PRESETS.find(p => p.key === activeCategory) ?? null;
+
+  function selectCategory(key: string | null) {
+    if (key === activeCategory) {
+      // Deselect
+      setActiveCategory(null);
+      setSortKey("suqai_score");
+      setSortDir("desc");
+    } else {
+      setActiveCategory(key);
+      const preset = CATEGORY_PRESETS.find(p => p.key === key);
+      if (preset?.sort) { setSortKey(preset.sort); setSortDir(preset.sortDir ?? "desc"); }
+      // Clear advanced filters when using a preset
+      setMinScore(""); setMaxPE(""); setMinDivYield(""); setMinROE(""); setMaxDE("");
+    }
   }
 
   const filtered = useMemo(() => {
@@ -98,6 +276,11 @@ export default function ScreenerTable({
     }
     if (sector) list = list.filter((c) => c.sector === sector);
     if (shariah) list = list.filter((c) => c.is_shariah_compliant);
+
+    // Smart category filter
+    if (activeCategoryObj) {
+      list = list.filter(activeCategoryObj.filter);
+    }
 
     // Advanced filters
     if (minScore) { const v = parseFloat(minScore); if (!isNaN(v)) list = list.filter(c => c.suqai_score !== null && c.suqai_score >= v); }
@@ -116,7 +299,7 @@ export default function ScreenerTable({
       const cmp = av < bv ? -1 : av > bv ? 1 : 0;
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [companies, query, sector, sortKey, sortDir, shariah, minScore, maxPE, minDivYield, minROE, maxDE]);
+  }, [companies, query, sector, sortKey, sortDir, shariah, activeCategory, activeCategoryObj, minScore, maxPE, minDivYield, minROE, maxDE]);
 
   function SortIcon({ k }: { k: SortKey }) {
     if (sortKey !== k) return <ChevronsUpDown size={12} style={{ color: "var(--c-dim)" }} />;
@@ -146,6 +329,71 @@ export default function ScreenerTable({
 
   return (
     <div>
+      {/* ── Smart Category Presets ── */}
+      <div className="mb-4" style={{
+        overflowX: "auto", WebkitOverflowScrolling: "touch",
+        background: "var(--c-base)",
+        paddingTop: 4, paddingBottom: 4,
+      }}>
+        <div className="flex gap-2" style={{ minWidth: "max-content", paddingBottom: 4 }}>
+          {CATEGORY_PRESETS.map((preset) => {
+            const isActive = activeCategory === preset.key;
+            const matchCount = companies.filter(preset.filter).length;
+            return (
+              <button
+                key={preset.key}
+                onClick={() => selectCategory(preset.key)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                style={{
+                  border: "1px solid",
+                  borderColor: isActive ? preset.color + "66" : "var(--c-border-md)",
+                  background: isActive ? preset.bg : "var(--c-surface)",
+                  color: isActive ? preset.color : "var(--c-muted)",
+                  whiteSpace: "nowrap",
+                  boxShadow: isActive ? `0 2px 12px ${preset.color}22` : "none",
+                }}
+              >
+                <span style={{ color: isActive ? preset.color : "var(--c-dim)" }}>{preset.icon}</span>
+                <span>{isAr ? preset.labelAr : preset.labelEn}</span>
+                <span className="font-num" style={{
+                  fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 6,
+                  background: isActive ? preset.color + "22" : "var(--c-elevated)",
+                  color: isActive ? preset.color : "var(--c-dim)",
+                }}>
+                  {matchCount}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Active category description */}
+      {activeCategoryObj && (
+        <div className="card mb-3" style={{
+          padding: "10px 16px",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          background: activeCategoryObj.bg,
+          border: `1px solid ${activeCategoryObj.color}33`,
+        }}>
+          <div className="flex items-center gap-2">
+            <span style={{ color: activeCategoryObj.color }}>{activeCategoryObj.icon}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: activeCategoryObj.color }}>
+              {isAr ? activeCategoryObj.labelAr : activeCategoryObj.labelEn}
+            </span>
+            <span style={{ fontSize: 12, color: "var(--c-muted)" }}>
+              — {isAr ? activeCategoryObj.descAr : activeCategoryObj.descEn}
+            </span>
+          </div>
+          <button
+            onClick={() => selectCategory(null)}
+            style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, cursor: "pointer", background: "none", border: "none", padding: "4px 8px" }}
+          >
+            {isAr ? "مسح" : "Clear"}
+          </button>
+        </div>
+      )}
+
       {/* Filters bar */}
       <div className="card mb-4" style={{ padding: "14px 16px" }}>
         <div className="flex flex-wrap gap-3 items-center">
@@ -327,18 +575,23 @@ export default function ScreenerTable({
                       <td style={{ textAlign: "right", padding: "10px 14px" }}>
                         {c.suqai_score !== null ? (
                           <div className="flex items-center justify-end gap-2">
-                            <span className="font-num font-bold" style={{ fontSize: 14, color: tierColor(c.score_tier) }}>
-                              {c.suqai_score.toFixed(0)}
-                            </span>
-                            {c.score_tier && (
-                              <span style={{
-                                fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
-                                background: tierBg(c.score_tier), color: tierColor(c.score_tier),
-                                whiteSpace: "nowrap",
-                              }}>
-                                {c.score_tier}
+                            <MiniSnowflake scores={calculatePillarScores(c)} size={40} />
+                            <div>
+                              <span className="font-num font-bold" style={{ fontSize: 14, color: tierColor(c.score_tier) }}>
+                                {c.suqai_score.toFixed(0)}
                               </span>
-                            )}
+                              {c.score_tier && (
+                                <span style={{
+                                  fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
+                                  background: tierBg(c.score_tier), color: tierColor(c.score_tier),
+                                  whiteSpace: "nowrap",
+                                  display: "block",
+                                  marginTop: "2px",
+                                }}>
+                                  {c.score_tier}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         ) : <span style={{ color: "var(--c-dim)", fontSize: 12 }}>—</span>}
                       </td>

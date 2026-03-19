@@ -7,12 +7,18 @@ import StockTabs from "@/components/StockTabs";
 import FinancialChart from "@/components/FinancialChart";
 import StockChat from "@/components/StockChat";
 import VerdictHeader from "@/components/VerdictHeader";
-// FairValueCard REMOVED — fair_value_estimate is a BLOCKED metric (0% coverage)
+import FairValueCard from "@/components/stock/FairValueCard";
+import MiniSnowflake from "@/components/stock/MiniSnowflake";
 import ScoreChecks from "@/components/ScoreChecks";
 import MetricCard from "@/components/MetricCard";
 import InterpretationCard from "@/components/InterpretationCard";
 import StockVerdictCard from "@/components/StockVerdictCard";
 import PortfolioButton from "@/components/portfolio/PortfolioButton";
+import ReturnComparison from "@/components/stock/ReturnComparison";
+import PeerMiniTable from "@/components/stock/PeerMiniTable";
+import TTMSummaryCard from "@/components/stock/TTMSummaryCard";
+import MiniSparkline from "@/components/stock/MiniSparkline";
+import SectionFocusWrapper from "@/components/stock/SectionFocusWrapper";
 import { sectionExplainers } from "@/lib/metric-glossary";
 import { interpretAllMetrics, judgmentBadgeColor, judgmentBadgeBg } from "@/lib/metric-interpretation";
 import { generateVerdict } from "@/lib/verdict-engine";
@@ -36,6 +42,7 @@ import {
   Newspaper,
   ExternalLink,
   PieChart,
+  FileText,
 } from "lucide-react";
 import { t, tSector } from "@/lib/i18n";
 import {
@@ -121,6 +128,7 @@ export default async function StockPage({
     newsResult,
     peersResult,
     metricsResult,
+    contractsResult,
   ] = await Promise.allSettled([
     getCompanyQuote(upperTicker),
     supabase
@@ -132,7 +140,7 @@ export default async function StockPage({
       .single(),
     supabase
       .from("stock_prices")
-      .select("date, close, open, high, low")
+      .select("date, close, open, high, low, volume")
       .eq("company_id", company.id)
       .order("date", { ascending: true }),
     supabase
@@ -174,6 +182,13 @@ export default async function StockPage({
       .order("as_of_date", { ascending: false })
       .limit(1)
       .single(),
+    // Contract data
+    (supabase as any)
+      .from("company_contracts")
+      .select("*")
+      .eq("company_id", company.id)
+      .order("announcement_date", { ascending: false })
+      .limit(10),
   ]);
 
   const liveQuote      = liveQuoteResult.status     === "fulfilled" ? liveQuoteResult.value      : null;
@@ -193,6 +208,7 @@ export default async function StockPage({
     return 0;
   }).slice(0, 15);
   const peers          = peersResult.status         === "fulfilled" ? peersResult.value.data ?? [] : [];
+  const contracts      = contractsResult.status     === "fulfilled" ? contractsResult.value.data ?? [] : [];
 
   // ── 4. Compute display values ───────────────────────────────
   const currentPrice = liveQuote?.price ?? (latestDbPrice ? Number(latestDbPrice.close) : null);
@@ -420,11 +436,12 @@ export default async function StockPage({
   ];
 
   const chartData = priceHistory.map((p) => ({
-    date:  p.date as string,
-    close: Number(p.close),
-    open:  p.open  ? Number(p.open)  : undefined,
-    high:  p.high  ? Number(p.high)  : undefined,
-    low:   p.low   ? Number(p.low)   : undefined,
+    date:   p.date as string,
+    close:  Number(p.close),
+    open:   p.open    ? Number(p.open)    : undefined,
+    high:   p.high    ? Number(p.high)    : undefined,
+    low:    p.low     ? Number(p.low)     : undefined,
+    volume: p.volume  ? Number(p.volume)  : undefined,
   }));
 
   // ── HELPER COMPONENTS (inline) ──────────────────────────────
@@ -496,22 +513,73 @@ export default async function StockPage({
     );
   };
 
+  // ── Market Cap ─────────────────────────────────────
+  const marketCap = n("market_cap");
+  const fmtMarketCap = (v: number | null) => {
+    if (v === null) return null;
+    if (v >= 1e12) return `${(v / 1e12).toFixed(1)}T`;
+    if (v >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
+    if (v >= 1e6) return `${(v / 1e6).toFixed(0)}M`;
+    return v.toLocaleString();
+  };
+
+  // ── Data freshness ────────────────────────────────
+  const asOfDate = m?.as_of_date ? new Date(m.as_of_date) : null;
+  const updatedAgo = (() => {
+    if (!asOfDate) return null;
+    const diffMs = Date.now() - asOfDate.getTime();
+    const diffH = Math.floor(diffMs / 3_600_000);
+    if (diffH < 1) return isAr ? "محدّث الآن" : "Updated just now";
+    if (diffH < 24) return isAr ? `محدّث منذ ${diffH} ساعة` : `Updated ${diffH}h ago`;
+    const diffD = Math.floor(diffH / 24);
+    return isAr ? `محدّث منذ ${diffD} يوم` : `Updated ${diffD}d ago`;
+  })();
+
+  // ── Next ex-dividend countdown ────────────────────
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const futureExDivs = allDivs
+    .filter(d => d.ex_date && new Date(d.ex_date) >= today)
+    .sort((a, b) => new Date(a.ex_date).getTime() - new Date(b.ex_date).getTime());
+  const nextExDiv = futureExDivs[0] ?? null;
+  const daysUntilEx = nextExDiv
+    ? Math.ceil((new Date(nextExDiv.ex_date).getTime() - today.getTime()) / 86_400_000)
+    : null;
+  const nextExDateFmt = nextExDiv
+    ? new Date(nextExDiv.ex_date).toLocaleDateString(isAr ? "ar-SA" : "en-US", { month: "short", day: "numeric", year: "numeric" })
+    : null;
+
+  // ── Gross margin ──────────────────────────────────
+  const grossMarginPct = grossProfit && revenue && revenue > 0 ? (grossProfit / revenue) * 100 : n("gross_margin") ? n("gross_margin")! * 100 : null;
+  const opMarginPct = opIncome && revenue && revenue > 0 ? (opIncome / revenue) * 100 : null;
+  const netMarginPct = netIncome !== null && revenue !== null && revenue > 0 ? (netIncome / revenue) * 100 : null;
+
   return (
     <div className="page-wrap">
-      {/* Back */}
-      <Link
-        href={`/${locale}/screener`}
-        className="inline-flex items-center gap-2 mb-5 text-sm font-semibold transition-colors hover:text-white"
-        style={{ color: "var(--c-gold)", textDecoration: "none" }}
-      >
-        <ArrowLeft size={14} />
-        {t(locale, "stock.back")}
-      </Link>
+      {/* ── Breadcrumb ── */}
+      <nav className="flex items-center gap-1.5 mb-5 flex-wrap" style={{ fontSize: 12, color: "var(--c-muted)" }}>
+        <Link href={`/${locale}`} style={{ color: "var(--c-muted)", textDecoration: "none" }} className="hover:text-white">{t(locale, "home")}</Link>
+        <span style={{ color: "var(--c-dim)" }}>/</span>
+        <Link href={`/${locale}/screener`} style={{ color: "var(--c-muted)", textDecoration: "none" }} className="hover:text-white">{t(locale, "screener")}</Link>
+        {company.sector && (
+          <>
+            <span style={{ color: "var(--c-dim)" }}>/</span>
+            <span style={{ color: "var(--c-muted)" }}>{tSector(locale, company.sector)}</span>
+          </>
+        )}
+        <span style={{ color: "var(--c-dim)" }}>/</span>
+        <span style={{ color: "var(--c-gold)", fontWeight: 600 }}>{company.ticker}</span>
+      </nav>
+
+      <style>{`
+        .hero-grid { grid-template-columns: 1fr; }
+        @media (min-width: 768px) { .hero-grid { grid-template-columns: 3fr 2fr; } }
+      `}</style>
 
       {/* ══════════════════════════════════════════════════════
-          STOCK HEADER — always visible on every tab
+          STOCK HEADER — two-column layout
       ══════════════════════════════════════════════════════ */}
-      <div className="card-gold fade-up mb-5" style={{ padding: "26px 28px" }}>
+      <div className="card-gold fade-up mb-5" style={{ padding: "24px 28px" }}>
         {/* Subtle glow */}
         <div style={{
           position: "absolute", top: -80, right: -60,
@@ -520,11 +588,14 @@ export default async function StockPage({
           filter: "blur(60px)", pointerEvents: "none",
         }} />
 
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          {/* Company identity */}
+        {/* ── Two-column layout ── */}
+        <div style={{ display: "grid", gap: 24 }} className="hero-grid">
+          
+          {/* ═══ LEFT COLUMN: Company Identity ═══ */}
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              {/* Ticker badge — premium avatar */}
+            {/* Header row: Logo/ticker + name + badges */}
+            <div className="flex items-center gap-3 mb-3">
+              {/* Ticker badge */}
               <div className="rounded-2xl flex items-center justify-center flex-shrink-0"
                    style={{
                      width: 58, height: 58,
@@ -537,99 +608,211 @@ export default async function StockPage({
                 </span>
               </div>
               <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-bold text-lg" style={{ color: "var(--c-gold)", fontFamily: "var(--font-grotesk)" }}>
-                    {company.ticker}
-                  </span>
-                  {company.is_shariah_compliant && (
-                    <span className="badge badge-gold" style={{ padding: "2px 8px", fontSize: 10 }}>
-                      <Shield size={10} /> {t(locale, "stock.shariah")}
-                    </span>
-                  )}
-                  {isLive && (
-                    <span className="badge badge-open" style={{ fontSize: 10, padding: "2px 8px" }}>
-                      <span className="live-dot" style={{ width: 5, height: 5 }} />
-                      {t(locale, "stock.live")}
-                    </span>
-                  )}
-                </div>
-                <h1 style={{ color: "var(--c-text)", fontSize: 17, fontWeight: 600, marginTop: 2 }}>{displayName}</h1>
+                <h1 style={{ color: "var(--c-text)", fontSize: 18, fontWeight: 700, margin: 0 }}>{displayName}</h1>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  {company.sector && (
-                    <span className="badge badge-neutral" style={{ fontSize: 10 }}>{tSector(locale, company.sector)}</span>
-                  )}
-                  {company.market && (
-                    <span style={{ fontSize: 11, color: "var(--c-dim)" }}>{company.market} {t(locale, "stock.market")}</span>
+                  <span style={{ fontSize: 11, color: "var(--c-gold)", fontWeight: 600 }}>TASI: {company.ticker}</span>
+                  <span style={{ fontSize: 11, color: "var(--c-dim)" }}>·</span>
+                  {company.sector && <span className="badge badge-neutral" style={{ fontSize: 10 }}>{tSector(locale, company.sector)}</span>}
+                  {company.is_shariah_compliant && <span className="badge badge-gold" style={{ padding: "2px 8px", fontSize: 10 }}><Shield size={10} /> {t(locale, "stock.shariah")}</span>}
+                  {isLive ? (
+                    <span className="badge badge-open" style={{ fontSize: 10, padding: "2px 8px" }}>
+                      <span className="live-dot" style={{ width: 5, height: 5 }} /> {t(locale, "stock.live")}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 10, color: "var(--c-dim)" }}>{t(locale, "closed")}</span>
                   )}
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Price block */}
-          {currentPrice !== null ? (
-            <div style={{ textAlign: isAr ? "left" : "right" }}>
-              <span className="font-num" style={{ fontSize: 38, fontWeight: 800, color: "var(--c-text)", lineHeight: 1, letterSpacing: "-0.03em", display: "block" }}>
-                {currentPrice.toFixed(2)}
-              </span>
-              <span style={{ fontSize: 13, color: "var(--c-muted)", fontWeight: 500 }}>{sar}</span>
-              {changePct !== null && (
-                <div className="flex items-center gap-2 justify-end mt-2">
-                  {changeAmt !== null && (
-                    <span className={`font-num font-semibold text-base ${isPositive ? "text-up" : "text-down"}`}>
-                      {isPositive ? "+" : ""}{changeAmt.toFixed(2)}
-                    </span>
-                  )}
-                  <span className={`badge font-num ${isPositive ? "badge-up" : "badge-down"}`} style={{ fontSize: 12, padding: "4px 10px" }}>
-                    {isPositive ? <TrendingUp size={11} style={{ display: "inline", marginRight: 3 }} /> : <TrendingDown size={11} style={{ display: "inline", marginRight: 3 }} />}
-                    {isPositive ? "+" : ""}{changePct.toFixed(2)}%
-                  </span>
-                </div>
+            {/* Meta row: Market cap + updated ago */}
+            <div className="flex items-center gap-3 mb-3 flex-wrap" style={{ paddingLeft: 0 }}>
+              {marketCap !== null && (
+                <span style={{ fontSize: 12, color: "var(--c-muted)" }}>
+                  {isAr ? "القيمة السوقية" : "Market Cap"} <span className="font-num" style={{ color: "var(--c-gold)", fontWeight: 700 }}>{fmtMarketCap(marketCap)} {sar}</span>
+                </span>
+              )}
+              {updatedAgo && (
+                <span style={{ fontSize: 10, color: "var(--c-dim)", fontStyle: "italic" }}>{updatedAgo}</span>
               )}
             </div>
-          ) : (
-            <p style={{ color: "var(--c-muted)", fontSize: 14 }}>{t(locale, "stock.price_unavail")}</p>
-          )}
-        </div>
 
-        {/* Portfolio action */}
-        <div style={{ marginTop: 10, display: "flex", justifyContent: isAr ? "flex-start" : "flex-end" }}>
-          <PortfolioButton
-            ticker={ticker}
-            companyName={displayName}
-            companyId={company.id}
-            currentPrice={currentPrice ?? undefined}
-            locale={locale}
-          />
-        </div>
+            {/* Company description (truncated — only show if available in current language) */}
+            {(isAr ? company.description_ar : company.description_en) && (
+              <p style={{ fontSize: 12, color: "var(--c-muted)", lineHeight: 1.7, margin: "0 0 12px", maxHeight: 60, overflow: "hidden" }}>
+                {(isAr ? company.description_ar : company.description_en ?? "").slice(0, 200)}...
+              </p>
+            )}
 
-        {/* OHLCV row */}
-        {currentPrice !== null && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5 pt-4" style={{ borderTop: "1px solid var(--c-border)" }}>
-            {[
-              { label: t(locale, "stock.open"),   val: open,   color: "var(--c-text)" },
-              { label: t(locale, "stock.high"),   val: high,   color: "var(--c-green)" },
-              { label: t(locale, "stock.low"),    val: low,    color: "var(--c-red)" },
-              { label: t(locale, "stock.volume"), val: volume, color: "var(--c-text)", isVol: true },
-            ].map(({ label, val, color, isVol }) => (
-              <div key={label}>
-                <p style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>
-                  {label}
-                </p>
-                <span className="font-num font-semibold" style={{ color, fontSize: 15 }}>
-                  {val !== null
-                    ? isVol
-                      ? val >= 1e6 ? `${(val / 1e6).toFixed(1)}M` : `${(val / 1e3).toFixed(0)}K`
-                      : `${sar} ${val.toFixed(2)}`
-                    : "N/A"}
-                </span>
+            {/* Actions row */}
+            <div className="flex items-center gap-2 mt-2">
+              <PortfolioButton ticker={ticker} companyName={displayName} companyId={company.id} currentPrice={currentPrice ?? undefined} locale={locale} />
+            </div>
+
+            {/* Price sparkline chart (30-day trend) */}
+            {priceHistory.length > 5 && (
+              <div style={{ marginTop: 16, padding: "12px 0" }}>
+                <div className="flex items-end gap-3">
+                  <MiniSparkline
+                    data={priceHistory.slice(-30).map(p => ({ close: Number(p.close) }))}
+                    width={220}
+                    height={52}
+                    isPositive={isPositive}
+                  />
+                  <div>
+                    {currentPrice !== null && (
+                      <span className="font-num" style={{ fontSize: 18, fontWeight: 800, color: "var(--c-text)", display: "block", lineHeight: 1 }}>
+                        {currentPrice.toFixed(2)} <span style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 500 }}>{sar}</span>
+                      </span>
+                    )}
+                    {changePct !== null && (
+                      <span className={`font-num font-semibold ${isPositive ? "text-up" : "text-down"}`} style={{ fontSize: 12, marginTop: 2, display: "block" }}>
+                        {isPositive ? "+" : ""}{changePct.toFixed(2)}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <p style={{ fontSize: 9, color: "var(--c-dim)", marginTop: 4 }}>{isAr ? "آخر 30 يوم" : "Last 30 days"}</p>
               </div>
-            ))}
+            )}
+          </div>
+
+          {/* ═══ RIGHT COLUMN: Score + Snowflake ═══ */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            {/* Score circle + tier + confidence */}
+            <div className="flex items-center gap-4">
+              {/* Conic gradient circle */}
+              <div style={{
+                width: 80, height: 80, borderRadius: "50%",
+                background: `conic-gradient(${tierInfo.color} ${(displayScore / 100) * 360}deg, var(--c-border) 0deg)`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: `0 0 20px ${tierInfo.color}33`,
+              }}>
+                <div style={{
+                  width: 64, height: 64, borderRadius: "50%",
+                  background: "var(--c-base)", display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center",
+                }}>
+                  <span className="font-num" style={{ fontSize: 24, fontWeight: 800, color: tierInfo.color, lineHeight: 1 }}>
+                    {displayScore.toFixed(0)}
+                  </span>
+                  <span style={{ fontSize: 8, color: "var(--c-muted)", fontWeight: 600 }}>/ 100</span>
+                </div>
+              </div>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 800, color: "var(--c-text)", fontFamily: "var(--font-grotesk)", margin: 0 }}>
+                  {isAr ? "نتيجة سوقاي" : "SŪQAI Score"}
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: tierInfo.bg, color: tierInfo.color }}>{tierInfo.label}</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: signalBg(interpConfidence.signal), color: signalColor(interpConfidence.signal) }}>
+                    {isAr ? interpConfidence.labelAr : interpConfidence.label}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Snowflake visual */}
+            <SuqaiScore
+              value={scores.value}
+              growth={scores.growth}
+              dividend={scores.dividend}
+              health={scores.health}
+              momentum={scores.momentum}
+              locale={locale}
+              size={180}
+              companyName={displayName}
+              overrideScore={displayScore}
+            />
+
+            {/* Strengths / Weaknesses badges */}
+            <div className="flex flex-wrap gap-1.5 justify-center">
+              {scoreStrengths.map(s => (
+                <span key={s} style={{ fontSize: 9, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: "rgba(34,197,94,0.10)", color: "#22c55e" }}>+ {s}</span>
+              ))}
+              {scoreWeaknesses.map(w => (
+                <span key={w} style={{ fontSize: 9, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: "rgba(239,68,68,0.10)", color: "#ef4444" }}>- {w}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Price Strip (full width, compact) ── */}
+        {currentPrice !== null && (
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--c-border)" }}>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              {/* Price + change */}
+              <div className="flex items-center gap-4">
+                <div>
+                  <span className="font-num" style={{ fontSize: 28, fontWeight: 800, color: "var(--c-text)", lineHeight: 1 }}>
+                    {currentPrice.toFixed(2)}
+                  </span>
+                  <span style={{ fontSize: 12, color: "var(--c-muted)", marginLeft: 6 }}>{sar}</span>
+                </div>
+                {changePct !== null && (
+                  <div className="flex items-center gap-2">
+                    {changeAmt !== null && (
+                      <span className={`font-num font-semibold ${isPositive ? "text-up" : "text-down"}`} style={{ fontSize: 14 }}>
+                        {isPositive ? "+" : ""}{changeAmt.toFixed(2)}
+                      </span>
+                    )}
+                    <span className={`badge font-num ${isPositive ? "badge-up" : "badge-down"}`} style={{ fontSize: 11, padding: "3px 8px" }}>
+                      {isPositive ? "+" : ""}{changePct.toFixed(2)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+              {/* OHLCV mini */}
+              <div className="flex items-center gap-5">
+                {[
+                  { label: isAr ? "الافتتاح" : "O", val: open },
+                  { label: isAr ? "أعلى" : "H", val: high, color: "var(--c-green)" },
+                  { label: isAr ? "أدنى" : "L", val: low, color: "var(--c-red)" },
+                  { label: isAr ? "الحجم" : "Vol", val: volume, isVol: true },
+                ].map(({ label, val, color, isVol }) => (
+                  <div key={label} style={{ textAlign: "center" }}>
+                    <p style={{ fontSize: 9, color: "var(--c-dim)", fontWeight: 600, letterSpacing: "0.05em", marginBottom: 2 }}>{label}</p>
+                    <span className="font-num" style={{ fontSize: 12, fontWeight: 600, color: color || "var(--c-muted)" }}>
+                      {val !== null ? (isVol ? (val >= 1e6 ? `${(val / 1e6).toFixed(1)}M` : `${(val / 1e3).toFixed(0)}K`) : val.toFixed(2)) : "—"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {/* vs TASI badge */}
+              {n("relative_perf_vs_tasi") !== null && (
+                <span className="font-num" style={{
+                  fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6,
+                  background: n("relative_perf_vs_tasi")! > 0 ? "rgba(34,197,94,0.10)" : "rgba(239,68,68,0.10)",
+                  color: n("relative_perf_vs_tasi")! > 0 ? "#22c55e" : "#ef4444",
+                }}>
+                  vs TASI: {n("relative_perf_vs_tasi")! > 0 ? "+" : ""}{(n("relative_perf_vs_tasi")! * 100).toFixed(1)}%
+                </span>
+              )}
+            </div>
+            {/* 52W Range mini-bar */}
+            <RangeBar />
           </div>
         )}
 
-        {/* 52W Range Bar — always in header for quick reference */}
-        <RangeBar />
+        {/* ── Risk Alerts Strip (inside hero, at bottom) ── */}
+        {riskFlags.length > 0 && (
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--c-border)" }}>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Shield size={12} style={{ color: "#ef4444" }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#ef4444" }}>{isAr ? "تنبيهات المخاطر" : "Risk Alerts"}</span>
+                {riskFlags.slice(0, 3).map(flag => (
+                  <span key={flag} style={{ fontSize: 9, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: "rgba(239,68,68,0.10)", color: "#ef4444" }}>
+                    {t(locale, `risk.${flag}`)}
+                  </span>
+                ))}
+              </div>
+              <Link href={`/${locale}/stock/${upperTicker}?tab=analysis`} style={{ fontSize: 10, color: "var(--c-gold)", textDecoration: "none", fontWeight: 600 }}>
+                {isAr ? "جميع الفحوصات →" : "See all checks →"}
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ══════════════════════════════════════════════════════
@@ -643,113 +826,32 @@ export default async function StockPage({
       />
 
       {/* ══════════════════════════════════════════════════════
-          TAB: OVERVIEW
+          TAB: OVERVIEW (with side-nav)
       ══════════════════════════════════════════════════════ */}
       {activeTab === "overview" && (
-        <>
-          {/* ── SŪQAI SCORE HERO ──────────────────────────────── */}
-          <div className="card-gold fade-up mb-5" style={{ padding: "24px 28px" }}>
-            <div className="flex flex-wrap items-start justify-between gap-6">
-              {/* Score circle + tier */}
-              <div className="flex items-center gap-5">
-                <div style={{
-                  width: 88, height: 88, borderRadius: "50%",
-                  background: `conic-gradient(${tierInfo.color} ${(displayScore / 100) * 360}deg, var(--c-border) 0deg)`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: `0 0 24px ${tierInfo.color}33`,
-                }}>
-                  <div style={{
-                    width: 72, height: 72, borderRadius: "50%",
-                    background: "var(--c-base)", display: "flex", flexDirection: "column",
-                    alignItems: "center", justifyContent: "center",
-                  }}>
-                    <span className="font-num" style={{ fontSize: 26, fontWeight: 800, color: tierInfo.color, lineHeight: 1 }}>
-                      {displayScore.toFixed(0)}
-                    </span>
-                    <span style={{ fontSize: 9, color: "var(--c-muted)", fontWeight: 600 }}>/ 100</span>
-                  </div>
-                </div>
+        <SectionFocusWrapper
+          locale={locale}
+          hasNews={newsItems.length > 0}
+          topContent={<>
+          {/* ── Ex-Dividend Countdown ── */}
+          {nextExDiv && daysUntilEx !== null && (
+            <div className="card mb-4" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "linear-gradient(135deg, rgba(245,158,11,0.06), rgba(200,169,81,0.03))", border: "1px solid rgba(245,158,11,0.15)" }}>
+              <div className="flex items-center gap-3">
+                <Calendar size={16} style={{ color: "#F59E0B" }} />
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--c-text)", fontFamily: "var(--font-grotesk)", margin: 0 }}>
-                      {isAr ? "نتيجة سوقاي" : "SŪQAI Score"}
-                    </h2>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 6,
-                      background: tierInfo.bg, color: tierInfo.color,
-                    }}>
-                      {tierInfo.label}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span style={{
-                      fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 4,
-                      background: signalBg(interpConfidence.signal), color: signalColor(interpConfidence.signal),
-                    }}>
-                      {isAr ? interpConfidence.labelAr : interpConfidence.label}
-                    </span>
-                    <span style={{ fontSize: 11, color: "var(--c-dim)" }}>
-                      {isAr ? interpConfidence.detailAr : interpConfidence.detail}
-                    </span>
-                  </div>
-                  {/* Strengths & Weaknesses */}
-                  <div className="flex flex-wrap gap-2">
-                    {scoreStrengths.map(s => (
-                      <span key={s} style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 4, background: "rgba(34,197,94,0.10)", color: "#22c55e" }}>
-                        + {s}
-                      </span>
-                    ))}
-                    {scoreWeaknesses.map(w => (
-                      <span key={w} style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 4, background: "rgba(239,68,68,0.10)", color: "#ef4444" }}>
-                        - {w}
-                      </span>
-                    ))}
-                  </div>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)", marginBottom: 2 }}>{isAr ? "موعد الاستحقاق القادم" : "Upcoming Ex-Dividend"}</p>
+                  <span className="font-num" style={{ fontSize: 12, color: "var(--c-muted)" }}>
+                    {nextExDateFmt}
+                    {nextExDiv.amount_per_share && (<> · <span style={{ color: "var(--c-gold)" }}>{sar} {Number(nextExDiv.amount_per_share).toFixed(2)}/{isAr ? "سهم" : "share"}</span></>)}
+                  </span>
                 </div>
               </div>
-
-              {/* Dimension bars */}
-              <div style={{ minWidth: 220 }}>
-                {[
-                  { label: isAr ? "القيمة" : "Value", score: dbScoreValue, max: 25, color: "#C8A951" },
-                  { label: isAr ? "الجودة" : "Quality", score: dbScoreQuality, max: 20, color: "#A78BFA" },
-                  { label: isAr ? "النمو" : "Growth", score: dbScoreGrowth, max: 15, color: "#0ECB81" },
-                  { label: isAr ? "الزخم" : "Momentum", score: dbScoreMomentum, max: 15, color: "#60A5FA" },
-                  { label: isAr ? "التوزيعات" : "Dividend", score: dbScoreDividend, max: 15, color: "#F59E0B" },
-                  { label: isAr ? "الأمان" : "Safety", score: dbScoreSafety, max: 10, color: "#14B8A6" },
-                ].map(({ label, score: dimScore, max, color }) => (
-                  <div key={label} className="flex items-center gap-2 mb-1.5">
-                    <span style={{ fontSize: 10, fontWeight: 600, color: "var(--c-muted)", width: 65, textAlign: "right" }}>{label}</span>
-                    <div style={{ flex: 1, height: 6, borderRadius: 3, background: "var(--c-border)", overflow: "hidden" }}>
-                      <div style={{
-                        width: dimScore !== null ? `${Math.min(100, (dimScore / max) * 100)}%` : "0%",
-                        height: "100%", borderRadius: 3, background: color,
-                        transition: "width 0.6s ease",
-                      }} />
-                    </div>
-                    <span className="font-num" style={{ fontSize: 10, color: "var(--c-dim)", width: 36, textAlign: "right" }}>
-                      {dimScore !== null ? `${dimScore.toFixed(0)}/${max}` : "—"}
-                    </span>
-                  </div>
-                ))}
+              <div style={{ textAlign: "right" }}>
+                <span className="font-num" style={{ fontSize: 24, fontWeight: 800, color: "#F59E0B" }}>{daysUntilEx}</span>
+                <span style={{ fontSize: 11, color: "var(--c-muted)", marginLeft: 4 }}>{isAr ? "يوم" : daysUntilEx === 1 ? "day" : "days"}</span>
               </div>
             </div>
-          </div>
-
-          {/* ── Verdict Header (legacy — insight badges & risk flags) ── */}
-          <VerdictHeader
-            overallScore={displayScore}
-            valuePillars={{
-              value: scores.value,
-              growth: scores.growth,
-              performance: scores.momentum,
-              health: scores.health,
-              dividend: scores.dividend,
-            }}
-            insightBadges={insightBadges}
-            riskFlags={riskFlags}
-            locale={locale}
-          />
+          )}
 
           {/* ════════════════════════════════════════════════════
               STOCK VERDICT — intelligence summary
@@ -794,13 +896,223 @@ export default async function StockPage({
             ))}
           </div>
 
+          </>}
+          overviewContent={<>
           {/* ════════════════════════════════════════════════════
-              SECTION 2-7: INTERPRETATION CARDS
-              Each card shows the section interpretation + key metrics
+              DASHBOARD GRID: 3-CARD ROW (Snowflake / Fair Value / Verdict)
+          ════════════════════════════════════════════════════ */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+            {/* Card 1: Snowflake Analysis */}
+            <div
+              style={{
+                background: "var(--c-elevated)",
+                borderRadius: "12px",
+                padding: "20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+              }}
+            >
+              <p
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  color: "var(--c-gold)",
+                  fontFamily: "var(--font-grotesk)",
+                }}
+              >
+                {isAr ? "تحليل الثلج" : "SNOWFLAKE ANALYSIS"}
+              </p>
+              <div style={{ display: "flex", justifyContent: "center", minHeight: "180px" }}>
+                <SuqaiScore
+                  scores={scores}
+                  overallScore={overallScore}
+                  locale={locale}
+                  size="small"
+                />
+              </div>
+            </div>
+
+            {/* Card 2: Fair Value Estimate */}
+            <FairValueCard
+              locale={locale}
+              currentPrice={currentPrice}
+              pe={pe ? parseFloat(pe) : null}
+              eps={eps}
+              sectorAvgPE={n("sector_avg_pe")}
+              roe={roe}
+              bookValue={totalAssets && totalLiabilities ? (totalAssets - totalLiabilities) : null}
+            />
+
+            {/* Card 3: Key Verdict (Strengths & Watchouts) */}
+            {(stockVerdict.strengths.length > 0 || stockVerdict.watchouts.length > 0) && (
+              <div
+                style={{
+                  background: "var(--c-elevated)",
+                  borderRadius: "12px",
+                  padding: "20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "16px",
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    color: "var(--c-gold)",
+                    fontFamily: "var(--font-grotesk)",
+                  }}
+                >
+                  {isAr ? "الحكم الرئيسي" : "KEY VERDICT"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {stockVerdict.strengths.length > 0 && (
+                    <div>
+                      <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--c-green)", marginBottom: "6px" }}>
+                        {isAr ? "نقاط القوة" : "STRENGTHS"}
+                      </p>
+                      {stockVerdict.strengths.slice(0, 3).map((s, i) => (
+                        <p key={i} style={{ fontSize: "12px", color: "var(--c-muted)", marginBottom: "4px", lineHeight: "1.4" }}>
+                          • {s}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {stockVerdict.watchouts.length > 0 && (
+                    <div>
+                      <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--c-gold)", marginBottom: "6px" }}>
+                        {isAr ? "نقاط المراقبة" : "WATCHOUTS"}
+                      </p>
+                      {stockVerdict.watchouts.slice(0, 3).map((w, i) => (
+                        <p key={i} style={{ fontSize: "12px", color: "var(--c-muted)", marginBottom: "4px", lineHeight: "1.4" }}>
+                          • {w}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ════════════════════════════════════════════════════
+              GRID ROW 2: PAST PERFORMANCE & HEALTH INDICATORS (2 cards)
           ════════════════════════════════════════════════════ */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-            {/* Valuation */}
-            {interpValuation.signal !== "insufficient_data" && (
+            {/* Card 1: Past Performance */}
+            <div
+              style={{
+                background: "var(--c-elevated)",
+                borderRadius: "12px",
+                padding: "20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+              }}
+            >
+              <p
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  color: "var(--c-gold)",
+                  fontFamily: "var(--font-grotesk)",
+                }}
+              >
+                {isAr ? "الأداء السابق" : "PAST PERFORMANCE"}
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {[
+                  { label: isAr ? "نمو الإيرادات" : "Revenue Growth", val: n("revenue_growth_yoy"), pct: true },
+                  { label: isAr ? "هامش الربح الصافي" : "Net Margin", val: n("net_margin"), pct: true },
+                  { label: isAr ? "العائد على الملكية" : "ROE", val: n("roe"), pct: true },
+                ].map(({ label, val, pct }) => (
+                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "12px", color: "var(--c-muted)" }}>{label}</span>
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: val === null ? "var(--c-muted)" : val > 0 ? "var(--c-green)" : "var(--c-red)",
+                      }}
+                    >
+                      {val !== null ? `${val > 0 ? "+" : ""}${val.toFixed(1)}${pct ? "%" : ""}` : "—"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Card 2: Health Indicators */}
+            <div
+              style={{
+                background: "var(--c-elevated)",
+                borderRadius: "12px",
+                padding: "20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+              }}
+            >
+              <p
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  color: "var(--c-gold)",
+                  fontFamily: "var(--font-grotesk)",
+                }}
+              >
+                {isAr ? "مؤشرات الصحة" : "HEALTH INDICATORS"}
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {[
+                  { label: isAr ? "الدين / الملكية" : "D/E Ratio", val: debtEq, fmt: (v: number) => v.toFixed(2) },
+                  { label: isAr ? "النسبة الجارية" : "Current Ratio", val: currRatio, fmt: (v: number) => v.toFixed(2) },
+                  { label: isAr ? "تغطية الفوائد" : "Interest Coverage", val: n("interest_coverage"), fmt: (v: number) => v.toFixed(1) },
+                ].map(({ label, val, fmt }) => (
+                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "12px", color: "var(--c-muted)" }}>{label}</span>
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--c-text)" }}>
+                      {val !== null ? fmt(val) : "—"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ════════════════════════════════════════════════════
+              GRID ROW 3: FULL-WIDTH PRICE CHART
+          ════════════════════════════════════════════════════ */}
+          <div
+            style={{
+              background: "var(--c-elevated)",
+              borderRadius: "12px",
+              padding: "20px",
+              marginBottom: "20px",
+            }}
+          >
+            <p
+              style={{
+                fontSize: "11px",
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                color: "var(--c-gold)",
+                fontFamily: "var(--font-grotesk)",
+                marginBottom: "16px",
+              }}
+            >
+              {isAr ? "مخطط السعر" : "PRICE CHART"}
+            </p>
+            {priceHistory.length > 0 && <PriceChart data={priceHistory} ticker={upperTicker} locale={locale} height={250} />}
+          </div>
+          </>}
+          sectionContent={{
+            valuation: interpValuation.signal !== "insufficient_data" ? (
               <InterpretationCard
                 iconName="Target"
                 iconColor="#C8A951"
@@ -817,26 +1129,9 @@ export default async function StockPage({
                   { key: "ps_ratio", label: isAr ? "مكرر المبيعات" : "P/S", ...metricDisplayPolicy("ps_ratio", n("ps_ratio")), interpretation: mi("ps_ratio") },
                   { key: "ev_ebitda", label: "EV/EBITDA", ...metricDisplayPolicy("ev_ebitda", n("ev_ebitda")), interpretation: mi("ev_ebitda") },
                 ]}
-              >
-                {/* Sector percentiles */}
-                {(n("sector_pctile_pe") !== null || n("sector_pctile_pb") !== null) && (
-                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--c-border)" }}>
-                    <p style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600, marginBottom: 6 }}>{isAr ? "المرتبة في القطاع" : "SECTOR RANK"}</p>
-                    <div className="flex gap-3">
-                      {n("sector_pctile_pe") !== null && (
-                        <span className="font-num" style={{ fontSize: 11, color: "var(--c-muted)" }}>{isAr ? "مكرر الأرباح" : "PE"}: {n("sector_pctile_pe")!.toFixed(0)}th pctile</span>
-                      )}
-                      {n("sector_pctile_pb") !== null && (
-                        <span className="font-num" style={{ fontSize: 11, color: "var(--c-muted)" }}>{isAr ? "مكرر الدفترية" : "PB"}: {n("sector_pctile_pb")!.toFixed(0)}th pctile</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </InterpretationCard>
-            )}
-
-            {/* Quality */}
-            {interpQuality.signal !== "insufficient_data" && (
+              />
+            ) : undefined,
+            quality: interpQuality.signal !== "insufficient_data" ? (
               <InterpretationCard
                 iconName="ShieldCheck"
                 iconColor="#A78BFA"
@@ -854,10 +1149,8 @@ export default async function StockPage({
                   { key: "operating_margin", label: isAr ? "هامش الربح التشغيلي" : "Op. Margin", ...metricDisplayPolicy("operating_margin", n("operating_margin")), interpretation: mi("operating_margin") },
                 ]}
               />
-            )}
-
-            {/* Growth */}
-            {interpGrowth.signal !== "insufficient_data" && (
+            ) : undefined,
+            growth: interpGrowth.signal !== "insufficient_data" ? (
               <InterpretationCard
                 iconName="Zap"
                 iconColor="#0ECB81"
@@ -875,10 +1168,8 @@ export default async function StockPage({
                   { key: "revenue_cagr_3y", label: isAr ? "معدل نمو الإيرادات 3 سنوات" : "Rev CAGR 3Y", ...metricDisplayPolicy("revenue_cagr_3y", n("revenue_cagr_3y")), interpretation: mi("revenue_cagr_3y"), colorBySign: true },
                 ]}
               />
-            )}
-
-            {/* Safety */}
-            {interpSafety.signal !== "insufficient_data" && (
+            ) : undefined,
+            safety: interpSafety.signal !== "insufficient_data" ? (
               <InterpretationCard
                 iconName="Shield"
                 iconColor="#14B8A6"
@@ -896,29 +1187,27 @@ export default async function StockPage({
                   { key: "ocf_to_debt", label: isAr ? "التدفق النقدي / الدين" : "OCF/Debt", ...metricDisplayPolicy("ocf_to_debt", n("ocf_to_debt")), interpretation: mi("ocf_to_debt") },
                 ]}
               />
-            )}
-
-            {/* Dividend */}
-            <InterpretationCard
-              iconName="DollarSign"
-              iconColor="#F59E0B"
-              title={isAr ? "التوزيعات" : "Dividend"}
-              signalLabel={isAr ? interpDividend.labelAr : interpDividend.label}
-              signalBg={signalBg(interpDividend.signal)}
-              signalColor={signalColor(interpDividend.signal)}
-              detail={isAr ? interpDividend.detailAr : interpDividend.detail}
-              locale={locale}
-              sectionExplainer={secExp("dividend")}
-              subMetrics={[
-                { key: "dividend_yield", label: isAr ? "عائد التوزيعات" : "Yield", ...metricDisplayPolicy("dividend_yield", n("dividend_yield"), { isNonDividendPayer }), interpretation: mi("dividend_yield") },
-                { key: "payout_ratio", label: isAr ? "نسبة التوزيع" : "Payout", ...metricDisplayPolicy("payout_ratio", n("payout_ratio"), { isNonDividendPayer }), interpretation: mi("payout_ratio") },
-                { key: "dividend_cagr_3y", label: isAr ? "نمو التوزيعات 3 سنوات" : "Div Growth 3Y", ...metricDisplayPolicy("dividend_cagr_3y", n("dividend_cagr_3y"), { isNonDividendPayer }), interpretation: mi("dividend_cagr_3y") },
-                { key: "years_of_dividends", label: isAr ? "سنوات التوزيع" : "Years Paying", ...metricDisplayPolicy("years_of_dividends", n("years_of_dividends"), { isNonDividendPayer }), interpretation: mi("years_of_dividends") },
-              ]}
-            />
-
-            {/* Momentum */}
-            {interpMomentum.signal !== "insufficient_data" && (
+            ) : undefined,
+            dividend: (
+              <InterpretationCard
+                iconName="DollarSign"
+                iconColor="#F59E0B"
+                title={isAr ? "التوزيعات" : "Dividend"}
+                signalLabel={isAr ? interpDividend.labelAr : interpDividend.label}
+                signalBg={signalBg(interpDividend.signal)}
+                signalColor={signalColor(interpDividend.signal)}
+                detail={isAr ? interpDividend.detailAr : interpDividend.detail}
+                locale={locale}
+                sectionExplainer={secExp("dividend")}
+                subMetrics={[
+                  { key: "dividend_yield", label: isAr ? "عائد التوزيعات" : "Yield", ...metricDisplayPolicy("dividend_yield", n("dividend_yield"), { isNonDividendPayer }), interpretation: mi("dividend_yield") },
+                  { key: "payout_ratio", label: isAr ? "نسبة التوزيع" : "Payout", ...metricDisplayPolicy("payout_ratio", n("payout_ratio"), { isNonDividendPayer }), interpretation: mi("payout_ratio") },
+                  { key: "dividend_cagr_3y", label: isAr ? "نمو التوزيعات 3 سنوات" : "Div Growth 3Y", ...metricDisplayPolicy("dividend_cagr_3y", n("dividend_cagr_3y"), { isNonDividendPayer }), interpretation: mi("dividend_cagr_3y") },
+                  { key: "years_of_dividends", label: isAr ? "سنوات التوزيع" : "Years Paying", ...metricDisplayPolicy("years_of_dividends", n("years_of_dividends"), { isNonDividendPayer }), interpretation: mi("years_of_dividends") },
+                ]}
+              />
+            ),
+            momentum: interpMomentum.signal !== "insufficient_data" ? (
               <InterpretationCard
                 iconName="LineChart"
                 iconColor="#60A5FA"
@@ -935,22 +1224,35 @@ export default async function StockPage({
                   { key: "return_3m", label: isAr ? "3 أشهر" : "3M", ...metricDisplayPolicy("return_3m", n("return_3m")), interpretation: mi("return_3m"), colorBySign: true },
                   { key: "return_1y", label: isAr ? "سنة" : "1Y", ...metricDisplayPolicy("return_1y", n("return_1y")), interpretation: mi("return_1y"), colorBySign: true },
                 ]}
-              >
-                {(n("volatility_30d") !== null || n("relative_perf_vs_tasi") !== null) && (
-                  <div className="flex gap-3 mt-2">
-                    {n("volatility_30d") !== null && (
-                      <span className="font-num" style={{ fontSize: 11, color: "var(--c-muted)" }}>{isAr ? "التذبذب 30 يوم" : "Vol 30d"}: {(n("volatility_30d")! * 100).toFixed(1)}%</span>
-                    )}
-                    {n("relative_perf_vs_tasi") !== null && (
-                      <span className="font-num" style={{ fontSize: 11, color: n("relative_perf_vs_tasi")! > 0 ? "var(--c-green)" : "var(--c-red)" }}>
-                        {isAr ? "مقابل تاسي" : "vs TASI"}: {n("relative_perf_vs_tasi")! > 0 ? "+" : ""}{(n("relative_perf_vs_tasi")! * 100).toFixed(1)}%
-                      </span>
-                    )}
-                  </div>
-                )}
-              </InterpretationCard>
-            )}
-          </div>
+              />
+            ) : undefined,
+          }}
+          bottomContent={<>
+          {/* ── Return Comparison Table (Tier 2) ── */}
+          <ReturnComparison
+            locale={locale}
+            ticker={upperTicker}
+            sectorName={tSector(locale, company.sector ?? "")}
+            stockReturns={{
+              return_1m: n("return_1m") !== null ? n("return_1m")! * 100 : null,
+              return_3m: n("return_3m") !== null ? n("return_3m")! * 100 : null,
+              return_1y: n("return_1y") !== null ? n("return_1y")! * 100 : null,
+            }}
+          />
+
+          {/* ── TTM Income Summary (Tier 2) ── */}
+          {revenue !== null && (
+            <TTMSummaryCard
+              locale={locale}
+              revenue={revenue}
+              grossProfit={grossProfit}
+              operatingIncome={opIncome}
+              netIncome={netIncome}
+              grossMargin={grossMarginPct}
+              operatingMargin={opMarginPct}
+              netMargin={netMarginPct}
+            />
+          )}
 
           {/* Company description */}
           {(company.description_en || company.description_ar) && (
@@ -1011,7 +1313,27 @@ export default async function StockPage({
             </div>
           )}
 
-          {/* ── Peer Comparison ──────────────────────────────── */}
+          {/* ── Peer Mini-Table (Tier 2) ── */}
+          {peers.length > 0 && (
+            <PeerMiniTable
+              locale={locale}
+              sectorName={tSector(locale, company.sector ?? "")}
+              currentStock={{
+                ticker: upperTicker,
+                name: displayName,
+                pe: n("pe_ratio"),
+                roe: n("roe"),
+                divYield: n("dividend_yield"),
+                marketCap: marketCap,
+              }}
+              peers={peers.slice(0, 4).map(p => ({
+                ticker: p.ticker,
+                name: (isAr && p.name_ar) ? p.name_ar : p.name_en,
+              }))}
+            />
+          )}
+
+          {/* ── Peer Comparison (detailed list) ──────────────── */}
           {peers.length > 0 && (
             <div className="card mb-5" style={{ padding: "20px 24px" }}>
               <div className="flex items-center gap-2 mb-4">
@@ -1046,6 +1368,58 @@ export default async function StockPage({
                       </div>
                       <ArrowUpRight size={14} style={{ color: "var(--c-muted)" }} />
                     </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── Contracts Section ── */}
+          {contracts.length > 0 && (
+            <div id="contracts" className="card mb-5" style={{ padding: "20px 24px" }}>
+              <div className="flex items-center gap-2 mb-4">
+                <FileText size={14} style={{ color: "var(--c-gold)" }} />
+                <h2 className="font-bold" style={{ fontSize: 15, color: "var(--c-text)" }}>
+                  {isAr ? "العقود الأخيرة" : "Recent Contracts"}
+                </h2>
+                <span className="font-num" style={{ fontSize: 11, color: "var(--c-dim)" }}>
+                  ({contracts.length})
+                </span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {contracts.map((ct: any) => {
+                  const title = isAr && ct.contract_title_ar ? ct.contract_title_ar : ct.contract_title_en;
+                  const value = ct.contract_value ? (ct.contract_value >= 1e9 ? `${(ct.contract_value / 1e9).toFixed(1)}B` : ct.contract_value >= 1e6 ? `${(ct.contract_value / 1e6).toFixed(0)}M` : ct.contract_value.toLocaleString()) : null;
+                  const matColor = ct.materiality_label === "major" ? "#22c55e" : ct.materiality_label === "meaningful" ? "#C8A951" : ct.materiality_label === "moderate" ? "#60A5FA" : "var(--c-dim)";
+                  return (
+                    <div key={ct.id} style={{ padding: "12px 16px", borderRadius: 10, background: "var(--c-elevated)", border: "1px solid var(--c-border)" }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span style={{ fontSize: 9, fontWeight: 700, color: matColor, padding: "2px 6px", borderRadius: 4, background: `${matColor}15`, textTransform: "uppercase" }}>
+                            {ct.materiality_label}
+                          </span>
+                          <span style={{ fontSize: 9, fontWeight: 600, color: "var(--c-dim)", padding: "2px 6px", borderRadius: 4, background: "var(--c-base)" }}>
+                            {ct.disclosure_type?.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                        <span className="font-num" style={{ fontSize: 10, color: "var(--c-dim)" }}>
+                          {ct.announcement_date}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: "var(--c-text)", marginBottom: 4 }}>{title}</p>
+                      <div className="flex items-center gap-3">
+                        {value && (
+                          <span className="font-num" style={{ fontSize: 12, fontWeight: 700, color: "var(--c-gold)" }}>
+                            {ct.currency} {value}
+                          </span>
+                        )}
+                        {ct.counterparty && (
+                          <span style={{ fontSize: 11, color: "var(--c-muted)" }}>
+                            {isAr ? "مع" : "with"} {ct.counterparty}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -1106,7 +1480,8 @@ export default async function StockPage({
               </div>
             </div>
           )}
-        </>
+          </>}
+        />
       )}
 
       {/* ══════════════════════════════════════════════════════
@@ -1128,7 +1503,7 @@ export default async function StockPage({
                 </span>
               )}
             </div>
-            <PriceChart data={chartData} ticker={company.ticker} locale={locale} />
+            <PriceChart data={chartData} ticker={company.ticker} locale={locale} height={420} />
           </div>
 
           {/* Liquidity Flow (only when live data available) */}

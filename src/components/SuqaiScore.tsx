@@ -21,6 +21,9 @@ interface Props {
   locale?: string;
   size?: number;
   companyName?: string;
+  onDimensionClick?: (dimensionKey: string) => void;
+  /** Override the center score display (e.g., from company_metrics_daily.suqai_score) */
+  overrideScore?: number | null;
 }
 
 /* ── Pillar interpretation helpers ── */
@@ -101,9 +104,19 @@ export default function SuqaiScore({
   locale = "en",
   size = 220,
   companyName,
+  onDimensionClick,
+  overrideScore,
 }: Props) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const isAr = locale === "ar";
+
+  const sectionAnchors: Record<string, string> = {
+    value: "valuation",
+    growth: "growth",
+    dividend: "dividend",
+    health: "safety",
+    momentum: "momentum",
+  };
 
   const dimensions: ScoreDimension[] = [
     { key: "value", label: t(locale, "score.value"), score: value, color: "#C8A951", meaning: pillarMeaning("value", value) },
@@ -113,7 +126,7 @@ export default function SuqaiScore({
     { key: "momentum", label: t(locale, "score.momentum"), score: momentum, color: "#F59E0B", meaning: pillarMeaning("momentum", momentum) },
   ];
 
-  const totalScore = Math.round(((value + growth + dividend + health + momentum) / 25) * 100);
+  const totalScore = overrideScore != null ? Math.round(overrideScore) : Math.round(((value + growth + dividend + health + momentum) / 25) * 100);
   const sorted = [...dimensions].sort((a, b) => b.score - a.score);
   const strongest = sorted[0];
   const weakest = sorted[sorted.length - 1];
@@ -260,62 +273,90 @@ export default function SuqaiScore({
               fill="transparent"
               onMouseEnter={() => setHoveredIdx(i)}
               onMouseLeave={() => setHoveredIdx(null)}
-              onClick={() => setHoveredIdx(hoveredIdx === i ? null : i)}
+              onClick={() => {
+                const anchor = sectionAnchors[dimensions[i].key];
+                if (anchor) {
+                  const el = document.getElementById(anchor);
+                  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+                if (onDimensionClick) onDimensionClick(dimensions[i].key);
+              }}
               style={{ cursor: "pointer" }}
             />
           ))}
 
-          {/* Outer labels */}
-          {points.map((p, i) => {
-            const isHovered = hoveredIdx === i;
-            return (
-              <text
-                key={`lbl-${i}`}
-                x={p.labelX}
-                y={p.labelY}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fill={isHovered ? dimensions[i].color : "var(--c-muted)"}
-                fontSize={isHovered ? 10 : 9}
-                fontWeight={isHovered ? 700 : 600}
-                fontFamily="var(--font-grotesk), system-ui"
-                letterSpacing="0.03em"
-                style={{ transition: "fill 0.2s, font-size 0.2s", cursor: "pointer" }}
-                onMouseEnter={() => setHoveredIdx(i)}
-                onMouseLeave={() => setHoveredIdx(null)}
-              >
-                {dimensions[i].label}
-              </text>
-            );
-          })}
-
-          {/* Center score */}
-          <text
-            x={cx}
-            y={cy - 8}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fill="var(--c-gold)"
-            fontSize={30}
-            fontWeight={800}
-            fontFamily="var(--font-grotesk), system-ui"
-            style={{ filter: "drop-shadow(0 0 14px rgba(200, 169, 81, 0.5))" }}
-          >
-            {totalScore}
-          </text>
-          <text
-            x={cx}
-            y={cy + 12}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fill="var(--c-muted)"
-            fontSize={8}
-            fontWeight={600}
-            letterSpacing="0.14em"
-          >
-            {t(locale, "score.label").toUpperCase()}
-          </text>
         </svg>
+
+        {/* ── HTML labels (replaces SVG text for proper Arabic BiDi) ── */}
+        {points.map((p, i) => {
+          const isHovered = hoveredIdx === i;
+          return (
+            <div
+              key={`lbl-${i}`}
+              onMouseEnter={() => setHoveredIdx(i)}
+              onMouseLeave={() => setHoveredIdx(null)}
+              onClick={() => {
+                const anchor = sectionAnchors[dimensions[i].key];
+                if (anchor) {
+                  const el = document.getElementById(anchor);
+                  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+                if (onDimensionClick) onDimensionClick(dimensions[i].key);
+              }}
+              style={{
+                position: "absolute",
+                left: p.labelX,
+                top: p.labelY,
+                transform: "translate(-50%, -50%)",
+                color: isHovered ? dimensions[i].color : "var(--c-muted)",
+                fontSize: isHovered ? 11 : 10,
+                fontWeight: isHovered ? 700 : 600,
+                fontFamily: "var(--font-grotesk), system-ui",
+                cursor: "pointer",
+                transition: "color 0.2s, font-size 0.2s",
+                textDecoration: isHovered ? "underline" : "none",
+                whiteSpace: "nowrap",
+                textAlign: "center",
+                direction: isAr ? "rtl" : "ltr",
+                userSelect: "none",
+                pointerEvents: "auto",
+              }}
+            >
+              {dimensions[i].label}
+            </div>
+          );
+        })}
+
+        {/* Center score (HTML for proper rendering) */}
+        <div style={{
+          position: "absolute",
+          left: cx,
+          top: cy,
+          transform: "translate(-50%, -50%)",
+          textAlign: "center",
+          pointerEvents: "none",
+        }}>
+          <div style={{
+            fontSize: 28,
+            fontWeight: 800,
+            color: "var(--c-gold)",
+            fontFamily: "var(--font-grotesk), system-ui",
+            lineHeight: 1,
+            filter: "drop-shadow(0 0 14px rgba(200, 169, 81, 0.5))",
+          }}>
+            {totalScore}
+          </div>
+          <div style={{
+            fontSize: 8,
+            fontWeight: 600,
+            color: "var(--c-muted)",
+            letterSpacing: isAr ? "0" : "0.14em",
+            marginTop: 2,
+            direction: isAr ? "rtl" : "ltr",
+          }}>
+            {isAr ? t(locale, "score.label") : t(locale, "score.label").toUpperCase()}
+          </div>
+        </div>
 
         {/* Hover tooltip */}
         {hoveredDim && (
@@ -360,6 +401,11 @@ export default function SuqaiScore({
         )}
       </div>
 
+      {/* ── Hint text ── */}
+      <p style={{ fontSize: 9, color: "var(--c-dim)", textAlign: "center", margin: "4px 0 0" }}>
+        {locale === "ar" ? "اضغط على أي بُعد للانتقال إلى تفاصيله" : "Click any dimension to jump to its details"}
+      </p>
+
       {/* ── Pillar bars ── */}
       <div style={{ display: "flex", gap: 8, width: "100%", maxWidth: size + 40, justifyContent: "center" }}>
         {dimensions.map((d) => (
@@ -368,6 +414,14 @@ export default function SuqaiScore({
             style={{ flex: 1, textAlign: "center", cursor: "pointer" }}
             onMouseEnter={() => setHoveredIdx(dimensions.indexOf(d))}
             onMouseLeave={() => setHoveredIdx(null)}
+            onClick={() => {
+              const anchor = sectionAnchors[d.key];
+              if (anchor) {
+                const el = document.getElementById(anchor);
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
+              if (onDimensionClick) onDimensionClick(d.key);
+            }}
           >
             <div
               style={{
