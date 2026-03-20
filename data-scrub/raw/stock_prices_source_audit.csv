@@ -1,5 +1,0 @@
-source_name,record_count,note
-yahoo_finance,4233,Primary trusted source
-null,132,Latest batch - source not tagged
-test_batch,10,Seed data for Riyad Bank only - EXCLUDED from validated output
-test,1,Single test record - EXCLUDED from validated output

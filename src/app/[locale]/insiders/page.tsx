@@ -2,7 +2,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Users } from "lucide-react";
 import { t } from "@/lib/i18n";
-import { useState } from "react";
+
 
 interface OwnershipRecord {
   id: string;
