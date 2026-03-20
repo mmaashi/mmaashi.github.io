@@ -990,10 +990,14 @@ export default async function StockPage({
               </p>
               <div style={{ display: "flex", justifyContent: "center", minHeight: "180px" }}>
                 <SuqaiScore
-                  scores={scores}
-                  overallScore={overallScore}
+                  value={scores.value}
+                  growth={scores.growth}
+                  dividend={scores.dividend}
+                  health={scores.health}
+                  momentum={scores.momentum}
                   locale={locale}
-                  size="small"
+                  size={160}
+                  overrideScore={displayScore}
                 />
               </div>
             </div>
@@ -1040,7 +1044,7 @@ export default async function StockPage({
                       </p>
                       {stockVerdict.strengths.slice(0, 3).map((s, i) => (
                         <p key={i} style={{ fontSize: "12px", color: "var(--c-muted)", marginBottom: "4px", lineHeight: "1.4" }}>
-                          • {s}
+                          • {isAr ? s.ar : s.en}
                         </p>
                       ))}
                     </div>
@@ -1052,7 +1056,7 @@ export default async function StockPage({
                       </p>
                       {stockVerdict.watchouts.slice(0, 3).map((w, i) => (
                         <p key={i} style={{ fontSize: "12px", color: "var(--c-muted)", marginBottom: "4px", lineHeight: "1.4" }}>
-                          • {w}
+                          • {isAr ? w.ar : w.en}
                         </p>
                       ))}
                     </div>
