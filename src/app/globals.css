@@ -38,8 +38,8 @@
   /* ── Text ── */
   --c-text:       #E8EDF6;
   --c-text-sm:    #99ABC8;
-  --c-muted:      #5A7099;
-  --c-dim:        #354565;
+  --c-muted:      #7B94B8;  /* was #5A7099 — boosted for WCAG AA 4.5:1 contrast on #060D18 */
+  --c-dim:        #4E6A8A;  /* was #354565 — boosted for WCAG A 3:1 contrast on #060D18 */
 
   /* ── Glass ── */
   --glass-bg:     rgba(11, 20, 36, 0.65);

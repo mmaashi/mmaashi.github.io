@@ -2,17 +2,24 @@
 
 interface Props {
   scores: {
-    value: number;
-    growth: number;
-    dividend: number;
-    health: number;
-    momentum: number;
+    value: number | null;
+    growth: number | null;
+    dividend: number | null;
+    health: number | null;
+    momentum: number | null;
   } | null;
   size?: number;
 }
 
 export default function MiniSnowflake({ scores, size = 40 }: Props) {
-  if (!scores) {
+  // Check if ALL pillars are null/missing — show placeholder
+  const hasAnyData = scores && (
+    scores.value !== null || scores.growth !== null ||
+    scores.dividend !== null || scores.health !== null ||
+    scores.momentum !== null
+  );
+
+  if (!scores || !hasAnyData) {
     // Greyed-out placeholder pentagon
     return (
       <svg
@@ -34,7 +41,11 @@ export default function MiniSnowflake({ scores, size = 40 }: Props) {
   }
 
   // Normalize scores (assume 0-5 scale, convert to 0-1 for SVG)
-  const normalize = (val: number) => Math.max(0, Math.min(1, val / 5));
+  // Null values default to 0.15 (tiny sliver) so the shape still renders
+  const normalize = (val: number | null) => {
+    if (val === null || val === undefined || isNaN(val)) return 0.15;
+    return Math.max(0.05, Math.min(1, val / 5));
+  };
 
   const n = {
     value: normalize(scores.value),

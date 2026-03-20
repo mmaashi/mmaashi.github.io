@@ -68,7 +68,61 @@ import {
   type Signal,
 } from "@/lib/interpretation";
 
+import type { Metadata } from "next";
+
 type Tab = "overview" | "chart" | "financials" | "dividends" | "news" | "info" | "analysis";
+
+// ── Dynamic SEO Metadata ──────────────────────────────────────
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; ticker: string }>;
+}): Promise<Metadata> {
+  const { locale, ticker } = await params;
+  const upper = ticker.toUpperCase();
+  const supabase = createServiceClient();
+
+  const { data: co } = await supabase
+    .from("companies")
+    .select("name_en, name_ar, sector")
+    .eq("ticker", upper)
+    .single();
+
+  if (!co) return { title: `${upper} | SŪQAI` };
+
+  const name = locale === "ar" && co.name_ar ? co.name_ar : co.name_en;
+  const isAr = locale === "ar";
+  const title = `${name} (${upper}) ${isAr ? "- تحليل السهم" : "- Stock Analysis"} | SŪQAI`;
+  const description = isAr
+    ? `تحليل سهم ${name} (${upper}) في السوق السعودي. نتائج مالية، تقييم، أرباح، ومقارنة بالقطاع.`
+    : `${name} (${upper}) stock analysis on the Saudi market. Financials, valuation, dividends, and sector comparison.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      url: `https://suqaist.vercel.app/${locale}/stock/${upper}`,
+      siteName: "SŪQAI",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+    alternates: {
+      languages: {
+        en: `/en/stock/${upper}`,
+        ar: `/ar/stock/${upper}`,
+      },
+    },
+  };
+}
+
+// ── ISR: Revalidate stock pages every 15 minutes ──
+export const revalidate = 900;
 
 export default async function StockPage({
   params,
@@ -129,6 +183,7 @@ export default async function StockPage({
     peersResult,
     metricsResult,
     contractsResult,
+    sectorAvgResult,
   ] = await Promise.allSettled([
     getCompanyQuote(upperTicker),
     supabase
@@ -189,6 +244,14 @@ export default async function StockPage({
       .eq("company_id", company.id)
       .order("announcement_date", { ascending: false })
       .limit(10),
+    // Sector averages (for Fair Value card)
+    (supabase as any)
+      .from("sector_averages")
+      .select("avg_pe, median_pe")
+      .eq("sector", company.sector ?? "")
+      .order("as_of_date", { ascending: false })
+      .limit(1)
+      .single(),
   ]);
 
   const liveQuote      = liveQuoteResult.status     === "fulfilled" ? liveQuoteResult.value      : null;
@@ -209,6 +272,8 @@ export default async function StockPage({
   }).slice(0, 15);
   const peers          = peersResult.status         === "fulfilled" ? peersResult.value.data ?? [] : [];
   const contracts      = contractsResult.status     === "fulfilled" ? contractsResult.value.data ?? [] : [];
+  const sectorAvgData  = sectorAvgResult.status    === "fulfilled" ? (sectorAvgResult.value as any).data : null;
+  const sectorAvgPE    = sectorAvgData?.median_pe ? Number(sectorAvgData.median_pe) : (sectorAvgData?.avg_pe ? Number(sectorAvgData.avg_pe) : null);
 
   // ── 4. Compute display values ───────────────────────────────
   const currentPrice = liveQuote?.price ?? (latestDbPrice ? Number(latestDbPrice.close) : null);
@@ -266,8 +331,7 @@ export default async function StockPage({
       ))
     : null;
 
-  // Fair Value REMOVED — fair_value_estimate is a BLOCKED metric (0% coverage in DB)
-  // DO NOT compute or display fair value estimates until validated data source exists
+  // Fair Value: uses EPS × sector median P/E from sector_averages table
 
   const displayName = locale === "ar" && company.name_ar ? company.name_ar : company.name_en;
   const isLive      = !!liveQuote;
@@ -940,7 +1004,7 @@ export default async function StockPage({
               currentPrice={currentPrice}
               pe={pe ? parseFloat(pe) : null}
               eps={eps}
-              sectorAvgPE={n("sector_avg_pe")}
+              sectorAvgPE={sectorAvgPE}
               roe={roe}
               bookValue={totalAssets && totalLiabilities ? (totalAssets - totalLiabilities) : null}
             />
@@ -1108,7 +1172,7 @@ export default async function StockPage({
             >
               {isAr ? "مخطط السعر" : "PRICE CHART"}
             </p>
-            {priceHistory.length > 0 && <PriceChart data={priceHistory} ticker={upperTicker} locale={locale} height={250} />}
+            {priceHistory.length > 0 && <PriceChart data={priceHistory} ticker={upperTicker} locale={locale} height={420} />}
           </div>
           </>}
           sectionContent={{
@@ -1268,8 +1332,6 @@ export default async function StockPage({
               </p>
             </div>
           )}
-
-          {/* Fair Value Card REMOVED — blocked metric, 0% coverage */}
 
           {/* ── Sector Context ──────────────────────────────── */}
           {(n("sector_rank_market_cap") !== null || n("sector_peer_count") !== null) && (

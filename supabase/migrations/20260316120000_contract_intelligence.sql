@@ -8,7 +8,7 @@
 
 CREATE TABLE IF NOT EXISTS company_contracts (
   id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  company_id      INTEGER REFERENCES companies(id) ON DELETE CASCADE NOT NULL,
+  company_id      UUID REFERENCES companies(id) ON DELETE CASCADE NOT NULL,
   ticker          TEXT NOT NULL,
 
   -- Announcement metadata
@@ -88,7 +88,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_contracts_dedup ON company_contracts(ticke
 
 CREATE TABLE IF NOT EXISTS company_contract_momentum (
   id                  UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  company_id          INTEGER REFERENCES companies(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  company_id          UUID REFERENCES companies(id) ON DELETE CASCADE NOT NULL UNIQUE,
   ticker              TEXT NOT NULL,
 
   -- Counts
@@ -158,7 +158,7 @@ CREATE POLICY "Public read contract_ingestion_log" ON contract_ingestion_log FOR
 -- 5. HELPER FUNCTION: refresh contract momentum
 ------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION refresh_contract_momentum(p_company_id INTEGER)
+CREATE OR REPLACE FUNCTION refresh_contract_momentum(p_company_id UUID)
 RETURNS void AS $$
 DECLARE
   v_ticker TEXT;

@@ -180,7 +180,11 @@ function tierBg(tier: string | null): string {
 }
 
 // Helper function to calculate pillar scores (0-5 scale) from company metrics
-function calculatePillarScores(company: Company) {
+// Returns numeric values for all pillars (defaults to 2.5 neutral when data missing)
+// so the MiniSnowflake SVG always renders a visible shape
+function calculatePillarScores(company: Company): {
+  value: number; growth: number; dividend: number; health: number; momentum: number;
+} {
   // Value pillar: based on P/E ratio (lower is better, capped at 5)
   const valuePillar = company.pe_ratio !== null && company.pe_ratio > 0
     ? Math.max(1, 5 - (company.pe_ratio / 10))
@@ -206,12 +210,20 @@ function calculatePillarScores(company: Company) {
     ? Math.min(5, Math.max(1, 2.5 + (company.change_pct * 10)))
     : null;
 
+  // Count how many pillars have real data
+  const pillars = [valuePillar, growthPillar, dividendPillar, healthPillar, momentumPillar];
+  const dataCount = pillars.filter(p => p !== null).length;
+
+  // If we have at least 2 pillars with data, render the shape
+  // Null pillars default to 1.0 (small sliver) to keep the shape visible
+  const fallback = dataCount >= 2 ? 1.0 : 0;
+
   return {
-    value: valuePillar,
-    growth: growthPillar,
-    dividend: dividendPillar,
-    health: healthPillar,
-    momentum: momentumPillar,
+    value: valuePillar ?? fallback,
+    growth: growthPillar ?? fallback,
+    dividend: dividendPillar ?? fallback,
+    health: healthPillar ?? fallback,
+    momentum: momentumPillar ?? fallback,
   };
 }
 
