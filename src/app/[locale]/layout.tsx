@@ -11,6 +11,13 @@ import {
   Info,
   Briefcase,
   PieChart,
+  Gauge,
+  Zap,
+  GitCompare,
+  BarChart3,
+  Users,
+  LineChart,
+  DollarSign,
 } from "lucide-react";
 import "../globals.css";
 import { getMarketSummary } from "@/lib/sahm";
@@ -63,17 +70,29 @@ export default async function LocaleLayout({
   } catch {}
 
   const navLinks = [
-    { href: `/${locale}`,          label: t(locale, "home"),     Icon: Home,               iconName: "Home" },
-    { href: `/${locale}/screener`, label: t(locale, "screener"), Icon: SlidersHorizontal,  iconName: "SlidersHorizontal" },
-    { href: `/${locale}/sectors`,  label: isRTL ? "القطاعات" : "Sectors",  Icon: PieChart,           iconName: "PieChart" },
-    { href: `/${locale}/news`,     label: t(locale, "news"),     Icon: Newspaper,          iconName: "Newspaper" },
-    { href: `/${locale}/calendar`, label: t(locale, "calendar"), Icon: CalendarDays,       iconName: "CalendarDays" },
-    { href: `/${locale}/portfolio`, label: isRTL ? "سوقي" : "My SŪQAI", Icon: Briefcase,         iconName: "Briefcase" },
-    { href: `/${locale}/about`,    label: t(locale, "about"),    Icon: Info,               iconName: "Info" },
+    { href: `/${locale}`,            label: t(locale, "home"),     Icon: Home,               iconName: "Home" },
+    { href: `/${locale}/screener`,   label: t(locale, "screener"), Icon: SlidersHorizontal,  iconName: "SlidersHorizontal" },
+    { href: `/${locale}/sentiment`,  label: isRTL ? "المعنويات" : "Sentiment", Icon: Gauge,   iconName: "Gauge" },
+    { href: `/${locale}/movers`,     label: isRTL ? "المحركات" : "Movers",     Icon: Zap,     iconName: "Zap" },
+    { href: `/${locale}/news`,       label: t(locale, "news"),     Icon: Newspaper,          iconName: "Newspaper" },
+    { href: `/${locale}/portfolio`,  label: isRTL ? "سوقي" : "My SŪQAI", Icon: Briefcase,    iconName: "Briefcase" },
   ];
 
-  // Serializable version for the client-side MobileNav
-  const mobileLinks = navLinks.map(({ href, label, iconName }) => ({ href, label, iconName }));
+  // Extended links for mobile nav (includes all features)
+  const allLinks = [
+    ...navLinks,
+    { href: `/${locale}/breadth`,    label: isRTL ? "اتساع السوق" : "Breadth",    Icon: BarChart3,    iconName: "BarChart3" },
+    { href: `/${locale}/compare`,    label: isRTL ? "مقارنة" : "Compare",          Icon: GitCompare,   iconName: "GitCompare" },
+    { href: `/${locale}/dividends`,  label: isRTL ? "التوزيعات" : "Dividends",     Icon: DollarSign,   iconName: "DollarSign" },
+    { href: `/${locale}/earnings`,   label: isRTL ? "الأرباح" : "Earnings",        Icon: LineChart,    iconName: "LineChart" },
+    { href: `/${locale}/insiders`,   label: isRTL ? "المطلعين" : "Insiders",       Icon: Users,        iconName: "Users" },
+    { href: `/${locale}/sectors`,    label: isRTL ? "القطاعات" : "Sectors",        Icon: PieChart,     iconName: "PieChart" },
+    { href: `/${locale}/calendar`,   label: t(locale, "calendar"),                  Icon: CalendarDays, iconName: "CalendarDays" },
+    { href: `/${locale}/about`,      label: t(locale, "about"),                     Icon: Info,         iconName: "Info" },
+  ];
+
+  // Serializable version for the client-side MobileNav (includes all features)
+  const mobileLinks = allLinks.map(({ href, label, iconName }) => ({ href, label, iconName }));
 
   return (
     <html lang={locale} dir={isRTL ? "rtl" : "ltr"}>

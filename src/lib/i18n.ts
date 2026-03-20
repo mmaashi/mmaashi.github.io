@@ -173,6 +173,16 @@ const translations: Record<string, Record<string, string>> = {
     "calendar.col.price": "Price",
     "calendar.no_records": "No dividend records found",
 
+    // Dividend Calendar
+    "dividends.title": "Dividend Calendar",
+    "dividends.subtitle": "Track upcoming ex-dates and payments",
+    "dividends.upcoming": "Upcoming Dividends",
+    "dividends.recent": "Recent Dividends",
+    "dividends.ex_date": "Ex-Date",
+    "dividends.payment_date": "Payment Date",
+    "dividends.per_share": "per share",
+    "dividends.no_upcoming": "No upcoming dividends scheduled",
+
     // News
     "news.title": "Latest market news",
     "news.subtitle": "Latest Saudi Market News",
@@ -299,6 +309,14 @@ const translations: Record<string, Record<string, string>> = {
     "snapshot.top_sector": "Top Sector",
     "snapshot.traded": "Traded Value",
 
+    // Market Movers Page
+    "movers.title": "Market Movers",
+    "movers.subtitle": "Today's biggest moves on Tadawul",
+    "movers.gainers": "Top Gainers",
+    "movers.losers": "Top Losers",
+    "movers.active": "Most Active",
+    "movers.volume": "Volume",
+
     // Homepage Movers
     "movers.view_analysis": "View analysis",
 
@@ -328,7 +346,70 @@ const translations: Record<string, Record<string, string>> = {
     "common.billion": "B",
     "common.million": "M",
     "common.disclaimer": "SŪQAI provides translated market data for informational purposes only. Not investment advice.",
+    "common.loading": "Loading...",
     "common.main_market": "Main Market",
+
+    // Sentiment
+    "sentiment.title": "Market Sentiment",
+    "sentiment.subtitle": "Saudi Market Fear & Greed Index",
+    "sentiment.extreme_fear": "Extreme Fear",
+    "sentiment.fear": "Fear",
+    "sentiment.neutral": "Neutral",
+    "sentiment.greed": "Greed",
+    "sentiment.extreme_greed": "Extreme Greed",
+    "sentiment.momentum": "TASI Momentum",
+    "sentiment.breadth": "Market Breadth",
+    "sentiment.highs_lows": "52-Week Highs vs Lows",
+    "sentiment.volatility": "Market Volatility",
+    "sentiment.safe_haven": "Safe Haven Demand",
+    "sentiment.what_means": "What does this mean?",
+    "sentiment.fear_desc": "Investors are fearful — stocks may be oversold, creating buying opportunities.",
+    "sentiment.greed_desc": "Investors are greedy — stocks may be overbought. Exercise caution.",
+    "sentiment.neutral_desc": "The market is showing balanced sentiment.",
+
+    // Earnings Tracker Page
+    "earnings.title": "Earnings Tracker",
+    "earnings.subtitle": "Quarterly earnings results and surprises",
+    "earnings.beat": "Beat",
+    "earnings.miss": "Miss",
+    "earnings.revenue": "Revenue",
+    "earnings.net_income": "Net Income",
+    "earnings.eps": "EPS",
+    "earnings.yoy_change": "YoY Change",
+    "earnings.no_data": "No recent earnings data",
+
+    // Insider Activity Page
+    "insiders.title": "Insider Activity",
+    "insiders.subtitle": "Track major shareholder movements",
+    "insiders.increased": "Increased",
+    "insiders.decreased": "Decreased",
+    "insiders.all": "All",
+    "insiders.board": "Board Members",
+    "insiders.major": "Major Shareholders",
+    "insiders.government": "Government",
+    "insiders.no_data": "No recent ownership changes",
+
+    // Market Breadth
+    "breadth.title": "Market Breadth",
+    "breadth.subtitle": "Professional-grade Tadawul market analysis",
+    "breadth.advancing": "Advancing",
+    "breadth.declining": "Declining",
+    "breadth.unchanged": "Unchanged",
+    "breadth.new_highs": "Near 52W Highs",
+    "breadth.new_lows": "Near 52W Lows",
+    "breadth.sector_perf": "Sector Performance",
+    "breadth.volume_analysis": "Volume Analysis",
+    "breadth.ad_ratio": "Advance/Decline Ratio",
+    "breadth.market_pulse": "Market Pulse",
+
+    // Stock Comparison
+    "compare.title": "Compare Stocks",
+    "compare.subtitle": "Side-by-side stock analysis",
+    "compare.add_stock": "Add a stock...",
+    "compare.vs": "vs",
+    "compare.remove": "Remove",
+    "compare.no_stocks": "Select stocks to compare",
+    "compare.winner": "Best",
   },
 
   ar: {
@@ -500,6 +581,16 @@ const translations: Record<string, Record<string, string>> = {
     "calendar.col.price": "السعر",
     "calendar.no_records": "لا توجد سجلات توزيعات",
 
+    // تقويم الأرباح الموزعة
+    "dividends.title": "تقويم الأرباح الموزعة",
+    "dividends.subtitle": "تتبع تواريخ الاستحقاق والمدفوعات القادمة",
+    "dividends.upcoming": "أرباح قادمة",
+    "dividends.recent": "أرباح سابقة",
+    "dividends.ex_date": "تاريخ الاستحقاق",
+    "dividends.payment_date": "تاريخ الدفع",
+    "dividends.per_share": "للسهم",
+    "dividends.no_upcoming": "لا توجد أرباح قادمة مجدولة",
+
     // News
     "news.title": "آخر أخبار السوق",
     "news.subtitle": "آخر أخبار السوق السعودي",
@@ -626,6 +717,14 @@ const translations: Record<string, Record<string, string>> = {
     "snapshot.top_sector": "أفضل قطاع",
     "snapshot.traded": "قيمة التداول",
 
+    // Market Movers Page
+    "movers.title": "محركات السوق",
+    "movers.subtitle": "أكبر تحركات اليوم في تداول",
+    "movers.gainers": "الأكثر ارتفاعاً",
+    "movers.losers": "الأكثر انخفاضاً",
+    "movers.active": "الأكثر تداولاً",
+    "movers.volume": "الحجم",
+
     // Homepage Movers
     "movers.view_analysis": "عرض التحليل",
 
@@ -655,7 +754,70 @@ const translations: Record<string, Record<string, string>> = {
     "common.billion": "مليار",
     "common.million": "مليون",
     "common.disclaimer": "تقدم SŪQAI بيانات السوق المترجمة لأغراض إعلامية فقط. لا تُعدّ نصيحة استثمارية.",
+    "common.loading": "جاري التحميل...",
     "common.main_market": "السوق الرئيسي",
+
+    // Sentiment
+    "sentiment.title": "معنويات السوق",
+    "sentiment.subtitle": "مؤشر الخوف والجشع للسوق السعودي",
+    "sentiment.extreme_fear": "خوف شديد",
+    "sentiment.fear": "خوف",
+    "sentiment.neutral": "محايد",
+    "sentiment.greed": "جشع",
+    "sentiment.extreme_greed": "جشع شديد",
+    "sentiment.momentum": "زخم تاسي",
+    "sentiment.breadth": "اتساع السوق",
+    "sentiment.highs_lows": "أعلى وأدنى 52 أسبوع",
+    "sentiment.volatility": "تقلبات السوق",
+    "sentiment.safe_haven": "الطلب على الملاذ الآمن",
+    "sentiment.what_means": "ماذا يعني هذا؟",
+    "sentiment.fear_desc": "المستثمرون خائفون — قد تكون الأسهم مباعة بشكل مفرط، مما يخلق فرص شراء.",
+    "sentiment.greed_desc": "المستثمرون جشعون — قد تكون الأسهم مشتراة بشكل مفرط. توخى الحذر.",
+    "sentiment.neutral_desc": "السوق يظهر معنويات متوازنة.",
+
+    // Earnings Tracker Page
+    "earnings.title": "متتبع الأرباح",
+    "earnings.subtitle": "نتائج الأرباح الفصلية والمفاجآت",
+    "earnings.beat": "تجاوز",
+    "earnings.miss": "أخفق",
+    "earnings.revenue": "الإيرادات",
+    "earnings.net_income": "صافي الدخل",
+    "earnings.eps": "ربحية السهم",
+    "earnings.yoy_change": "التغير السنوي",
+    "earnings.no_data": "لا توجد بيانات أرباح حديثة",
+
+    // Insider Activity Page
+    "insiders.title": "نشاط المطلعين",
+    "insiders.subtitle": "تتبع تحركات كبار المساهمين",
+    "insiders.increased": "زيادة",
+    "insiders.decreased": "تخفيض",
+    "insiders.all": "الكل",
+    "insiders.board": "أعضاء مجلس الإدارة",
+    "insiders.major": "كبار المساهمين",
+    "insiders.government": "حكومي",
+    "insiders.no_data": "لا توجد تغييرات ملكية حديثة",
+
+    // اتساع السوق
+    "breadth.title": "اتساع السوق",
+    "breadth.subtitle": "تحليل احترافي لسوق تداول",
+    "breadth.advancing": "مرتفعة",
+    "breadth.declining": "منخفضة",
+    "breadth.unchanged": "مستقرة",
+    "breadth.new_highs": "قرب أعلى 52 أسبوع",
+    "breadth.new_lows": "قرب أدنى 52 أسبوع",
+    "breadth.sector_perf": "أداء القطاعات",
+    "breadth.volume_analysis": "تحليل أحجام التداول",
+    "breadth.ad_ratio": "نسبة الارتفاع/الانخفاض",
+    "breadth.market_pulse": "نبض السوق",
+
+    // مقارنة الأسهم
+    "compare.title": "مقارنة الأسهم",
+    "compare.subtitle": "تحليل الأسهم جنباً إلى جنب",
+    "compare.add_stock": "أضف سهم...",
+    "compare.vs": "مقابل",
+    "compare.remove": "إزالة",
+    "compare.no_stocks": "اختر أسهم للمقارنة",
+    "compare.winner": "الأفضل",
   },
 };
 
