@@ -73,20 +73,25 @@ export default async function LocaleLayout({
     { href: `/${locale}`,            label: t(locale, "home"),     Icon: Home,               iconName: "Home" },
     { href: `/${locale}/screener`,   label: t(locale, "screener"), Icon: SlidersHorizontal,  iconName: "SlidersHorizontal" },
     { href: `/${locale}/sentiment`,  label: isRTL ? "المعنويات" : "Sentiment", Icon: Gauge,   iconName: "Gauge" },
-    { href: `/${locale}/movers`,     label: isRTL ? "المحركات" : "Movers",     Icon: Zap,     iconName: "Zap" },
     { href: `/${locale}/news`,       label: t(locale, "news"),     Icon: Newspaper,          iconName: "Newspaper" },
     { href: `/${locale}/portfolio`,  label: isRTL ? "سوقي" : "My SŪQAI", Icon: Briefcase,    iconName: "Briefcase" },
   ];
 
   // Extended links for mobile nav (includes all features)
+  // Organized logically: Home, Screener + Sectors, Sentiment + Movers + Breadth, News, My SŪQAI + Compare/Dividends/Earnings/Insiders, Calendar, About
   const allLinks = [
-    ...navLinks,
+    { href: `/${locale}`,            label: t(locale, "home"),     Icon: Home,               iconName: "Home" },
+    { href: `/${locale}/screener`,   label: t(locale, "screener"), Icon: SlidersHorizontal,  iconName: "SlidersHorizontal" },
+    { href: `/${locale}/sectors`,    label: isRTL ? "القطاعات" : "Sectors",        Icon: PieChart,     iconName: "PieChart" },
+    { href: `/${locale}/sentiment`,  label: isRTL ? "المعنويات" : "Sentiment", Icon: Gauge,   iconName: "Gauge" },
+    { href: `/${locale}/movers`,     label: isRTL ? "المحركات" : "Movers",     Icon: Zap,     iconName: "Zap" },
     { href: `/${locale}/breadth`,    label: isRTL ? "اتساع السوق" : "Breadth",    Icon: BarChart3,    iconName: "BarChart3" },
+    { href: `/${locale}/news`,       label: t(locale, "news"),     Icon: Newspaper,          iconName: "Newspaper" },
+    { href: `/${locale}/portfolio`,  label: isRTL ? "سوقي" : "My SŪQAI", Icon: Briefcase,    iconName: "Briefcase" },
     { href: `/${locale}/compare`,    label: isRTL ? "مقارنة" : "Compare",          Icon: GitCompare,   iconName: "GitCompare" },
     { href: `/${locale}/dividends`,  label: isRTL ? "التوزيعات" : "Dividends",     Icon: DollarSign,   iconName: "DollarSign" },
     { href: `/${locale}/earnings`,   label: isRTL ? "الأرباح" : "Earnings",        Icon: LineChart,    iconName: "LineChart" },
     { href: `/${locale}/insiders`,   label: isRTL ? "المطلعين" : "Insiders",       Icon: Users,        iconName: "Users" },
-    { href: `/${locale}/sectors`,    label: isRTL ? "القطاعات" : "Sectors",        Icon: PieChart,     iconName: "PieChart" },
     { href: `/${locale}/calendar`,   label: t(locale, "calendar"),                  Icon: CalendarDays, iconName: "CalendarDays" },
     { href: `/${locale}/about`,      label: t(locale, "about"),                     Icon: Info,         iconName: "Info" },
   ];

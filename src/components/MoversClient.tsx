@@ -40,8 +40,10 @@ function StockCard({
 
   const minValue = showChange ? Math.min(0, stock.change_percent) : 0;
   const maxValue = showChange ? Math.max(100, stock.change_percent) : 100;
-  const barWidth = showChange ? Math.abs((stock.change_percent - minValue) / (maxValue - minValue) * 100) : 50;
-  const barMarginLeft = showChange && stock.change_percent < 0 ? Math.abs((stock.change_percent - minValue) / (maxValue - minValue) * 100) : 0;
+  const range = maxValue - minValue;
+  const safeRange = range === 0 ? 1 : range;
+  const barWidth = showChange ? Math.abs((stock.change_percent - minValue) / safeRange * 100) : 50;
+  const barMarginLeft = showChange && stock.change_percent < 0 ? Math.abs((stock.change_percent - minValue) / safeRange * 100) : 0;
 
   return (
     <Link

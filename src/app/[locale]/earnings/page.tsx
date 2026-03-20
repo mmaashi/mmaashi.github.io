@@ -441,7 +441,7 @@ export default async function EarningsPage({
                       }}
                       className="earnings-metric"
                     >
-                      View full analysis →
+                      {isAr ? "عرض التحليل الكامل →" : "View full analysis →"}
                     </div>
                   </Link>
                 </div>

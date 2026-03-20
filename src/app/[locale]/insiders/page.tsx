@@ -309,7 +309,7 @@ export default async function InsidersPage({
                       marginBottom: 6,
                     }}
                   >
-                    Owner
+                    {isAr ? "المالك" : "Owner"}
                   </div>
                   <div
                     style={{
