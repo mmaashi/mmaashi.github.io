@@ -123,6 +123,10 @@ export default async function InsidersPage({
 
   return (
     <div className="page-wrap">
+      <style>{`
+        .insider-filter:hover { border-color: var(--c-gold) !important; color: var(--c-gold) !important; }
+        .insider-card:hover { border-color: var(--c-gold) !important; box-shadow: 0 0 0 1px var(--c-gold-dim); background: rgba(200,169,81,0.02) !important; }
+      `}</style>
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <div
@@ -168,6 +172,7 @@ export default async function InsidersPage({
           return (
             <div
               key={filter}
+              className="insider-filter"
               style={{
                 padding: "8px 16px",
                 borderRadius: 8,
@@ -178,16 +183,6 @@ export default async function InsidersPage({
                 color: "var(--c-muted)",
                 cursor: "pointer",
                 transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                const el = e.currentTarget as HTMLDivElement;
-                el.style.borderColor = "var(--c-gold)";
-                el.style.color = "var(--c-gold)";
-              }}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget as HTMLDivElement;
-                el.style.borderColor = "var(--c-border)";
-                el.style.color = "var(--c-muted)";
               }}
             >
               {label}
@@ -233,6 +228,7 @@ export default async function InsidersPage({
             return (
               <div
                 key={record.id}
+                className="insider-card"
                 style={{
                   background: "var(--c-surface)",
                   border: "1px solid var(--c-border)",
@@ -243,18 +239,6 @@ export default async function InsidersPage({
                   gap: 16,
                   transition: "all 0.2s ease-out",
                   cursor: "pointer",
-                }}
-                onMouseEnter={(e) => {
-                  const el = e.currentTarget as HTMLDivElement;
-                  el.style.borderColor = "var(--c-gold)";
-                  el.style.boxShadow = "0 0 0 1px var(--c-gold-dim)";
-                  el.style.background = "rgba(200, 169, 81, 0.02)";
-                }}
-                onMouseLeave={(e) => {
-                  const el = e.currentTarget as HTMLDivElement;
-                  el.style.borderColor = "var(--c-border)";
-                  el.style.boxShadow = "none";
-                  el.style.background = "var(--c-surface)";
                 }}
               >
                 {/* Top: Ticker + Company Name */}
