@@ -40,28 +40,41 @@ interface BreadthMetrics {
 async function calculateBreadthMetrics(): Promise<BreadthMetrics> {
   const supabase = await createServiceClient();
 
-  // Fetch all stock prices with sector info
-  const { data: stockData } = await supabase
-    .from("stock_prices")
-    .select(
-      `
-      ticker,
-      close,
-      open,
-      change_percent,
-      high_52w,
-      low_52w,
-      volume,
-      companies (
-        ticker,
-        sector,
-        name_en
-      )
-    `
-    )
-    .order("ticker");
+  // Fetch all companies first to get IDs
+  const { data: companies } = await supabase
+    .from("companies")
+    .select("id, ticker, sector");
 
-  if (!stockData || stockData.length === 0) {
+  if (!companies || companies.length === 0) {
+    return {
+      advancing: 0,
+      declining: 0,
+      unchanged: 0,
+      total: 0,
+      near52wHigh: 0,
+      near52wLow: 0,
+      avgVolume: 0,
+      totalVolume: 0,
+      sectorPerformance: [],
+      volumeAboveAvg: 0,
+      volumeBelowAvg: 0,
+      tasiValue: 0,
+      tasiChange: 0,
+      tasiChangePercent: 0,
+    };
+  }
+
+  const companyIds = companies.map((c) => c.id);
+
+  // Fetch all stock prices - query the actual columns that exist
+  const { data: allPrices } = await supabase
+    .from("stock_prices")
+    .select("company_id, close, open, date, volume")
+    .in("company_id", companyIds)
+    .order("date", { ascending: false })
+    .limit(500 * companyIds.length); // Fetch ~500 days per stock for 52-week analysis
+
+  if (!allPrices || allPrices.length === 0) {
     return {
       advancing: 0,
       declining: 0,
@@ -81,7 +94,53 @@ async function calculateBreadthMetrics(): Promise<BreadthMetrics> {
   }
 
   // ─────────────────────────────────────────────────────────
-  // 1. BREADTH METRICS (Advancing / Declining / Unchanged)
+  // 1. GET LATEST PRICE & PREVIOUS PRICE FOR EACH COMPANY
+  // ─────────────────────────────────────────────────────────
+  const sortedPrices = [...allPrices].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+
+  const latestPrices = new Map<
+    string,
+    { close: number; open: number; volume: number; date: string }
+  >();
+  const previousPrices = new Map<
+    string,
+    { close: number; open: number; volume: number; date: string }
+  >();
+  const allHistoricalPrices = new Map<string, Array<number>>();
+
+  for (const price of sortedPrices) {
+    const compId = price.company_id;
+
+    // Track latest price
+    if (!latestPrices.has(compId)) {
+      latestPrices.set(compId, {
+        close: Number(price.close),
+        open: Number(price.open),
+        volume: Number(price.volume),
+        date: price.date,
+      });
+    }
+    // Track previous price (second most recent)
+    else if (!previousPrices.has(compId)) {
+      previousPrices.set(compId, {
+        close: Number(price.close),
+        open: Number(price.open),
+        volume: Number(price.volume),
+        date: price.date,
+      });
+    }
+
+    // Collect all historical prices for 52-week analysis
+    if (!allHistoricalPrices.has(compId)) {
+      allHistoricalPrices.set(compId, []);
+    }
+    allHistoricalPrices.get(compId)!.push(Number(price.close));
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // 2. BREADTH METRICS (Advancing / Declining / Unchanged)
   // ─────────────────────────────────────────────────────────
   let advancing = 0;
   let declining = 0;
@@ -90,38 +149,55 @@ async function calculateBreadthMetrics(): Promise<BreadthMetrics> {
   let near52wLow = 0;
   let totalVolume = 0;
 
-  const stocks = stockData.map((s: any) => ({
-    ticker: s.ticker,
-    close: Number(s.close),
-    open: Number(s.open),
-    changePercent: Number(s.change_percent),
-    high52w: Number(s.high_52w),
-    low52w: Number(s.low_52w),
-    volume: Number(s.volume),
-    sector: s.companies?.[0]?.sector || "Other",
-  }));
+  const stocks = [];
 
-  for (const stock of stocks) {
-    totalVolume += stock.volume;
+  for (const company of companies) {
+    const latest = latestPrices.get(company.id);
+    if (!latest) continue;
 
-    if (stock.changePercent > 0) advancing++;
-    else if (stock.changePercent < 0) declining++;
+    const previous = previousPrices.get(company.id);
+    const changePercent = previous
+      ? ((latest.close - previous.close) / previous.close) * 100
+      : 0;
+
+    totalVolume += latest.volume;
+
+    if (changePercent > 0) advancing++;
+    else if (changePercent < 0) declining++;
     else unchanged++;
 
-    // 52-week high/low detection (within 2% threshold)
-    if (stock.high52w > 0 && stock.close >= stock.high52w * 0.98) {
-      near52wHigh++;
+    // 52-week high/low detection
+    const historicalPrices = allHistoricalPrices.get(company.id) || [];
+    if (historicalPrices.length > 0) {
+      const high52w = Math.max(...historicalPrices);
+      const low52w = Math.min(...historicalPrices);
+
+      // Within 2% of 52-week high
+      if (high52w > 0 && latest.close >= high52w * 0.98) {
+        near52wHigh++;
+      }
+      // Within 2% of 52-week low
+      if (low52w > 0 && latest.close <= low52w * 1.02) {
+        near52wLow++;
+      }
     }
-    if (stock.low52w > 0 && stock.close <= stock.low52w * 1.02) {
-      near52wLow++;
-    }
+
+    stocks.push({
+      companyId: company.id,
+      ticker: company.ticker,
+      sector: company.sector,
+      close: latest.close,
+      open: latest.open,
+      volume: latest.volume,
+      changePercent,
+    });
   }
 
   const total = stocks.length;
   const avgVolume = totalVolume > 0 ? totalVolume / total : 0;
 
   // ─────────────────────────────────────────────────────────
-  // 2. SECTOR AGGREGATION
+  // 3. SECTOR AGGREGATION
   // ─────────────────────────────────────────────────────────
   const sectorMap = new Map<
     string,
@@ -136,7 +212,7 @@ async function calculateBreadthMetrics(): Promise<BreadthMetrics> {
   >();
 
   for (const stock of stocks) {
-    const sector = stock.sector;
+    const sector = stock.sector || "Other";
     if (!sectorMap.has(sector)) {
       sectorMap.set(sector, {
         advancing: 0,
@@ -171,7 +247,7 @@ async function calculateBreadthMetrics(): Promise<BreadthMetrics> {
     .sort((a, b) => b.avgChange - a.avgChange);
 
   // ─────────────────────────────────────────────────────────
-  // 3. VOLUME ANALYSIS
+  // 4. VOLUME ANALYSIS
   // ─────────────────────────────────────────────────────────
   let volumeAboveAvg = 0;
   let volumeBelowAvg = 0;
@@ -182,7 +258,7 @@ async function calculateBreadthMetrics(): Promise<BreadthMetrics> {
   }
 
   // ─────────────────────────────────────────────────────────
-  // 4. MARKET SUMMARY (from Sahm API)
+  // 5. MARKET SUMMARY (from Sahm API)
   // ─────────────────────────────────────────────────────────
   const marketSummary = await getMarketSummary().catch(() => null);
 
@@ -208,32 +284,53 @@ async function calculateBreadthMetrics(): Promise<BreadthMetrics> {
 // Component: Market Breadth Dashboard Page
 // ════════════════════════════════════════════════════════════════
 
-export default async function BreadthPage() {
+export default async function BreadthPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const isAr = locale === "ar";
+
   const metrics = await calculateBreadthMetrics();
-  const locale = "en"; // Would come from params in real app
 
-  const percentAdvancing = metrics.total > 0 ? (metrics.advancing / metrics.total) * 100 : 0;
-  const percentDeclining = metrics.total > 0 ? (metrics.declining / metrics.total) * 100 : 0;
-  const percentUnchanged = metrics.total > 0 ? (metrics.unchanged / metrics.total) * 100 : 0;
+  const percentAdvancing =
+    metrics.total > 0 ? (metrics.advancing / metrics.total) * 100 : 0;
+  const percentDeclining =
+    metrics.total > 0 ? (metrics.declining / metrics.total) * 100 : 0;
+  const percentUnchanged =
+    metrics.total > 0 ? (metrics.unchanged / metrics.total) * 100 : 0;
 
-  const adDecRatio = metrics.declining > 0 ? metrics.advancing / metrics.declining : 0;
+  const adDecRatio =
+    metrics.declining > 0 ? metrics.advancing / metrics.declining : 0;
 
-  const volumeFormatter = new Intl.NumberFormat("en-US", {
+  const volumeFormatter = new Intl.NumberFormat(isAr ? "ar-SA" : "en-US", {
     notation: "compact",
     compactDisplay: "short",
   });
 
+  // Bilingual label helpers
+  const getLabel = (enLabel: string, arLabel: string) =>
+    isAr ? arLabel : enLabel;
+
   return (
-    <div style={{ background: "var(--c-base)", color: "var(--c-text)", minHeight: "100vh", padding: "2rem" }}>
+    <div
+      style={{
+        background: "var(--c-base)",
+        color: "var(--c-text)",
+        minHeight: "100vh",
+        padding: "2rem",
+      }}
+    >
       {/* ─────────────────────────────────────────────────────────────
           PAGE HEADER
           ───────────────────────────────────────────────────────────── */}
       <div style={{ marginBottom: "2.5rem" }}>
         <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "0.5rem" }}>
-          {t("breadth.title", locale)}
+          {t(locale, "breadth.title")}
         </h1>
         <p style={{ color: "var(--c-muted)", fontSize: "0.95rem" }}>
-          {t("breadth.subtitle", locale)}
+          {t(locale, "breadth.subtitle")}
         </p>
       </div>
 
@@ -260,9 +357,18 @@ export default async function BreadthPage() {
             gridColumn: "span 1",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.25rem" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+              marginBottom: "1.25rem",
+            }}
+          >
             <Activity size={18} style={{ color: "var(--c-gold)" }} />
-            <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>{t("breadth.market_pulse", locale)}</h2>
+            <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>
+              {t(locale, "breadth.market_pulse")}
+            </h2>
           </div>
 
           {/* Stacked horizontal bar */}
@@ -299,13 +405,13 @@ export default async function BreadthPage() {
                   style={{
                     flex: `${percentUnchanged}%`,
                     background: "var(--c-muted)",
+                    opacity: 0.5,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     color: "#000",
                     fontSize: "0.75rem",
                     fontWeight: 700,
-                    opacity: 0.6,
                     transition: "flex 0.3s ease-out",
                   }}
                 >
@@ -338,76 +444,123 @@ export default async function BreadthPage() {
               display: "grid",
               gridTemplateColumns: "1fr 1fr 1fr",
               gap: "1rem",
-              marginBottom: "1.5rem",
             }}
           >
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: "0.8rem", color: "var(--c-muted)", marginBottom: "0.5rem" }}>
-                {t("breadth.advancing", locale)}
+            <div
+              style={{
+                background: "var(--c-elevated)",
+                border: "1px solid var(--c-border)",
+                borderRadius: "var(--radius-sm)",
+                padding: "1rem",
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--c-muted)",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                {getLabel("Advancing", "صاعد")}
               </div>
-              <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--c-green)" }}>
+              <div
+                style={{
+                  fontSize: "1.5rem",
+                  fontWeight: 700,
+                  color: "var(--c-green)",
+                }}
+              >
                 {metrics.advancing}
               </div>
-              <div style={{ fontSize: "0.75rem", color: "var(--c-muted)", marginTop: "0.25rem" }}>
-                {Math.round(percentAdvancing)}%
-              </div>
             </div>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: "0.8rem", color: "var(--c-muted)", marginBottom: "0.5rem" }}>
-                {t("breadth.unchanged", locale)}
+            <div
+              style={{
+                background: "var(--c-elevated)",
+                border: "1px solid var(--c-border)",
+                borderRadius: "var(--radius-sm)",
+                padding: "1rem",
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--c-muted)",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                {getLabel("Unchanged", "بدون تغيير")}
               </div>
-              <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--c-muted)" }}>
+              <div
+                style={{
+                  fontSize: "1.5rem",
+                  fontWeight: 700,
+                  color: "var(--c-muted)",
+                }}
+              >
                 {metrics.unchanged}
               </div>
-              <div style={{ fontSize: "0.75rem", color: "var(--c-muted)", marginTop: "0.25rem" }}>
-                {Math.round(percentUnchanged)}%
-              </div>
             </div>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: "0.8rem", color: "var(--c-muted)", marginBottom: "0.5rem" }}>
-                {t("breadth.declining", locale)}
+            <div
+              style={{
+                background: "var(--c-elevated)",
+                border: "1px solid var(--c-border)",
+                borderRadius: "var(--radius-sm)",
+                padding: "1rem",
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--c-muted)",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                {getLabel("Declining", "هابط")}
               </div>
-              <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--c-red)" }}>
+              <div
+                style={{
+                  fontSize: "1.5rem",
+                  fontWeight: 700,
+                  color: "var(--c-red)",
+                }}
+              >
                 {metrics.declining}
-              </div>
-              <div style={{ fontSize: "0.75rem", color: "var(--c-muted)", marginTop: "0.25rem" }}>
-                {Math.round(percentDeclining)}%
               </div>
             </div>
           </div>
 
-          {/* TASI Summary */}
+          {/* A/D Ratio */}
           <div
             style={{
               background: "var(--c-elevated)",
               border: "1px solid var(--c-border)",
               borderRadius: "var(--radius-sm)",
               padding: "1rem",
+              marginTop: "1rem",
+              textAlign: "center",
             }}
           >
-            <div style={{ fontSize: "0.75rem", color: "var(--c-muted)", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              TASI Index
+            <div
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--c-muted)",
+                marginBottom: "0.5rem",
+                textTransform: "uppercase",
+              }}
+            >
+              {getLabel("Advancing to Declining", "النسبة الصاعدة للهابطة")}
             </div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem" }}>
-              <div style={{ fontSize: "1.5rem", fontWeight: 700 }}>{Math.round(metrics.tasiValue).toLocaleString()}</div>
-              <div
-                style={{
-                  fontSize: "0.95rem",
-                  fontWeight: 600,
-                  color: metrics.tasiChangePercent >= 0 ? "var(--c-green)" : "var(--c-red)",
-                }}
-              >
-                {metrics.tasiChangePercent >= 0 ? "+" : ""}{metrics.tasiChangePercent.toFixed(2)}%
-              </div>
-            </div>
-            <div style={{ fontSize: "0.8rem", color: "var(--c-muted)", marginTop: "0.5rem" }}>
-              Volume: {volumeFormatter.format(metrics.totalVolume)}
+            <div style={{ fontSize: "1.5rem", fontWeight: 700 }}>
+              {adDecRatio.toFixed(2)}:1
             </div>
           </div>
         </div>
 
         {/* ═══════════════════════════════════════════════════════════
-            SECTION B: ADVANCE / DECLINE RATIO
+            SECTION B: 52-WEEK HIGHS/LOWS
             ═══════════════════════════════════════════════════════════ */}
         <div
           style={{
@@ -416,111 +569,32 @@ export default async function BreadthPage() {
             borderRadius: "var(--radius-md)",
             padding: "1.5rem",
             gridColumn: "span 1",
-            display: "flex",
-            flexDirection: "column",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem" }}>
-            <TrendingUp size={18} style={{ color: "var(--c-gold)" }} />
-            <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>{t("breadth.ad_ratio", locale)}</h2>
-          </div>
-
-          {/* Large ratio display */}
           <div
             style={{
-              flex: 1,
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
+              gap: "0.75rem",
               marginBottom: "1.5rem",
             }}
           >
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: "0.8rem", color: "var(--c-muted)", marginBottom: "0.75rem" }}>
-                Advancing to Declining
-              </div>
-              <div
-                style={{
-                  fontSize: "2.5rem",
-                  fontWeight: 700,
-                  color: "var(--c-gold)",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {adDecRatio.toFixed(2)}:1
-              </div>
-            </div>
-          </div>
-
-          {/* Side-by-side bars */}
-          <div style={{ display: "flex", gap: "1rem" }}>
-            <div style={{ flex: 1 }}>
-              <div
-                style={{
-                  background: "var(--c-elevated)",
-                  border: `2px solid var(--c-green)`,
-                  borderRadius: "var(--radius-sm)",
-                  padding: "1rem",
-                  textAlign: "center",
-                }}
-              >
-                <div style={{ fontSize: "0.75rem", color: "var(--c-muted)", marginBottom: "0.5rem" }}>
-                  Advancing
-                </div>
-                <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--c-green)" }}>
-                  {metrics.advancing}
-                </div>
-              </div>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div
-                style={{
-                  background: "var(--c-elevated)",
-                  border: `2px solid var(--c-red)`,
-                  borderRadius: "var(--radius-sm)",
-                  padding: "1rem",
-                  textAlign: "center",
-                }}
-              >
-                <div style={{ fontSize: "0.75rem", color: "var(--c-muted)", marginBottom: "0.5rem" }}>
-                  Declining
-                </div>
-                <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--c-red)" }}>
-                  {metrics.declining}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ═══════════════════════════════════════════════════════════
-            SECTION C: 52-WEEK HIGHS vs LOWS
-            ═══════════════════════════════════════════════════════════ */}
-        <div
-          style={{
-            background: "var(--c-surface)",
-            border: "1px solid var(--c-border)",
-            borderRadius: "var(--radius-md)",
-            padding: "1.5rem",
-            gridColumn: "span 1",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem" }}>
             <TrendingUp size={18} style={{ color: "var(--c-gold)" }} />
-            <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>{t("breadth.new_highs", locale)}</h2>
+            <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>
+              {getLabel("52-Week Range", "نطاق 52 أسبوع")}
+            </h2>
           </div>
 
+          {/* Stacked bar */}
           <div style={{ marginBottom: "1.5rem" }}>
-            <div style={{ fontSize: "0.8rem", color: "var(--c-muted)", marginBottom: "0.75rem" }}>
-              Near 52W High vs Low
-            </div>
             <div
               style={{
                 display: "flex",
-                height: "40px",
-                gap: "0.5rem",
+                height: "32px",
                 borderRadius: "var(--radius-sm)",
                 overflow: "hidden",
+                background: "var(--c-elevated)",
+                border: "1px solid var(--c-border)",
               }}
             >
               <div
@@ -570,10 +644,22 @@ export default async function BreadthPage() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "0.75rem", color: "var(--c-muted)", marginBottom: "0.5rem" }}>
-                {t("breadth.new_highs", locale)}
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--c-muted)",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                {t(locale, "breadth.new_highs")}
               </div>
-              <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--c-green)" }}>
+              <div
+                style={{
+                  fontSize: "1.5rem",
+                  fontWeight: 700,
+                  color: "var(--c-green)",
+                }}
+              >
                 {metrics.near52wHigh}
               </div>
             </div>
@@ -586,97 +672,31 @@ export default async function BreadthPage() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "0.75rem", color: "var(--c-muted)", marginBottom: "0.5rem" }}>
-                {t("breadth.new_lows", locale)}
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--c-muted)",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                {t(locale, "breadth.new_lows")}
               </div>
-              <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--c-red)" }}>
+              <div
+                style={{
+                  fontSize: "1.5rem",
+                  fontWeight: 700,
+                  color: "var(--c-red)",
+                }}
+              >
                 {metrics.near52wLow}
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ─────────────────────────────────────────────────────────────
-          SECTION D: SECTOR PERFORMANCE HEATMAP (Full Width)
-          ───────────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          background: "var(--c-surface)",
-          border: "1px solid var(--c-border)",
-          borderRadius: "var(--radius-md)",
-          padding: "1.5rem",
-          marginBottom: "2rem",
-        }}
-      >
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1.5rem" }}>
-          {t("breadth.sector_perf", locale)}
-        </h2>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-            gap: "1rem",
-          }}
-        >
-          {metrics.sectorPerformance.map((sector) => {
-            const intensity = Math.max(-100, Math.min(100, sector.avgChange * 20));
-            const isPositive = intensity >= 0;
-            const bgColor = isPositive
-              ? `rgba(14, 203, 129, ${Math.min(0.4, Math.abs(intensity) / 100)})`
-              : `rgba(246, 70, 93, ${Math.min(0.4, Math.abs(intensity) / 100)})`;
-            const textColor = isPositive ? "var(--c-green)" : "var(--c-red)";
-
-            return (
-              <div
-                key={sector.sector}
-                style={{
-                  background: bgColor,
-                  border: `1px solid ${textColor}`,
-                  borderRadius: "var(--radius-md)",
-                  padding: "1.25rem",
-                  position: "relative",
-                  overflow: "hidden",
-                }}
-              >
-                <div style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.75rem", color: "var(--c-text)" }}>
-                  {sector.sector}
-                </div>
-                <div
-                  style={{
-                    fontSize: "1.5rem",
-                    fontWeight: 700,
-                    color: textColor,
-                    marginBottom: "0.75rem",
-                  }}
-                >
-                  {sector.avgChange >= 0 ? "+" : ""}{sector.avgChange.toFixed(2)}%
-                </div>
-                <div style={{ fontSize: "0.75rem", color: "var(--c-muted)", display: "flex", gap: "0.5rem" }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                    <span style={{ color: "var(--c-green)" }}>▲</span> {sector.advancing}
-                  </span>
-                  <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                    <span style={{ color: "var(--c-red)" }}>▼</span> {sector.declining}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ─────────────────────────────────────────────────────────────
-          SECTION E: VOLUME ANALYSIS
-          ───────────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: "1.5rem",
-        }}
-      >
+        {/* ═══════════════════════════════════════════════════════════
+            SECTION C: VOLUME ANALYSIS (Left)
+            ═══════════════════════════════════════════════════════════ */}
         <div
           style={{
             background: "var(--c-surface)",
@@ -685,26 +705,48 @@ export default async function BreadthPage() {
             padding: "1.5rem",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+              marginBottom: "1.5rem",
+            }}
+          >
             <Activity size={18} style={{ color: "var(--c-gold)" }} />
-            <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>{t("breadth.volume_analysis", locale)}</h2>
+            <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>
+              {t(locale, "breadth.volume_analysis")}
+            </h2>
           </div>
 
           <div style={{ marginBottom: "1.5rem" }}>
-            <div style={{ fontSize: "0.8rem", color: "var(--c-muted)", marginBottom: "0.75rem" }}>
-              Total Market Volume
+            <div
+              style={{
+                fontSize: "0.8rem",
+                color: "var(--c-muted)",
+                marginBottom: "0.75rem",
+              }}
+            >
+              {getLabel("Total Market Volume", "إجمالي حجم السوق")}
             </div>
             <div style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: "0.5rem" }}>
               {volumeFormatter.format(metrics.totalVolume)}
             </div>
             <div style={{ fontSize: "0.8rem", color: "var(--c-muted)" }}>
-              Avg / Stock: {volumeFormatter.format(metrics.avgVolume)}
+              {getLabel("Avg / Stock", "المتوسط / السهم")}:{" "}
+              {volumeFormatter.format(metrics.avgVolume)}
             </div>
           </div>
 
           <div style={{ marginBottom: "1.5rem" }}>
-            <div style={{ fontSize: "0.8rem", color: "var(--c-muted)", marginBottom: "0.75rem" }}>
-              Volume Distribution
+            <div
+              style={{
+                fontSize: "0.8rem",
+                color: "var(--c-muted)",
+                marginBottom: "0.75rem",
+              }}
+            >
+              {getLabel("Volume Distribution", "توزيع الحجم")}
             </div>
             <div
               style={{
@@ -758,10 +800,22 @@ export default async function BreadthPage() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "0.75rem", color: "var(--c-muted)", marginBottom: "0.5rem" }}>
-                Above Avg
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--c-muted)",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                {getLabel("Above Avg", "فوق المتوسط")}
               </div>
-              <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--c-green)" }}>
+              <div
+                style={{
+                  fontSize: "1.5rem",
+                  fontWeight: 700,
+                  color: "var(--c-green)",
+                }}
+              >
                 {metrics.volumeAboveAvg}
               </div>
             </div>
@@ -774,66 +828,236 @@ export default async function BreadthPage() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: "0.75rem", color: "var(--c-muted)", marginBottom: "0.5rem" }}>
-                Below Avg
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--c-muted)",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                {getLabel("Below Avg", "تحت المتوسط")}
               </div>
-              <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--c-muted)" }}>
+              <div
+                style={{
+                  fontSize: "1.5rem",
+                  fontWeight: 700,
+                  color: "var(--c-muted)",
+                }}
+              >
                 {metrics.volumeBelowAvg}
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Quick Stats Cards */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <div
-            style={{
-              background: "var(--c-surface)",
-              border: "1px solid var(--c-border)",
-              borderRadius: "var(--radius-md)",
-              padding: "1.5rem",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: "0.75rem", color: "var(--c-muted)", marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Total Stocks Analyzed
-              </div>
-              <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--c-gold)" }}>
-                {metrics.total}
-              </div>
-            </div>
-            <div style={{ fontSize: "0.8rem", color: "var(--c-muted)", marginTop: "1rem" }}>
-              Market breadth dataset updated continuously throughout trading day
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: "var(--c-surface)",
-              border: "1px solid var(--c-border)",
-              borderRadius: "var(--radius-md)",
-              padding: "1.5rem",
-            }}
-          >
-            <div style={{ fontSize: "0.75rem", color: "var(--c-muted)", marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Market Health Indicator
+      {/* ─────────────────────────────────────────────────────────────
+          SECTION D: QUICK STATS (Full Width Below)
+          ───────────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: "1.5rem",
+          marginBottom: "2rem",
+        }}
+      >
+        <div
+          style={{
+            background: "var(--c-surface)",
+            border: "1px solid var(--c-border)",
+            borderRadius: "var(--radius-md)",
+            padding: "1.5rem",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--c-muted)",
+                marginBottom: "0.75rem",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}
+            >
+              {getLabel("Total Stocks Analyzed", "إجمالي الأسهم المحللة")}
             </div>
             <div
               style={{
-                fontSize: "1.25rem",
-                fontWeight: 600,
-                color: metrics.advancing > metrics.declining ? "var(--c-green)" : "var(--c-red)",
+                fontSize: "2rem",
+                fontWeight: 700,
+                color: "var(--c-gold)",
               }}
             >
-              {metrics.advancing > metrics.declining ? "Bullish" : metrics.declining > metrics.advancing ? "Bearish" : "Neutral"}
-            </div>
-            <div style={{ fontSize: "0.8rem", color: "var(--c-muted)", marginTop: "0.5rem" }}>
-              {Math.round(((metrics.advancing - metrics.declining) / metrics.total) * 100)}% net breadth
+              {metrics.total}
             </div>
           </div>
+          <div
+            style={{
+              fontSize: "0.8rem",
+              color: "var(--c-muted)",
+              marginTop: "1rem",
+            }}
+          >
+            {getLabel(
+              "Market breadth dataset updated continuously",
+              "يتم تحديث مجموعة بيانات اتساع السوق بشكل مستمر"
+            )}
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: "var(--c-surface)",
+            border: "1px solid var(--c-border)",
+            borderRadius: "var(--radius-md)",
+            padding: "1.5rem",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.75rem",
+              color: "var(--c-muted)",
+              marginBottom: "0.75rem",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            {getLabel("Market Health Indicator", "مؤشر صحة السوق")}
+          </div>
+          <div
+            style={{
+              fontSize: "1.25rem",
+              fontWeight: 600,
+              color:
+                metrics.advancing > metrics.declining
+                  ? "var(--c-green)"
+                  : metrics.declining > metrics.advancing
+                    ? "var(--c-red)"
+                    : "var(--c-muted)",
+            }}
+          >
+            {metrics.advancing > metrics.declining
+              ? getLabel("Bullish", "صعودي")
+              : metrics.declining > metrics.advancing
+                ? getLabel("Bearish", "هابط")
+                : getLabel("Neutral", "محايد")}
+          </div>
+          <div style={{ fontSize: "0.8rem", color: "var(--c-muted)", marginTop: "0.5rem" }}>
+            {metrics.total > 0
+              ? Math.round(
+                  ((metrics.advancing - metrics.declining) / metrics.total) * 100
+                )
+              : 0}
+            % {getLabel("net breadth", "صافي الاتساع")}
+          </div>
+        </div>
+      </div>
+
+      {/* ─────────────────────────────────────────────────────────────
+          SECTION E: SECTOR PERFORMANCE HEATMAP (Full Width)
+          ───────────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          background: "var(--c-surface)",
+          border: "1px solid var(--c-border)",
+          borderRadius: "var(--radius-md)",
+          padding: "1.5rem",
+        }}
+      >
+        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1.5rem" }}>
+          {t(locale, "breadth.sector_perf")}
+        </h2>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+            gap: "1rem",
+          }}
+        >
+          {metrics.sectorPerformance.map((sector) => {
+            const intensity = Math.max(
+              -100,
+              Math.min(100, sector.avgChange * 20)
+            );
+            const isPositive = intensity >= 0;
+            const bgColor = isPositive
+              ? `rgba(14, 203, 129, ${Math.min(
+                  0.4,
+                  Math.abs(intensity) / 100
+                )})`
+              : `rgba(246, 70, 93, ${Math.min(0.4, Math.abs(intensity) / 100)})`;
+            const textColor = isPositive ? "var(--c-green)" : "var(--c-red)";
+
+            return (
+              <div
+                key={sector.sector}
+                style={{
+                  background: bgColor,
+                  border: `1px solid ${textColor}`,
+                  borderRadius: "var(--radius-md)",
+                  padding: "1.25rem",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "0.8rem",
+                    fontWeight: 600,
+                    marginBottom: "0.75rem",
+                    color: "var(--c-text)",
+                  }}
+                >
+                  {sector.sector}
+                </div>
+                <div
+                  style={{
+                    fontSize: "1.5rem",
+                    fontWeight: 700,
+                    color: textColor,
+                    marginBottom: "0.75rem",
+                  }}
+                >
+                  {sector.avgChange >= 0 ? "+" : ""}
+                  {sector.avgChange.toFixed(2)}%
+                </div>
+                <div
+                  style={{
+                    fontSize: "0.75rem",
+                    color: "var(--c-muted)",
+                    display: "flex",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.25rem",
+                    }}
+                  >
+                    <span style={{ color: "var(--c-green)" }}>▲</span>{" "}
+                    {sector.advancing}
+                  </span>
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.25rem",
+                    }}
+                  >
+                    <span style={{ color: "var(--c-red)" }}>▼</span>{" "}
+                    {sector.declining}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

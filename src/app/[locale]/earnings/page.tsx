@@ -12,10 +12,11 @@ export default async function EarningsPage({
   const isAr = locale === "ar";
   const supabase = createServiceClient();
 
-  // Fetch latest financials grouped by ticker
+  // Fetch latest financials with company info
   const { data: financials } = await supabase
     .from("financials")
-    .select("id, ticker, period, revenue, net_income, eps, earnings_per_share, total_assets, company_id")
+    .select("id, company_id, period, year, revenue, net_income, earnings_per_share, total_assets")
+    .order("year", { ascending: false })
     .order("period", { ascending: false })
     .limit(500);
 
@@ -24,34 +25,36 @@ export default async function EarningsPage({
     .from("companies")
     .select("id, ticker, name_en, name_ar");
 
-  // Create company lookup map
-  const companyMap = new Map<string, { name_en: string; name_ar: string }>();
+  // Create company lookup map by company_id
+  const companyMap = new Map<string, { ticker: string; name_en: string; name_ar: string }>();
   if (companies) {
     for (const company of companies) {
-      companyMap.set(company.ticker, {
+      companyMap.set(company.id, {
+        ticker: company.ticker || "",
         name_en: company.name_en || "",
         name_ar: company.name_ar || company.name_en || "",
       });
     }
   }
 
-  // Group financials by ticker and get latest 2 periods
-  const tickerGroups = new Map<string, typeof financials>();
+  // Group financials by company_id and get latest 2 periods
+  const companyGroups = new Map<string, typeof financials>();
   if (financials) {
     for (const item of financials) {
-      if (!tickerGroups.has(item.ticker)) {
-        tickerGroups.set(item.ticker, []);
+      if (!companyGroups.has(item.company_id)) {
+        companyGroups.set(item.company_id, []);
       }
-      tickerGroups.get(item.ticker)!.push(item);
+      companyGroups.get(item.company_id)!.push(item);
     }
   }
 
-  // Process each ticker to get latest and previous period
+  // Process each company to get latest and previous period
   interface EarningsCard {
     ticker: string;
     name_en: string;
     name_ar: string;
     currentPeriod: string;
+    currentYear: number;
     beat: boolean; // true = beat, false = miss
     revenue: number;
     netIncome: number;
@@ -61,15 +64,17 @@ export default async function EarningsPage({
     epsChangePercent: number;
     epsExpected?: number;
     epsSurprise?: number;
-    reportDate?: string;
   }
 
   const earningsCards: EarningsCard[] = [];
 
-  for (const [ticker, periods] of tickerGroups) {
-    if (periods.length >= 2) {
+  for (const [companyId, periods] of companyGroups) {
+    if (periods && periods.length >= 2) {
       const latest = periods[0];
       const previous = periods[1];
+
+      // Get company info from lookup
+      const company = companyMap.get(companyId) || { ticker: "", name_en: "", name_ar: "" };
 
       // Calculate changes
       const revenueChange =
@@ -81,33 +86,29 @@ export default async function EarningsPage({
           ? ((latest.net_income - previous.net_income) / previous.net_income) * 100
           : 0;
       const epsChange =
-        previous.eps && latest.eps
-          ? ((latest.eps - previous.eps) / previous.eps) * 100
+        previous.earnings_per_share && latest.earnings_per_share
+          ? ((latest.earnings_per_share - previous.earnings_per_share) / previous.earnings_per_share) * 100
           : 0;
 
       // Calculate EPS surprise (actual vs expected from previous period)
-      const actualEps = latest.earnings_per_share || latest.eps || 0;
-      const expectedEps = previous.earnings_per_share || previous.eps || 0;
+      const actualEps = latest.earnings_per_share || 0;
+      const expectedEps = previous.earnings_per_share || 0;
       const epsSurprise = expectedEps !== 0
         ? ((actualEps - expectedEps) / Math.abs(expectedEps)) * 100
         : 0;
 
-      const beat = latest.net_income > previous.net_income;
-
-      const company = companyMap.get(ticker) || {
-        name_en: "",
-        name_ar: "",
-      };
+      const beat = (latest.net_income ?? 0) > (previous.net_income ?? 0);
 
       earningsCards.push({
-        ticker,
+        ticker: company.ticker,
         name_en: company.name_en,
         name_ar: company.name_ar,
         currentPeriod: latest.period,
+        currentYear: latest.year,
         beat,
         revenue: latest.revenue || 0,
         netIncome: latest.net_income || 0,
-        eps: latest.eps || 0,
+        eps: latest.earnings_per_share || 0,
         revenueChangePercent: revenueChange,
         netIncomeChangePercent: netIncomeChange,
         epsChangePercent: epsChange,
@@ -154,16 +155,11 @@ export default async function EarningsPage({
     return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
   }
 
-  // Parse period string to readable format
-  function formatPeriod(period: string): string {
-    // Expected format: "2025-Q4" or "2025-01" or similar
-    const match = period.match(/(\d{4})[-_](Q\d|0?\d)/i);
-    if (match) {
-      const year = match[1];
-      const qm = match[2].toUpperCase();
-      return `${qm} ${year}`;
-    }
-    return period;
+  // Format period and year to readable format
+  function formatPeriodWithYear(period: string, year: number): string {
+    // Expected format: "Q1", "Q2", "Q3", "Q4", or "annual"
+    const periodStr = period.toUpperCase();
+    return `${periodStr} ${year}`;
   }
 
   return (
@@ -439,7 +435,7 @@ export default async function EarningsPage({
                     fontWeight: 500,
                   }}
                 >
-                  {formatPeriod(card.currentPeriod)}
+                  {formatPeriodWithYear(card.currentPeriod, card.currentYear)}
                 </div>
 
                 {/* Divider */}
@@ -649,7 +645,7 @@ export default async function EarningsPage({
                       }}
                       className="earnings-metric"
                     >
-                      {isAr ? "عرض التحليل الكامل →" : "View full analysis →"}
+                      {t(locale, "earnings.view_analysis")}
                     </div>
                   </Link>
                 </div>

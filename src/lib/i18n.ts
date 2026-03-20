@@ -387,6 +387,7 @@ const translations: Record<string, Record<string, string>> = {
     "earnings.actual_eps": "Actual EPS",
     "earnings.surprise": "Surprise",
     "earnings.calendar_view": "Earnings Calendar",
+    "earnings.view_analysis": "View full analysis →",
 
     // Insider Activity Page
     "insiders.title": "Insider Activity",
@@ -805,6 +806,7 @@ const translations: Record<string, Record<string, string>> = {
     "earnings.actual_eps": "ربح السهم الفعلي",
     "earnings.surprise": "المفاجأة",
     "earnings.calendar_view": "تقويم الأرباح",
+    "earnings.view_analysis": "عرض التحليل الكامل ←",
 
     // Insider Activity Page
     "insiders.title": "نشاط المطلعين",
