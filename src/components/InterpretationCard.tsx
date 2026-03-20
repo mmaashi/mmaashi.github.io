@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   BarChart3, DollarSign, Calendar, TrendingUp, Building2, Activity,
   Target, ShieldCheck, Zap, Shield, LineChart, PieChart, Gauge,
@@ -49,54 +48,108 @@ interface InterpretationCardProps {
   cols?: 2 | 3;
 }
 
-/* ── Compact sub-metric row ── */
-function SubMetricRow({ m, locale }: { m: SubMetric; locale: string }) {
-  const [open, setOpen] = useState(false);
+/* ── Helper: Map signal to score (0-100) for visual gauge ── */
+function signalToScore(signal: string): number {
+  switch (signal) {
+    case "excellent": return 90;
+    case "good": return 70;
+    case "fair": return 50;
+    case "weak": return 25;
+    case "insufficient_data": return 0;
+    default: return 50;
+  }
+}
+
+/* ── Helper: Get color for score ── */
+function getScoreColor(score: number): string {
+  if (score >= 75) return "var(--c-green)"; // Gold zone
+  if (score >= 50) return "var(--c-green)"; // Green zone
+  if (score >= 25) return "var(--c-yellow)"; // Yellow zone
+  return "var(--c-red)"; // Red zone
+}
+
+/* ── Visual gauge row for sub-metric ── */
+function SubMetricGaugeRow({ m, locale, sectionColor }: { m: SubMetric; locale: string; sectionColor: string }) {
   const isAr = locale === "ar";
   const i = m.interpretation;
+  const score = signalToScore(m.signal);
 
   return (
-    <div
-      style={{ padding: "8px 10px", borderRadius: 6, cursor: i ? "pointer" : "default" }}
-      onClick={() => i && setOpen(!open)}
-    >
-      {/* Label + value + badge — single tight row */}
-      <div className="flex items-baseline gap-1 flex-wrap" style={{ marginBottom: 1 }}>
-        <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600 }}>{m.label}</span>
+    <div style={{ padding: "12px 0", direction: isAr ? "rtl" : "ltr" }}>
+      {/* Label, value, and badge in header row */}
+      <div className="flex items-baseline gap-2 flex-wrap" style={{ marginBottom: 8 }}>
+        <span style={{ fontSize: 11, color: "var(--c-muted)", fontWeight: 600 }}>{m.label}</span>
+        <span
+          className="font-num font-semibold"
+          style={{
+            fontSize: 16,
+            color:
+              m.signal === "insufficient_data" ? "var(--c-dim)"
+              : m.colorBySign && m.raw && m.raw > 0 ? "var(--c-green)"
+              : m.colorBySign && m.raw && m.raw < 0 ? "var(--c-red)"
+              : "var(--c-text)",
+          }}
+        >
+          {m.value}
+        </span>
         {i && (
           <span style={{
-            fontSize: 7, fontWeight: 700, padding: "1px 4px", borderRadius: 2,
-            background: i.badgeBg, color: i.badgeColor, whiteSpace: "nowrap", position: "relative", top: -1,
+            fontSize: 8, fontWeight: 700, padding: "2px 6px", borderRadius: 3,
+            background: i.badgeBg, color: i.badgeColor, whiteSpace: "nowrap",
           }}>
             {isAr ? i.badge.ar : i.badge.en}
           </span>
         )}
       </div>
 
-      <span
-        className="font-num font-semibold"
-        style={{
-          fontSize: 14,
-          color:
-            m.signal === "insufficient_data" ? "var(--c-dim)"
-            : m.colorBySign && m.raw && m.raw > 0 ? "var(--c-green)"
-            : m.colorBySign && m.raw && m.raw < 0 ? "var(--c-red)"
-            : "var(--c-text)",
-        }}
-      >
-        {m.value}
-      </span>
-      {m.note && <span style={{ fontSize: 8, color: "var(--c-dim)", fontStyle: "italic", marginLeft: 4 }}>{m.note}</span>}
+      {/* Horizontal progress bar gauge */}
+      {m.signal !== "insufficient_data" && (
+        <div style={{
+          width: "100%", height: 8, borderRadius: 4,
+          background: "var(--c-surface)",
+          position: "relative", overflow: "hidden",
+          marginBottom: 8,
+        }}>
+          {/* Segmented zones */}
+          <div style={{ width: "25%", height: "100%", background: "rgba(239, 68, 68, 0.3)", position: "absolute", left: 0 }} />
+          <div style={{ width: "25%", height: "100%", background: "rgba(234, 179, 8, 0.3)", position: "absolute", left: "25%" }} />
+          <div style={{ width: "25%", height: "100%", background: "rgba(34, 197, 94, 0.3)", position: "absolute", left: "50%" }} />
+          <div style={{ width: "25%", height: "100%", background: "rgba(34, 197, 94, 0.5)", position: "absolute", left: "75%" }} />
 
-      {/* Collapsed: no one-liner in sub-metrics (too dense). Only badge conveys signal. */}
+          {/* Progress fill and marker */}
+          {score > 0 && (
+            <>
+              <div style={{
+                width: `${Math.min(score, 100)}%`,
+                height: "100%",
+                background: getScoreColor(score),
+                borderRadius: 4,
+                transition: "width 0.3s ease-out",
+              }} />
+              <div style={{
+                position: "absolute",
+                left: `${Math.min(score, 100)}%`,
+                top: "50%",
+                transform: "translate(-50%, -50%)",
+                width: 12,
+                height: 12,
+                background: getScoreColor(score),
+                borderRadius: "50%",
+                border: "2px solid var(--c-base)",
+                boxShadow: `0 2px 4px rgba(0,0,0,0.1)`,
+              }} />
+            </>
+          )}
+        </div>
+      )}
 
-      {/* Expanded: detail + watch — flat, no nested box */}
-      {i && open && (
-        <div style={{ marginTop: 6, paddingTop: 5, borderTop: "1px solid var(--c-border)", direction: isAr ? "rtl" : "ltr" }}>
-          <p style={{ fontSize: 10, color: "var(--c-muted)", lineHeight: 1.45, margin: 0 }}>
+      {/* Detail explanation — always visible */}
+      {i && (
+        <div style={{ direction: isAr ? "rtl" : "ltr" }}>
+          <p style={{ fontSize: 11, color: "var(--c-muted)", lineHeight: 1.5, margin: "6px 0 0 0" }}>
             {isAr ? i.oneLiner.ar : i.oneLiner.en}
           </p>
-          <p style={{ fontSize: 10, color: "var(--c-gold)", margin: 0, marginTop: 4, opacity: 0.85 }}>
+          <p style={{ fontSize: 10, color: "var(--c-gold)", margin: "4px 0 0 0", opacity: 0.85 }}>
             {isAr ? "👁 " : "👁 "}{isAr ? i.watch.ar : i.watch.en}
           </p>
         </div>
@@ -113,25 +166,54 @@ export default function InterpretationCard({
   const Icon = iconMap[iconName] || Target;
 
   return (
-    <div className="card" style={{ padding: "18px 20px" }}>
+    <div className="card" style={{
+      padding: "28px 24px",
+      background: `linear-gradient(135deg, var(--c-base) 0%, ${iconColor}08 100%)`,
+      border: `1px solid ${iconColor}20`,
+    }}>
       {/* Header: icon + title + verdict badge */}
-      <div className="flex items-center gap-2 mb-2">
-        <Icon size={14} style={{ color: iconColor }} />
-        <h3 className="font-bold" style={{ fontSize: 13, color: "var(--c-text)", flex: 1 }}>{title}</h3>
-        <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: sigBg, color: sigColor }}>
+      <div className="flex items-center gap-2 mb-4">
+        <Icon size={18} style={{ color: iconColor }} />
+        <h3 className="font-bold" style={{ fontSize: 16, color: "var(--c-text)", flex: 1 }}>{title}</h3>
+        <span style={{ fontSize: 10, fontWeight: 700, padding: "4px 10px", borderRadius: 6, background: sigBg, color: sigColor }}>
           {signalLabel}
         </span>
       </div>
 
+      {/* Section explainer — highlighted, always visible */}
+      {sectionExplainer && (
+        <div style={{
+          padding: "12px 14px",
+          borderRadius: 8,
+          background: `${iconColor}15`,
+          border: `1px solid ${iconColor}30`,
+          marginBottom: 16,
+        }}>
+          <p style={{
+            fontSize: 14,
+            color: "var(--c-text)",
+            lineHeight: 1.6,
+            margin: 0,
+            fontWeight: 500,
+          }}>
+            {sectionExplainer}
+          </p>
+        </div>
+      )}
+
       {/* Section verdict — one line, visible */}
-      <p style={{ fontSize: 11, color: "var(--c-muted)", marginBottom: 12, lineHeight: 1.5 }}>
+      <p style={{ fontSize: 12, color: "var(--c-muted)", marginBottom: 16, lineHeight: 1.6 }}>
         {detail}
       </p>
 
-      {/* Sub-metrics grid */}
-      <div className={`grid gap-1.5 ${cols === 3 ? "grid-cols-3" : "grid-cols-2"}`} style={{ background: "var(--c-elevated)", borderRadius: 8, padding: 4 }}>
+      {/* Sub-metrics grid with gauges */}
+      <div className={`grid gap-2 ${cols === 3 ? "grid-cols-3" : "grid-cols-2"}`} style={{
+        background: "var(--c-elevated)",
+        borderRadius: 10,
+        padding: 12,
+      }}>
         {subMetrics.filter(m => !m.hidden).map((m) => (
-          <SubMetricRow key={m.key} m={m} locale={locale} />
+          <SubMetricGaugeRow key={m.key} m={m} locale={locale} sectionColor={iconColor} />
         ))}
       </div>
 

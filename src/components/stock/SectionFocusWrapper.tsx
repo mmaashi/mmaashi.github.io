@@ -70,7 +70,7 @@ export default function SectionFocusWrapper({
 
   const focusedSection = allSections.find(s => s.id === focused) ?? null;
 
-  // Pulse animation
+  // Pulse animation and fade-in
   const pulseStyles = `
     @keyframes section-pulse {
       0% { box-shadow: 0 0 0 0 rgba(200, 169, 81, 0.4); }
@@ -78,6 +78,11 @@ export default function SectionFocusWrapper({
       100% { box-shadow: 0 0 0 0 rgba(200, 169, 81, 0); }
     }
     .section-pulse { animation: section-pulse 0.6s ease-out; }
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fade-in 0.35s ease-out; }
   `;
 
   return (
@@ -201,33 +206,116 @@ export default function SectionFocusWrapper({
           {/* Always visible: top content */}
           {topContent}
 
-          {/* Focused section header */}
+          {/* Focused section header with score indicator */}
           {focusedSection && (
-            <div className="mb-4" style={{
-              padding: "16px 20px",
-              borderRadius: 12,
-              background: `${focusedSection.color}10`,
-              border: `1px solid ${focusedSection.color}30`,
+            <div className="fade-in mb-6" style={{
+              padding: "24px 28px",
+              borderRadius: 14,
+              background: `linear-gradient(135deg, ${focusedSection.color}12 0%, ${focusedSection.color}06 100%)`,
+              border: `2px solid ${focusedSection.color}40`,
+              direction: isAr ? "rtl" : "ltr",
             }}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="font-num" style={{ fontSize: 20, fontWeight: 800, color: focusedSection.color }}>
-                    {focusedSection.num}
-                  </span>
-                  <h2 style={{ fontSize: 18, fontWeight: 800, color: focusedSection.color, margin: 0, fontFamily: "var(--font-grotesk)" }}>
-                    {isAr ? focusedSection.labelAr : focusedSection.labelEn}
-                  </h2>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4" style={{ flex: 1 }}>
+                  {/* Circular score ring indicator */}
+                  <div style={{
+                    position: "relative",
+                    width: 70,
+                    height: 70,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}>
+                    <svg
+                      width="70"
+                      height="70"
+                      viewBox="0 0 70 70"
+                      style={{ position: "absolute", transform: "rotate(-90deg)" }}
+                    >
+                      {/* Background circle */}
+                      <circle
+                        cx="35"
+                        cy="35"
+                        r="30"
+                        fill="none"
+                        stroke="var(--c-surface)"
+                        strokeWidth="4"
+                      />
+                      {/* Progress circle (75% full for now as placeholder) */}
+                      <circle
+                        cx="35"
+                        cy="35"
+                        r="30"
+                        fill="none"
+                        stroke={focusedSection.color}
+                        strokeWidth="4"
+                        strokeDasharray={`${30 * 2 * 3.14159 * 0.75} ${30 * 2 * 3.14159}`}
+                        strokeLinecap="round"
+                        style={{ transition: "stroke-dasharray 0.3s ease-out" }}
+                      />
+                    </svg>
+                    <span className="font-num" style={{
+                      fontSize: 20,
+                      fontWeight: 800,
+                      color: focusedSection.color,
+                      position: "relative",
+                      zIndex: 1,
+                    }}>
+                      {focusedSection.num}
+                    </span>
+                  </div>
+
+                  {/* Title and label */}
+                  <div>
+                    <h2 style={{
+                      fontSize: 24,
+                      fontWeight: 800,
+                      color: focusedSection.color,
+                      margin: 0,
+                      fontFamily: "var(--font-grotesk)",
+                      lineHeight: 1.2,
+                    }}>
+                      {isAr ? focusedSection.labelAr : focusedSection.labelEn}
+                    </h2>
+                    <p style={{
+                      fontSize: 12,
+                      color: "var(--c-muted)",
+                      margin: "4px 0 0 0",
+                    }}>
+                      {isAr ? "اضغط للرجوع للنظرة العامة" : "Click to return to overview"}
+                    </p>
+                  </div>
                 </div>
+
+                {/* Back button */}
                 <button
                   onClick={() => setFocused(null)}
                   style={{
-                    fontSize: 11, color: "var(--c-muted)", fontWeight: 600,
-                    cursor: "pointer", background: "var(--c-elevated)",
-                    border: "1px solid var(--c-border)", borderRadius: 6,
-                    padding: "4px 12px",
+                    fontSize: 12,
+                    color: "var(--c-muted)",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    background: "var(--c-elevated)",
+                    border: `1px solid var(--c-border)`,
+                    borderRadius: 8,
+                    padding: "8px 16px",
+                    transition: "all 0.2s ease-out",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = `${focusedSection.color}15`;
+                    e.currentTarget.style.borderColor = focusedSection.color;
+                    e.currentTarget.style.color = focusedSection.color;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "var(--c-elevated)";
+                    e.currentTarget.style.borderColor = "var(--c-border)";
+                    e.currentTarget.style.color = "var(--c-muted)";
                   }}
                 >
-                  {isAr ? "← عودة للنظرة العامة" : "← Back to Overview"}
+                  {isAr ? "← عودة" : "← Back"}
                 </button>
               </div>
             </div>
@@ -237,9 +325,13 @@ export default function SectionFocusWrapper({
           {!focused ? (
             overviewContent
           ) : (
-            <div id="focused-section-card" style={{ minHeight: 400, scrollMarginTop: 80 }}>
+            <div id="focused-section-card" className="fade-in" style={{
+              minHeight: 500,
+              scrollMarginTop: 80,
+              padding: "20px 0",
+            }}>
               {sectionContent[focused] ?? (
-                <div style={{ padding: 40, textAlign: "center", color: "var(--c-muted)" }}>
+                <div style={{ padding: 60, textAlign: "center", color: "var(--c-muted)" }}>
                   {isAr ? "لا توجد بيانات لهذا القسم" : "No data available for this section"}
                 </div>
               )}

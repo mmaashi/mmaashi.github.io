@@ -19,6 +19,7 @@ import PeerMiniTable from "@/components/stock/PeerMiniTable";
 import TTMSummaryCard from "@/components/stock/TTMSummaryCard";
 import MiniSparkline from "@/components/stock/MiniSparkline";
 import SectionFocusWrapper from "@/components/stock/SectionFocusWrapper";
+import ValuationBands from "@/components/stock/ValuationBands";
 import { sectionExplainers } from "@/lib/metric-glossary";
 import { interpretAllMetrics, judgmentBadgeColor, judgmentBadgeBg } from "@/lib/metric-interpretation";
 import { generateVerdict } from "@/lib/verdict-engine";
@@ -1197,7 +1198,17 @@ export default async function StockPage({
                   { key: "ps_ratio", label: isAr ? "مكرر المبيعات" : "P/S", ...metricDisplayPolicy("ps_ratio", n("ps_ratio")), interpretation: mi("ps_ratio") },
                   { key: "ev_ebitda", label: "EV/EBITDA", ...metricDisplayPolicy("ev_ebitda", n("ev_ebitda")), interpretation: mi("ev_ebitda") },
                 ]}
-              />
+              >
+                <ValuationBands
+                  locale={locale}
+                  currentPE={n("pe_ratio")}
+                  currentPB={n("pb_ratio")}
+                  currentPS={n("ps_ratio")}
+                  currentEVEBITDA={n("ev_ebitda")}
+                  sectorAvgPE={sectorAvgPE}
+                  sectorAvgPB={undefined}
+                />
+              </InterpretationCard>
             ) : undefined,
             quality: interpQuality.signal !== "insufficient_data" ? (
               <InterpretationCard
