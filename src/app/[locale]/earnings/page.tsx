@@ -140,6 +140,10 @@ export default async function EarningsPage({
 
   return (
     <div className="page-wrap">
+      <style>{`
+        .earnings-card:hover { border-color: var(--c-gold) !important; box-shadow: 0 0 0 1px var(--c-gold-dim); background: rgba(200,169,81,0.02) !important; }
+        .earnings-metric:hover { background: rgba(200,169,81,0.05) !important; }
+      `}</style>
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <div
@@ -200,6 +204,7 @@ export default async function EarningsPage({
             return (
               <div
                 key={`${card.ticker}-${card.currentPeriod}`}
+                className="earnings-card"
                 style={{
                   background: "var(--c-surface)",
                   border: "1px solid var(--c-border)",
@@ -210,18 +215,6 @@ export default async function EarningsPage({
                   gap: 16,
                   transition: "all 0.2s ease-out",
                   cursor: "pointer",
-                }}
-                onMouseEnter={(e) => {
-                  const el = e.currentTarget as HTMLDivElement;
-                  el.style.borderColor = "var(--c-gold)";
-                  el.style.boxShadow = "0 0 0 1px var(--c-gold-dim)";
-                  el.style.background = "rgba(200, 169, 81, 0.02)";
-                }}
-                onMouseLeave={(e) => {
-                  const el = e.currentTarget as HTMLDivElement;
-                  el.style.borderColor = "var(--c-border)";
-                  el.style.boxShadow = "none";
-                  el.style.background = "var(--c-surface)";
                 }}
               >
                 {/* Top: Ticker + Name + Badge */}
@@ -446,14 +439,7 @@ export default async function EarningsPage({
                         textDecoration: "none",
                         transition: "opacity 0.2s",
                       }}
-                      onMouseEnter={(e) => {
-                        const el = e.currentTarget as HTMLDivElement;
-                        el.style.opacity = "0.8";
-                      }}
-                      onMouseLeave={(e) => {
-                        const el = e.currentTarget as HTMLDivElement;
-                        el.style.opacity = "1";
-                      }}
+                      className="earnings-metric"
                     >
                       View full analysis →
                     </div>

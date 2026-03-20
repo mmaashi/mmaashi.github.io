@@ -129,6 +129,10 @@ export default async function DividendsPage({
 
   return (
     <div className="page-wrap">
+      <style>{`
+        .div-card:hover { border-color: var(--c-gold) !important; box-shadow: 0 0 0 1px var(--c-gold-dim); background: rgba(200,169,81,0.02) !important; }
+        .div-tab:hover { border-color: var(--c-gold) !important; color: var(--c-gold) !important; }
+      `}</style>
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <div
@@ -238,6 +242,7 @@ export default async function DividendsPage({
                     return (
                       <div
                         key={div.id}
+                        className="div-card"
                         style={{
                           background: "var(--c-surface)",
                           border: "1px solid var(--c-border)",
@@ -246,22 +251,8 @@ export default async function DividendsPage({
                           display: "flex",
                           gap: 12,
                           alignItems: "flex-start",
-                          transition:
-                            "all 0.2s ease-out",
+                          transition: "all 0.2s ease-out",
                           cursor: "pointer",
-                        }}
-                        onMouseEnter={(e) => {
-                          const el = e.currentTarget as HTMLDivElement;
-                          el.style.borderColor = "var(--c-gold)";
-                          el.style.boxShadow =
-                            "0 0 0 1px var(--c-gold-dim)";
-                          el.style.background = "rgba(200, 169, 81, 0.02)";
-                        }}
-                        onMouseLeave={(e) => {
-                          const el = e.currentTarget as HTMLDivElement;
-                          el.style.borderColor = "var(--c-border)";
-                          el.style.boxShadow = "none";
-                          el.style.background = "var(--c-surface)";
                         }}
                       >
                         {/* Left: Date badge */}
@@ -475,16 +466,7 @@ export default async function DividendsPage({
                     transition: "all 0.2s ease-out",
                     cursor: "pointer",
                   }}
-                  onMouseEnter={(e) => {
-                    const el = e.currentTarget as HTMLDivElement;
-                    el.style.opacity = "1";
-                    el.style.borderColor = "var(--c-muted)";
-                  }}
-                  onMouseLeave={(e) => {
-                    const el = e.currentTarget as HTMLDivElement;
-                    el.style.opacity = "0.75";
-                    el.style.borderColor = "var(--c-border)";
-                  }}
+                  className="div-tab"
                 >
                   {/* Left: Date badge (dimmed) */}
                   <div
