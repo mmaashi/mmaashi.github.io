@@ -15,7 +15,7 @@ export default async function EarningsPage({
   // Fetch latest financials grouped by ticker
   const { data: financials } = await supabase
     .from("financials")
-    .select("id, ticker, period, revenue, net_income, eps, total_assets, company_id")
+    .select("id, ticker, period, revenue, net_income, eps, earnings_per_share, total_assets, company_id")
     .order("period", { ascending: false })
     .limit(500);
 
@@ -59,6 +59,9 @@ export default async function EarningsPage({
     revenueChangePercent: number;
     netIncomeChangePercent: number;
     epsChangePercent: number;
+    epsExpected?: number;
+    epsSurprise?: number;
+    reportDate?: string;
   }
 
   const earningsCards: EarningsCard[] = [];
@@ -82,6 +85,13 @@ export default async function EarningsPage({
           ? ((latest.eps - previous.eps) / previous.eps) * 100
           : 0;
 
+      // Calculate EPS surprise (actual vs expected from previous period)
+      const actualEps = latest.earnings_per_share || latest.eps || 0;
+      const expectedEps = previous.earnings_per_share || previous.eps || 0;
+      const epsSurprise = expectedEps !== 0
+        ? ((actualEps - expectedEps) / Math.abs(expectedEps)) * 100
+        : 0;
+
       const beat = latest.net_income > previous.net_income;
 
       const company = companyMap.get(ticker) || {
@@ -101,6 +111,8 @@ export default async function EarningsPage({
         revenueChangePercent: revenueChange,
         netIncomeChangePercent: netIncomeChange,
         epsChangePercent: epsChange,
+        epsExpected: expectedEps,
+        epsSurprise: epsSurprise,
       });
     }
   }
@@ -109,6 +121,22 @@ export default async function EarningsPage({
   earningsCards.sort(
     (a, b) => new Date(b.currentPeriod).getTime() - new Date(a.currentPeriod).getTime()
   );
+
+  // Calculate summary stats
+  const totalReported = earningsCards.length;
+  const beatCount = earningsCards.filter(c => c.beat).length;
+  const beatRate = totalReported > 0 ? ((beatCount / totalReported) * 100).toFixed(1) : "0";
+  const avgSurprise = totalReported > 0
+    ? (earningsCards.reduce((sum, c) => sum + (c.epsSurprise || 0), 0) / totalReported).toFixed(1)
+    : "0";
+
+  const biggestBeat = earningsCards.length > 0
+    ? earningsCards.reduce((max, c) => (c.epsSurprise || 0) > (max.epsSurprise || 0) ? c : max)
+    : null;
+
+  const biggestMiss = earningsCards.length > 0
+    ? earningsCards.reduce((min, c) => (c.epsSurprise || 0) < (min.epsSurprise || 0) ? c : min)
+    : null;
 
   // Format currency helper
   function formatCurrency(value: number): string {
@@ -143,6 +171,13 @@ export default async function EarningsPage({
       <style>{`
         .earnings-card:hover { border-color: var(--c-gold) !important; box-shadow: 0 0 0 1px var(--c-gold-dim); background: rgba(200,169,81,0.02) !important; }
         .earnings-metric:hover { background: rgba(200,169,81,0.05) !important; }
+        .earnings-summary-stat { display: flex; flex-direction: column; gap: 8px; }
+        .earnings-summary-stat-value { font-size: 24px; font-weight: 700; font-family: var(--font-grotesk); color: var(--c-gold); }
+        .earnings-summary-stat-label { font-size: 12px; font-weight: 600; color: var(--c-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .surprise-positive { color: var(--c-green); }
+        .surprise-negative { color: var(--c-red); }
+        .surprise-bar { height: 4px; background: var(--c-border); border-radius: 2px; overflow: hidden; }
+        .surprise-bar-fill { height: 100%; background: var(--c-gold); transition: width 0.3s ease-out; }
       `}</style>
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
@@ -169,6 +204,104 @@ export default async function EarningsPage({
             {t(locale, "earnings.subtitle")}
           </p>
         </div>
+      </div>
+
+      {/* Summary Stats Banner */}
+      {earningsCards.length > 0 && (
+        <div
+          style={{
+            background: "var(--c-elevated)",
+            border: "1px solid var(--c-border)",
+            borderRadius: "var(--radius-md)",
+            padding: 24,
+            marginBottom: 32,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gap: 32,
+          }}
+        >
+          {/* Total Reported */}
+          <div className="earnings-summary-stat">
+            <div className="earnings-summary-stat-label">
+              {t(locale, "earnings.total_reported")}
+            </div>
+            <div className="earnings-summary-stat-value">{totalReported}</div>
+          </div>
+
+          {/* Beat Rate */}
+          <div className="earnings-summary-stat">
+            <div className="earnings-summary-stat-label">
+              {t(locale, "earnings.beat_rate")}
+            </div>
+            <div className="earnings-summary-stat-value" style={{ color: "var(--c-green)" }}>
+              {beatRate}%
+            </div>
+          </div>
+
+          {/* Average Surprise */}
+          <div className="earnings-summary-stat">
+            <div className="earnings-summary-stat-label">
+              {t(locale, "earnings.avg_surprise")}
+            </div>
+            <div
+              className="earnings-summary-stat-value"
+              style={{ color: parseFloat(avgSurprise) >= 0 ? "var(--c-green)" : "var(--c-red)" }}
+            >
+              {parseFloat(avgSurprise) >= 0 ? "+" : ""}{avgSurprise}%
+            </div>
+          </div>
+
+          {/* Biggest Beat */}
+          {biggestBeat && (
+            <div className="earnings-summary-stat">
+              <div className="earnings-summary-stat-label">
+                {t(locale, "earnings.biggest_beat")}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span className="earnings-summary-stat-value" style={{ color: "var(--c-green)", fontSize: 18 }}>
+                  {biggestBeat.ticker}
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--c-green)", fontWeight: 600 }}>
+                +{(biggestBeat.epsSurprise || 0).toFixed(1)}%
+              </div>
+            </div>
+          )}
+
+          {/* Biggest Miss */}
+          {biggestMiss && (
+            <div className="earnings-summary-stat">
+              <div className="earnings-summary-stat-label">
+                {t(locale, "earnings.biggest_miss")}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span className="earnings-summary-stat-value" style={{ color: "var(--c-red)", fontSize: 18 }}>
+                  {biggestMiss.ticker}
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--c-red)", fontWeight: 600 }}>
+                {(biggestMiss.epsSurprise || 0).toFixed(1)}%
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Earnings Results Section */}
+      <div style={{ marginBottom: 24 }}>
+        <h2
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            color: "var(--c-text)",
+            fontFamily: "var(--font-grotesk)",
+            marginBottom: 16,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          {t(locale, "earnings.calendar_view")}
+        </h2>
       </div>
 
       {/* Earnings Cards */}
@@ -200,6 +333,14 @@ export default async function EarningsPage({
             const badgeBg = card.beat
               ? "rgba(14, 203, 129, 0.1)"
               : "rgba(255, 67, 54, 0.1)";
+
+            const surpriseColor = (card.epsSurprise || 0) >= 0 ? "var(--c-green)" : "var(--c-red)";
+            const surpriseSign = (card.epsSurprise || 0) >= 0 ? "+" : "";
+            const surpriseText = `${surpriseSign}${(card.epsSurprise || 0).toFixed(1)}%`;
+
+            // Calculate bar width (max magnitude of 50%)
+            const maxMagnitude = 50;
+            const barWidth = Math.min(Math.abs(card.epsSurprise || 0), maxMagnitude) / maxMagnitude * 100;
 
             return (
               <div
@@ -254,29 +395,39 @@ export default async function EarningsPage({
                     </div>
                   </Link>
 
-                  {/* Beat/Miss Badge */}
+                  {/* Surprise Percentage Badge */}
                   <div
                     style={{
-                      padding: "6px 12px",
-                      borderRadius: 6,
-                      background: badgeBg,
-                      border: `1px solid ${badgeColor}`,
+                      padding: "8px 14px",
+                      borderRadius: 8,
+                      background: surpriseColor === "var(--c-green)" ? "rgba(14, 203, 129, 0.1)" : "rgba(255, 67, 54, 0.1)",
+                      border: `1px solid ${surpriseColor}`,
                       flexShrink: 0,
+                      textAlign: "center",
                     }}
                   >
-                    <span
+                    <div
                       style={{
-                        fontSize: 11,
+                        fontSize: 13,
                         fontWeight: 700,
-                        color: badgeColor,
+                        color: surpriseColor,
+                        fontFamily: "var(--font-grotesk)",
+                      }}
+                    >
+                      {surpriseText}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: surpriseColor,
+                        marginTop: 2,
                         textTransform: "uppercase",
                         letterSpacing: "0.05em",
                       }}
                     >
-                      {card.beat
-                        ? t(locale, "earnings.beat")
-                        : t(locale, "earnings.miss")}
-                    </span>
+                      {(card.epsSurprise || 0) >= 0 ? t(locale, "earnings.beat") : t(locale, "earnings.miss")}
+                    </div>
                   </div>
                 </div>
 
@@ -289,6 +440,63 @@ export default async function EarningsPage({
                   }}
                 >
                   {formatPeriod(card.currentPeriod)}
+                </div>
+
+                {/* Divider */}
+                <div style={{ height: 1, background: "var(--c-border)" }} />
+
+                {/* EPS Comparison Section */}
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "var(--c-muted)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      marginBottom: 8,
+                    }}
+                  >
+                    {t(locale, "earnings.eps")}
+                  </div>
+
+                  {/* Expected vs Actual */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 10, color: "var(--c-muted)", marginBottom: 4 }}>
+                        {t(locale, "earnings.expected_eps")}
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--c-muted)", fontFamily: "var(--font-grotesk)" }}>
+                        {(card.epsExpected || 0).toFixed(2)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 10, color: "var(--c-text)", marginBottom: 4, fontWeight: 600 }}>
+                        {t(locale, "earnings.actual_eps")}
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--c-gold)", fontFamily: "var(--font-grotesk)" }}>
+                        {card.eps.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Surprise Bar */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ flex: 1, height: 6, background: "var(--c-border)", borderRadius: 3, overflow: "hidden" }}>
+                      <div
+                        style={{
+                          height: "100%",
+                          background: surpriseColor,
+                          width: `${barWidth}%`,
+                          transition: "width 0.3s ease-out",
+                          borderRadius: 3,
+                        }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: surpriseColor, minWidth: 45, textAlign: "right" }}>
+                      {surpriseText}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Divider */}

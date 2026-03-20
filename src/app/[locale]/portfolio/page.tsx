@@ -21,6 +21,7 @@ import SavedScreens, { type SavedScreen } from "@/components/dashboard/SavedScre
 import WealthCalculator from "@/components/dashboard/WealthCalculator";
 import ContinueResearch, { type ContinueItem } from "@/components/dashboard/ContinueResearch";
 import ContractAlerts, { type ContractAlert } from "@/components/contracts/ContractAlerts";
+import DiversificationMatrix from "@/components/portfolio/DiversificationMatrix";
 
 // Demo data (fallback when no real portfolio exists)
 const DEMO_HOLDINGS = [
@@ -740,6 +741,21 @@ export default async function MyDashboardPage({
       {/* Holdings Table */}
       <div style={{ marginBottom: 28 }}>
         <HoldingsTable holdings={holdings} locale={locale} sar={sar} />
+      </div>
+
+      {/* Diversification Matrix */}
+      <div style={{ marginBottom: 28 }}>
+        <DiversificationMatrix
+          locale={locale}
+          holdings={holdings.map((h) => ({
+            ticker: h.ticker,
+            companyName: h.name,
+            sector: h.sector,
+            weight: h.weight,
+            value: h.totalValue,
+          }))}
+          totalValue={totalValue}
+        />
       </div>
 
       {/* CONTRACT ALERTS FOR HOLDINGS */}

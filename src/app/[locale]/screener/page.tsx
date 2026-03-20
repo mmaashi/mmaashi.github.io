@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import ScreenerTable from "@/components/ScreenerTable";
+import ScreenerPageClient from "@/components/ScreenerPage";
 import { SlidersHorizontal } from "lucide-react";
 import { t } from "@/lib/i18n";
 
@@ -116,7 +116,7 @@ export default async function ScreenerPage({
         </div>
       </div>
 
-      <ScreenerTable companies={enriched} sectors={sectors as string[]} locale={locale} />
+      <ScreenerPageClient companies={enriched} sectors={sectors as string[]} locale={locale} />
 
       <hr className="gold-line my-10" />
       <p style={{ fontSize: 11, color: "var(--c-dim)", textAlign: "center", letterSpacing: "0.02em" }}>

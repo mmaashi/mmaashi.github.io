@@ -20,6 +20,7 @@ import TTMSummaryCard from "@/components/stock/TTMSummaryCard";
 import MiniSparkline from "@/components/stock/MiniSparkline";
 import SectionFocusWrapper from "@/components/stock/SectionFocusWrapper";
 import ValuationBands from "@/components/stock/ValuationBands";
+import VolumeProfile from "@/components/stock/VolumeProfile";
 import { sectionExplainers } from "@/lib/metric-glossary";
 import { interpretAllMetrics, judgmentBadgeColor, judgmentBadgeBg } from "@/lib/metric-interpretation";
 import { generateVerdict } from "@/lib/verdict-engine";
@@ -1179,6 +1180,19 @@ export default async function StockPage({
             </p>
             {priceHistory.length > 0 && <PriceChart data={priceHistory} ticker={upperTicker} locale={locale} height={420} />}
           </div>
+
+          {/* Volume Profile & Support/Resistance */}
+          {priceHistory.length > 0 && currentPrice !== null && (
+            <VolumeProfile
+              locale={locale}
+              priceData={priceHistory.map((p) => ({
+                close: Number(p.close),
+                volume: Number(p.volume),
+                date: p.date,
+              }))}
+              currentPrice={currentPrice}
+            />
+          )}
           </>}
           sectionContent={{
             valuation: interpValuation.signal !== "insufficient_data" ? (

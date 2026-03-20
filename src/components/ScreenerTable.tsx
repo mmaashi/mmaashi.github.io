@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, forwardRef, useImperativeHandle } from "react";
 import { useRouter } from "next/navigation";
 import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Gauge, Sparkles, TrendingUp, DollarSign, Shield, Zap, BarChart3, Crown, Target } from "lucide-react";
 import { t, tSector } from "@/lib/i18n";
@@ -227,15 +227,19 @@ function calculatePillarScores(company: Company): {
   };
 }
 
-export default function ScreenerTable({
-  companies,
-  sectors,
-  locale,
-}: {
+export interface ScreenerTableHandle {
+  applyTemplate: (filters: Record<string, any>) => void;
+}
+
+const ScreenerTableComponent = forwardRef<ScreenerTableHandle, {
   companies: Company[];
   sectors: string[];
   locale: string;
-}) {
+}>(function ScreenerTable({
+  companies,
+  sectors,
+  locale,
+}, ref) {
   const router = useRouter();
   const isAr = locale === "ar";
   const [query, setQuery] = useState("");
@@ -252,6 +256,33 @@ export default function ScreenerTable({
   const [minDivYield, setMinDivYield] = useState<string>("");
   const [minROE, setMinROE] = useState<string>("");
   const [maxDE, setMaxDE] = useState<string>("");
+
+  // Handler for template application
+  function applyTemplate(filters: Record<string, any>) {
+    // Clear active category and reset sort
+    setActiveCategory(null);
+    setSortKey("suqai_score");
+    setSortDir("desc");
+
+    // Apply supported filters from template
+    // Note: Only the filters in the advanced filter section are directly supported
+    if (filters.minScore) setMinScore(filters.minScore);
+    if (filters.maxPE) setMaxPE(filters.maxPE);
+    if (filters.minDivYield) setMinDivYield(filters.minDivYield);
+    if (filters.minROE) setMinROE(filters.minROE);
+    if (filters.maxDE) setMaxDE(filters.maxDE);
+
+    // Handle Shariah filter
+    if (filters.shariah === "true") setShariah(true);
+
+    // Show advanced filters to indicate active filters have been applied
+    setShowAdvanced(true);
+  }
+
+  // Expose applyTemplate via ref
+  useImperativeHandle(ref, () => ({
+    applyTemplate,
+  }));
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -666,4 +697,6 @@ export default function ScreenerTable({
       </div>
     </div>
   );
-}
+});
+
+export default ScreenerTableComponent;

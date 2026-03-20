@@ -377,6 +377,16 @@ const translations: Record<string, Record<string, string>> = {
     "earnings.eps": "EPS",
     "earnings.yoy_change": "YoY Change",
     "earnings.no_data": "No recent earnings data",
+    "earnings.summary": "Earnings Summary",
+    "earnings.total_reported": "Companies Reported",
+    "earnings.beat_rate": "Beat Rate",
+    "earnings.avg_surprise": "Avg Surprise",
+    "earnings.biggest_beat": "Biggest Beat",
+    "earnings.biggest_miss": "Biggest Miss",
+    "earnings.expected_eps": "Expected EPS",
+    "earnings.actual_eps": "Actual EPS",
+    "earnings.surprise": "Surprise",
+    "earnings.calendar_view": "Earnings Calendar",
 
     // Insider Activity Page
     "insiders.title": "Insider Activity",
@@ -785,6 +795,16 @@ const translations: Record<string, Record<string, string>> = {
     "earnings.eps": "ربحية السهم",
     "earnings.yoy_change": "التغير السنوي",
     "earnings.no_data": "لا توجد بيانات أرباح حديثة",
+    "earnings.summary": "ملخص الأرباح",
+    "earnings.total_reported": "شركات أبلغت",
+    "earnings.beat_rate": "معدل التجاوز",
+    "earnings.avg_surprise": "متوسط المفاجأة",
+    "earnings.biggest_beat": "أكبر تجاوز",
+    "earnings.biggest_miss": "أكبر إخفاق",
+    "earnings.expected_eps": "ربح السهم المتوقع",
+    "earnings.actual_eps": "ربح السهم الفعلي",
+    "earnings.surprise": "المفاجأة",
+    "earnings.calendar_view": "تقويم الأرباح",
 
     // Insider Activity Page
     "insiders.title": "نشاط المطلعين",
