@@ -18,6 +18,10 @@ import {
   Users,
   LineChart,
   DollarSign,
+  Scale,
+  Eye,
+  Leaf,
+  Target,
 } from "lucide-react";
 import "../globals.css";
 import { getMarketSummary } from "@/lib/sahm";
@@ -97,6 +101,12 @@ export default async function LocaleLayout({
       { href: `/${locale}/dividends`, label: isRTL ? "التوزيعات" : "Dividends", iconName: "DollarSign" },
       { href: `/${locale}/earnings`, label: isRTL ? "الأرباح" : "Earnings", iconName: "LineChart" },
       { href: `/${locale}/insiders`, label: isRTL ? "المطلعين" : "Insiders", iconName: "Users" },
+      { href: `/${locale}/consensus`, label: isRTL ? "إجماع المحللين" : "Consensus", iconName: "Target" },
+    ]},
+    { title: isRTL ? "الرؤى" : "INSIGHTS", items: [
+      { href: `/${locale}/shariah`, label: isRTL ? "الشريعة والزكاة" : "Shariah & Zakat", iconName: "Scale" },
+      { href: `/${locale}/smart-money`, label: isRTL ? "الأموال الذكية" : "Smart Money", iconName: "Eye" },
+      { href: `/${locale}/esg`, label: isRTL ? "ESG ورؤية 2030" : "ESG & Vision 2030", iconName: "Leaf" },
     ]},
     { title: isRTL ? "الأخبار" : "NEWS", items: [
       { href: `/${locale}/news`, label: t(locale, "news"), iconName: "Newspaper" },

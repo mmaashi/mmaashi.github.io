@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
+import { Menu, X, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 interface NavItem {
@@ -33,6 +33,10 @@ import {
   LineChart,
   Users,
   Activity,
+  Scale,
+  Eye,
+  Leaf,
+  Target,
 } from "lucide-react";
 
 const iconMap: Record<string, LucideIcon> = {
@@ -51,6 +55,10 @@ const iconMap: Record<string, LucideIcon> = {
   LineChart,
   Users,
   Activity,
+  Scale,
+  Eye,
+  Leaf,
+  Target,
 };
 
 export function MobileNav({
@@ -61,7 +69,6 @@ export function MobileNav({
   locale: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const pathname = usePathname();
 
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -101,7 +108,7 @@ export function MobileNav({
         />
       )}
 
-      {/* Drawer */}
+      {/* Drawer — all groups always expanded */}
       <div
         style={{
           position: "fixed",
@@ -110,7 +117,7 @@ export function MobileNav({
           bottom: 0,
           width: 300,
           zIndex: 999,
-          background: "var(--c-base)", // FULLY OPAQUE
+          background: "var(--c-base)",
           borderRight: isAr ? "none" : "1px solid var(--c-border)",
           borderLeft: isAr ? "1px solid var(--c-border)" : "none",
           transform: open
@@ -119,7 +126,6 @@ export function MobileNav({
           transition: "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
           display: "flex",
           flexDirection: "column",
-          overflowY: "auto",
         }}
       >
         {/* Header */}
@@ -128,8 +134,8 @@ export function MobileNav({
           style={{
             padding: "16px 16px",
             borderBottom: "1px solid var(--c-border)",
-            position: "sticky", top: 0,
             background: "var(--c-base)", zIndex: 1,
+            flexShrink: 0,
           }}
         >
           <Link href={`/${locale}`} onClick={() => setOpen(false)} className="flex items-center gap-2" style={{ textDecoration: "none" }}>
@@ -148,100 +154,61 @@ export function MobileNav({
           </button>
         </div>
 
-        {/* Grouped Nav Links */}
-        <div style={{ padding: "8px 12px", flex: 1 }}>
-          {groups.map((group, gi) => {
-            const isExpanded = expandedGroup === group.title || group.items.some(item => pathname === item.href || pathname.startsWith(item.href + "/"));
-            const hasSubItems = group.items.length > 1;
-
-            // Single item groups render directly
-            if (group.items.length === 1) {
-              const item = group.items[0];
-              const Icon = iconMap[item.iconName] ?? Home;
-              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className="flex items-center gap-3"
+        {/* All Nav Links — always visible, grouped with section headers */}
+        <div style={{ padding: "8px 12px", flex: 1, overflowY: "auto" }}>
+          {groups.map((group) => (
+            <div key={group.title} style={{ marginBottom: 6 }}>
+              {/* Section header — only show for multi-item groups */}
+              {group.items.length > 1 && (
+                <div
                   style={{
-                    padding: "11px 14px",
-                    borderRadius: 10,
-                    textDecoration: "none",
-                    color: isActive ? "var(--c-gold)" : "var(--c-text)",
-                    background: isActive ? "var(--c-gold-dim)" : "transparent",
-                    fontSize: 14,
-                    fontWeight: isActive ? 600 : 500,
-                    marginBottom: 2,
-                  }}
-                >
-                  <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
-                  {item.label}
-                </Link>
-              );
-            }
-
-            // Multi-item groups with expandable header
-            return (
-              <div key={group.title} style={{ marginBottom: 4 }}>
-                <button
-                  onClick={() => setExpandedGroup(isExpanded ? null : group.title)}
-                  className="flex items-center justify-between w-full"
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: 10,
-                    background: isExpanded ? "rgba(200,169,81,0.05)" : "transparent",
-                    border: "none",
-                    color: isExpanded ? "var(--c-gold)" : "var(--c-muted)",
-                    fontSize: 11,
+                    padding: "8px 14px 4px",
+                    fontSize: 10,
                     fontWeight: 700,
-                    letterSpacing: "0.06em",
+                    letterSpacing: "0.08em",
                     textTransform: "uppercase",
-                    cursor: "pointer",
+                    color: "var(--c-gold)",
                     fontFamily: "var(--font-grotesk)",
-                    width: "100%",
+                    opacity: 0.7,
                   }}
                 >
-                  <span>{group.title}</span>
-                  {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                </button>
-                {isExpanded && (
-                  <div style={{ paddingLeft: isAr ? 0 : 8, paddingRight: isAr ? 8 : 0 }}>
-                    {group.items.map((item) => {
-                      const Icon = iconMap[item.iconName] ?? Home;
-                      const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={() => setOpen(false)}
-                          className="flex items-center gap-3"
-                          style={{
-                            padding: "10px 14px",
-                            borderRadius: 8,
-                            textDecoration: "none",
-                            color: isActive ? "var(--c-gold)" : "var(--c-text)",
-                            background: isActive ? "var(--c-gold-dim)" : "transparent",
-                            fontSize: 13,
-                            fontWeight: isActive ? 600 : 400,
-                            marginBottom: 1,
-                          }}
-                        >
-                          <Icon size={15} strokeWidth={isActive ? 2.2 : 1.8} />
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  {group.title}
+                </div>
+              )}
+
+              {/* All items always rendered */}
+              {group.items.map((item) => {
+                const Icon = iconMap[item.iconName] ?? Home;
+                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-3"
+                    style={{
+                      padding: "11px 14px",
+                      borderRadius: 10,
+                      textDecoration: "none",
+                      color: isActive ? "var(--c-gold)" : "var(--c-text)",
+                      background: isActive ? "var(--c-gold-dim)" : "transparent",
+                      fontSize: 14,
+                      fontWeight: isActive ? 600 : 500,
+                      marginBottom: 2,
+                      display: "flex",
+                    }}
+                  >
+                    <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </div>
 
         {/* Language toggle */}
-        <div style={{ padding: "12px 16px", borderTop: "1px solid var(--c-border)", position: "sticky", bottom: 0, background: "var(--c-base)" }}>
+        <div style={{ padding: "12px 16px", borderTop: "1px solid var(--c-border)", background: "var(--c-base)", flexShrink: 0 }}>
           <div
             className="flex items-center rounded-lg overflow-hidden"
             style={{ border: "1px solid var(--c-border-md)", background: "var(--c-elevated)" }}
