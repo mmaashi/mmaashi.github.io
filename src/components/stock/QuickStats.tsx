@@ -162,7 +162,7 @@ export default function QuickStats({
     >
       {activeStats.map((stat) => {
         const trendColor =
-          stat.trend === null
+          stat.trend == null
             ? null
             : stat.trend > 0
               ? "var(--c-green)"
@@ -171,7 +171,7 @@ export default function QuickStats({
                 : null;
 
         const trendIcon =
-          stat.trend === null
+          stat.trend == null
             ? null
             : stat.trend > 0
               ? "↑"
@@ -180,7 +180,7 @@ export default function QuickStats({
                 : null;
 
         const trendValue =
-          stat.trend === null
+          stat.trend == null
             ? null
             : stat.trend > 0
               ? `+${Math.abs(stat.trend).toFixed(2)}`
@@ -236,7 +236,7 @@ export default function QuickStats({
             </div>
 
             {/* Comparison or Trend */}
-            {stat.trend !== null && trendIcon ? (
+            {stat.trend != null && trendIcon ? (
               <div
                 style={{
                   fontSize: "11px",
