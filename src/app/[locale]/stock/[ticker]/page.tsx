@@ -1450,18 +1450,20 @@ export default async function StockPage({
                 ticker: upperTicker,
                 name: displayName,
                 pe: n("pe_ratio"),
-                roe: n("roe"),
-                divYield: n("dividend_yield"),
+                roe: n("roe") != null ? n("roe")! * 100 : null,
+                divYield: n("dividend_yield") != null ? n("dividend_yield")! * 100 : null,
                 marketCap: marketCap,
               }}
               peers={peers.slice(0, 4).map((p: any) => {
                 const pm = peerMetricsMap[p.id];
+                const rawRoe = pm?.roe ? Number(pm.roe) : null;
+                const rawDy = pm?.dividend_yield ? Number(pm.dividend_yield) : null;
                 return {
                   ticker: p.ticker,
                   name: (isAr && p.name_ar) ? p.name_ar : p.name_en,
                   pe: pm?.pe_ratio ? Number(pm.pe_ratio) : null,
-                  roe: pm?.roe ? Number(pm.roe) : null,
-                  divYield: pm?.dividend_yield ? Number(pm.dividend_yield) : null,
+                  roe: rawRoe != null ? rawRoe * 100 : null,
+                  divYield: rawDy != null ? rawDy * 100 : null,
                   marketCap: pm?.market_cap ? Number(pm.market_cap) : null,
                 };
               })}
