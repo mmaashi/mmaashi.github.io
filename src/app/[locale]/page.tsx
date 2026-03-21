@@ -8,7 +8,8 @@ import {
   SlidersHorizontal, CalendarDays, Search,
   BarChart3, Star, Filter, DollarSign,
   Database, Brain, Briefcase, ShieldCheck,
-  Home,
+  Home, Scale, Eye, Leaf, Target, Gauge, Zap,
+  GitCompare, Users, LineChart, PieChart,
 } from "lucide-react";
 import { t, tMood, tSector } from "@/lib/i18n";
 import { calculateScores } from "@/lib/scores";
@@ -215,12 +216,19 @@ function HeroSection({ locale, heroStock }: { locale: string; heroStock: StockFu
   const sar = t(locale, "common.sar");
   const na = t(locale, "common.na");
   return (
-    <section className="fade-up" style={{ paddingTop: 24, paddingBottom: 16, position: "relative", overflow: "hidden" }}>
-      {/* Ambient glow behind hero */}
+    <section className="fade-up" style={{ paddingTop: 32, paddingBottom: 24, position: "relative", overflow: "hidden" }}>
+      {/* Ambient glow behind hero — larger, more dramatic */}
       <div style={{
-        position: "absolute", top: -100, left: "50%", transform: "translateX(-50%)",
-        width: 600, height: 400, borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(200,169,81,0.06) 0%, transparent 70%)",
+        position: "absolute", top: -120, left: "50%", transform: "translateX(-50%)",
+        width: 800, height: 500, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(200,169,81,0.1) 0%, rgba(200,169,81,0.03) 40%, transparent 70%)",
+        pointerEvents: "none",
+      }} />
+      {/* Secondary glow — subtle blue accent */}
+      <div style={{
+        position: "absolute", top: 50, right: -100,
+        width: 400, height: 400, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(96,165,250,0.04) 0%, transparent 60%)",
         pointerEvents: "none",
       }} />
 
@@ -236,17 +244,17 @@ function HeroSection({ locale, heroStock }: { locale: string; heroStock: StockFu
           <h1
             className="font-bold tracking-tight"
             style={{
-              fontSize: "clamp(28px, 5vw, 40px)",
+              fontSize: "clamp(32px, 6vw, 52px)",
               fontFamily: "var(--font-grotesk)",
-              letterSpacing: "-0.03em",
-              lineHeight: 1.15,
+              letterSpacing: "-0.04em",
+              lineHeight: 1.1,
               color: "var(--c-text)",
-              marginBottom: 12,
+              marginBottom: 16,
             }}
           >
             {t(locale, "hero.headline")}
           </h1>
-          <p style={{ fontSize: 14, color: "var(--c-muted)", lineHeight: 1.75, maxWidth: 500, marginBottom: 20 }}>
+          <p style={{ fontSize: 15, color: "var(--c-muted)", lineHeight: 1.8, maxWidth: 520, marginBottom: 24 }}>
             {t(locale, "hero.subheadline")}
           </p>
           <div className="flex items-center gap-3 flex-wrap">
@@ -955,6 +963,80 @@ async function NewsPanel({ locale }: { locale: string }) {
 }
 
 // ════════════════════════════════════════════════════════════════
+// Section — Explore SŪQAI (premium quick-access grid)
+// ════════════════════════════════════════════════════════════════
+function ExploreSuqai({ locale }: { locale: string }) {
+  const isAr = locale === "ar";
+  const tools = [
+    { href: `/${locale}/screener`,    icon: SlidersHorizontal, label: isAr ? "فلترة الأسهم" : "Stock Screener",   desc: isAr ? "تصفية 200+ سهم" : "Filter 200+ stocks",   color: "#c8a951", bg: "rgba(200,169,81,0.08)" },
+    { href: `/${locale}/sentiment`,   icon: Gauge,             label: isAr ? "معنويات السوق" : "Market Sentiment", desc: isAr ? "مؤشر الخوف والجشع" : "Fear & Greed Index", color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
+    { href: `/${locale}/movers`,      icon: Zap,               label: isAr ? "المحركات" : "Top Movers",           desc: isAr ? "أكبر تحركات اليوم" : "Today's biggest moves", color: "#22c55e", bg: "rgba(34,197,94,0.08)" },
+    { href: `/${locale}/sectors`,     icon: PieChart,          label: isAr ? "القطاعات" : "Sectors",              desc: isAr ? "أداء القطاعات" : "Sector performance",       color: "#60a5fa", bg: "rgba(96,165,250,0.08)" },
+    { href: `/${locale}/shariah`,     icon: Scale,             label: isAr ? "الشريعة والزكاة" : "Shariah & Zakat", desc: isAr ? "التوافق وحاسبة الزكاة" : "Compliance + calculator", color: "#10b981", bg: "rgba(16,185,129,0.08)" },
+    { href: `/${locale}/smart-money`, icon: Eye,               label: isAr ? "الأموال الذكية" : "Smart Money",     desc: isAr ? "تتبع كبار المساهمين" : "Track institutional moves", color: "#a78bfa", bg: "rgba(167,139,250,0.08)" },
+    { href: `/${locale}/esg`,         icon: Leaf,              label: isAr ? "ESG ورؤية 2030" : "ESG & Vision 2030", desc: isAr ? "الاستدامة والرؤية" : "Sustainability scores", color: "#34d399", bg: "rgba(52,211,153,0.08)" },
+    { href: `/${locale}/consensus`,   icon: Target,            label: isAr ? "إجماع المحللين" : "Analyst Consensus", desc: isAr ? "القيمة العادلة" : "Fair value estimates",  color: "#fb923c", bg: "rgba(251,146,60,0.08)" },
+    { href: `/${locale}/compare`,     icon: GitCompare,        label: isAr ? "مقارنة الأسهم" : "Compare Stocks",   desc: isAr ? "تحليل جنباً إلى جنب" : "Side-by-side analysis", color: "#38bdf8", bg: "rgba(56,189,248,0.08)" },
+    { href: `/${locale}/dividends`,   icon: DollarSign,        label: isAr ? "التوزيعات" : "Dividends",           desc: isAr ? "تقويم التوزيعات" : "Dividend calendar",      color: "#4ade80", bg: "rgba(74,222,128,0.08)" },
+    { href: `/${locale}/earnings`,    icon: LineChart,          label: isAr ? "الأرباح" : "Earnings",             desc: isAr ? "نتائج الأرباح الفصلية" : "Quarterly earnings", color: "#fbbf24", bg: "rgba(251,191,36,0.08)" },
+    { href: `/${locale}/insiders`,    icon: Users,             label: isAr ? "المطلعين" : "Insiders",             desc: isAr ? "نشاط كبار المساهمين" : "Ownership changes",   color: "#f87171", bg: "rgba(248,113,113,0.08)" },
+  ];
+
+  return (
+    <section className="fade-up" style={{ marginBottom: 36 }}>
+      <div className="flex items-center gap-3 mb-4">
+        <div style={{
+          width: 28, height: 28, borderRadius: 8,
+          background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <Star size={13} style={{ color: "var(--c-gold)" }} />
+        </div>
+        <h2 className="font-bold" style={{ fontSize: 17, color: "var(--c-text)", fontFamily: "var(--font-grotesk)", letterSpacing: "-0.01em" }}>
+          {isAr ? "استكشف أدوات SŪQAI" : "Explore SŪQAI Tools"}
+        </h2>
+      </div>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+        gap: 10,
+      }}>
+        {tools.map(({ href, icon: Icon, label, desc, color, bg }) => (
+          <Link
+            key={href}
+            href={href}
+            style={{
+              display: "flex", flexDirection: "column", gap: 8,
+              padding: "16px 14px", borderRadius: 12,
+              background: "var(--c-surface)",
+              border: "1px solid var(--c-border)",
+              textDecoration: "none",
+              transition: "all 0.2s ease",
+            }}
+          >
+            <div style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: bg,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <Icon size={18} style={{ color }} />
+            </div>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 600, color: "var(--c-text)", marginBottom: 2, fontFamily: "var(--font-grotesk)" }}>
+                {label}
+              </p>
+              <p style={{ fontSize: 10, color: "var(--c-muted)", lineHeight: 1.4 }}>
+                {desc}
+              </p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
 // Section 9 — Trust / Methodology ("How SŪQAI works")
 // ════════════════════════════════════════════════════════════════
 function TrustSection({ locale }: { locale: string }) {
@@ -1394,6 +1476,9 @@ export default async function DashboardPage({
 
       {/* Search */}
       <SearchSection locale={locale} />
+
+      {/* Explore SŪQAI Tools */}
+      <ExploreSuqai locale={locale} />
 
       {/* Market Snapshot — front and center */}
       <Suspense fallback={<SkeletonCard height={220} />}>
