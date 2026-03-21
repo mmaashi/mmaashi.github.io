@@ -21,6 +21,7 @@ import MiniSparkline from "@/components/stock/MiniSparkline";
 import SectionFocusWrapper from "@/components/stock/SectionFocusWrapper";
 import ValuationBands from "@/components/stock/ValuationBands";
 import VolumeProfile from "@/components/stock/VolumeProfile";
+import QuickStats from "@/components/stock/QuickStats";
 import { sectionExplainers } from "@/lib/metric-glossary";
 import { interpretAllMetrics, judgmentBadgeColor, judgmentBadgeBg } from "@/lib/metric-interpretation";
 import { generateVerdict } from "@/lib/verdict-engine";
@@ -964,6 +965,22 @@ export default async function StockPage({
 
           </>}
           overviewContent={<>
+          {/* ════════════════════════════════════════════════════
+              QUICK FINANCIAL STATS — 4-column grid of key metrics
+          ════════════════════════════════════════════════════ */}
+          <QuickStats
+            locale={locale}
+            marketCap={marketCap}
+            pe={pe ? parseFloat(pe) : null}
+            dividendYield={divYield ? parseFloat(divYield) : null}
+            roe={roe}
+            revenue={revenue}
+            netMargin={netMargin}
+            debtToEquity={debtEq}
+            beta={n("beta")}
+            sectorAvgPE={sectorAvgPE}
+          />
+
           {/* ════════════════════════════════════════════════════
               DASHBOARD GRID: 3-CARD ROW (Snowflake / Fair Value / Verdict)
           ════════════════════════════════════════════════════ */}
