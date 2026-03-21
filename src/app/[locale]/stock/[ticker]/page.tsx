@@ -134,6 +134,7 @@ export default async function StockPage({
   params: Promise<{ locale: string; ticker: string }>;
   searchParams: Promise<{ tab?: string }>;
 }) {
+  try {
   const { locale, ticker } = await params;
   const { tab: rawTab = "overview" } = await searchParams;
 
@@ -2179,4 +2180,25 @@ export default async function StockPage({
       />
     </div>
   );
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack : "";
+    console.error("[StockPage CRASH]", message, stack);
+    return (
+      <div className="page-wrap">
+        <div className="card" style={{ padding: "40px 28px", textAlign: "center" }}>
+          <p style={{ fontSize: 40, marginBottom: 16 }}>⚠️</p>
+          <h1 style={{ color: "var(--c-text)", fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+            Something went wrong
+          </h1>
+          <p style={{ color: "var(--c-muted)", fontSize: 13, marginBottom: 16 }}>
+            We encountered an error loading this stock page. Please try again later.
+          </p>
+          <pre style={{ fontSize: 11, color: "var(--c-red)", textAlign: "left", padding: 16, background: "var(--c-elevated)", borderRadius: 8, overflow: "auto", maxHeight: 200, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+            {message}
+          </pre>
+        </div>
+      </div>
+    );
+  }
 }
