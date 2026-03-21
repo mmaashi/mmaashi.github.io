@@ -966,22 +966,6 @@ export default async function StockPage({
           </>}
           overviewContent={<>
           {/* ════════════════════════════════════════════════════
-              QUICK FINANCIAL STATS — 4-column grid of key metrics
-          ════════════════════════════════════════════════════ */}
-          <QuickStats
-            locale={locale}
-            marketCap={marketCap}
-            pe={pe ? parseFloat(pe) : null}
-            dividendYield={divYield ? parseFloat(divYield) : null}
-            roe={roe}
-            revenue={revenue}
-            netMargin={netMargin}
-            debtToEquity={debtEq}
-            beta={n("beta")}
-            sectorAvgPE={sectorAvgPE}
-          />
-
-          {/* ════════════════════════════════════════════════════
               DASHBOARD GRID: 3-CARD ROW (Snowflake / Fair Value / Verdict)
           ════════════════════════════════════════════════════ */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
