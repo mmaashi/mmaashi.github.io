@@ -278,6 +278,26 @@ export default async function StockPage({
   const sectorAvgData  = sectorAvgResult.status    === "fulfilled" ? (sectorAvgResult.value as any).data : null;
   const sectorAvgPE    = sectorAvgData?.median_pe ? Number(sectorAvgData.median_pe) : (sectorAvgData?.avg_pe ? Number(sectorAvgData.avg_pe) : null);
 
+  // ── Fetch peer metrics for comparison table ──
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let peerMetricsMap: Record<string, any> = {};
+  if (peers.length > 0) {
+    const peerIds = peers.slice(0, 4).map((p: any) => p.id);
+    const { data: peerMetricsRows } = await supabase
+      .from("company_metrics_daily")
+      .select("company_id, pe_ratio, roe, dividend_yield, market_cap")
+      .in("company_id", peerIds)
+      .order("as_of_date", { ascending: false });
+    // Keep only latest row per company
+    if (peerMetricsRows) {
+      for (const row of peerMetricsRows) {
+        if (!peerMetricsMap[row.company_id]) {
+          peerMetricsMap[row.company_id] = row;
+        }
+      }
+    }
+  }
+
   // ── 4. Compute display values ───────────────────────────────
   const currentPrice = liveQuote?.price ?? (latestDbPrice ? Number(latestDbPrice.close) : null);
   const changeAmt    = liveQuote?.change ?? null;
@@ -1434,10 +1454,17 @@ export default async function StockPage({
                 divYield: n("dividend_yield"),
                 marketCap: marketCap,
               }}
-              peers={peers.slice(0, 4).map(p => ({
-                ticker: p.ticker,
-                name: (isAr && p.name_ar) ? p.name_ar : p.name_en,
-              }))}
+              peers={peers.slice(0, 4).map((p: any) => {
+                const pm = peerMetricsMap[p.id];
+                return {
+                  ticker: p.ticker,
+                  name: (isAr && p.name_ar) ? p.name_ar : p.name_en,
+                  pe: pm?.pe_ratio ? Number(pm.pe_ratio) : null,
+                  roe: pm?.roe ? Number(pm.roe) : null,
+                  divYield: pm?.dividend_yield ? Number(pm.dividend_yield) : null,
+                  marketCap: pm?.market_cap ? Number(pm.market_cap) : null,
+                };
+              })}
             />
           )}
 
