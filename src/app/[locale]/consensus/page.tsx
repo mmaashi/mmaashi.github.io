@@ -417,6 +417,8 @@ export default async function ConsensusPage({
   const trans = translations[isAr ? 'ar' : 'en'];
 
   return (
+    <>
+    <style>{`.consensus-row:hover { background-color: rgba(217,119,6,0.03) !important; }`}</style>
     <div
       style={{
         minHeight: '100vh',
@@ -787,15 +789,10 @@ export default async function ConsensusPage({
                   {consensus.map((item, idx) => (
                     <tr
                       key={item.company_id}
+                      className="consensus-row"
                       style={{
                         borderBottom: idx < consensus.length - 1 ? '1px solid var(--c-border)' : 'none',
                         transition: 'background-color 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLTableRowElement).style.backgroundColor = 'rgba(217, 119, 6, 0.03)';
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLTableRowElement).style.backgroundColor = 'transparent';
                       }}
                     >
                       <td style={{ padding: '1rem', fontWeight: '700', fontFamily: 'var(--font-grotesk)' }}>
@@ -879,5 +876,6 @@ export default async function ConsensusPage({
         )}
       </div>
     </div>
+    </>
   );
 }
