@@ -11,6 +11,8 @@ export default function StockError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Log to help debug — visible in browser console
+  console.error("[StockError Boundary]", error.message, error.stack);
   const params = useParams();
   const locale = (params?.locale as string) ?? "en";
   const isAr = locale === "ar";
