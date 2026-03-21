@@ -54,72 +54,80 @@ async function fetchConsensusData(locale: string): Promise<{
   const supabase = createServiceClient();
 
   try {
-    // Fetch top 50 companies by market cap with latest metrics
-    const { data: companies, error: companiesError } = await supabase
+    // Fetch top companies with metrics (no 'price' column in company_metrics_daily)
+    const { data: companies } = await supabase
       .from('companies')
-      .select(
-        `
-        id,
-        ticker,
-        name_en,
-        name_ar,
-        sector,
-        company_metrics_daily (
-          price,
-          pe_ratio,
-          roe,
-          market_cap,
-          dividend_yield,
-          book_value,
-          beta,
-          as_of_date
-        ),
-        financials (
-          revenue,
-          net_income,
-          earnings_per_share,
-          total_assets,
-          total_liabilities,
-          gross_profit,
-          operating_income,
-          period,
-          period_type
-        )
-      `
-      )
-      .order('market_cap', { ascending: false })
-      .limit(50);
-
-    if (companiesError) {
-      console.error('Error fetching companies:', companiesError);
-      return { consensus: [], overview: getEmptyOverview() };
-    }
+      .select('id, ticker, name_en, name_ar, sector')
+      .limit(200);
 
     if (!companies || companies.length === 0) {
       return { consensus: [], overview: getEmptyOverview() };
     }
 
+    const companyIds = companies.map(c => c.id);
+
+    // Fetch metrics separately
+    const { data: metricsRows } = await supabase
+      .from('company_metrics_daily')
+      .select('company_id, pe_ratio, roe, market_cap, dividend_yield, as_of_date')
+      .in('company_id', companyIds)
+      .order('as_of_date', { ascending: false });
+
+    // Fetch latest prices from stock_prices
+    const { data: priceRows } = await supabase
+      .from('stock_prices')
+      .select('company_id, close, date')
+      .in('company_id', companyIds)
+      .order('date', { ascending: false });
+
+    // Fetch financials
+    const { data: financialsRows } = await supabase
+      .from('financials')
+      .select('company_id, revenue, net_income, earnings_per_share, total_assets, total_liabilities')
+      .in('company_id', companyIds)
+      .order('year', { ascending: false });
+
+    // Build maps — keep latest per company
+    const metricsMap = new Map<string, any>();
+    for (const m of metricsRows || []) {
+      if (!metricsMap.has(m.company_id)) metricsMap.set(m.company_id, m);
+    }
+    const priceMap = new Map<string, any>();
+    for (const p of priceRows || []) {
+      if (!priceMap.has(p.company_id)) priceMap.set(p.company_id, p);
+    }
+    const finMap = new Map<string, any>();
+    for (const f of financialsRows || []) {
+      if (!finMap.has(f.company_id)) finMap.set(f.company_id, f);
+    }
+
     // Process consensus data for each company
     const consensus: ConsensusData[] = companies
       .map((company: any) => {
-        const metrics = company.company_metrics_daily?.[0];
-        const financials = company.financials?.[0];
+        const metrics = metricsMap.get(company.id);
+        const priceRow = priceMap.get(company.id);
+        const financials = finMap.get(company.id);
+        const currentPrice = priceRow?.close;
 
-        if (!metrics || !metrics.price) return null;
+        if (!currentPrice || currentPrice <= 0) return null;
+
+        const peRatio = metrics?.pe_ratio ? Number(metrics.pe_ratio) : 0;
+        const roe = metrics?.roe ? Number(metrics.roe) : 0;
+        const marketCap = metrics?.market_cap ? Number(metrics.market_cap) : 0;
 
         // Synthetic consensus model based on financial data
         const { fairValueLow, fairValueMid, fairValueHigh, rating } =
           calculateConsensus(
-            metrics.price,
-            metrics.pe_ratio,
-            metrics.roe,
-            metrics.market_cap,
-            metrics.book_value,
+            currentPrice,
+            peRatio,
+            roe,
+            marketCap,
+            0, // no book_value column
             financials,
             companies
           );
 
-        const upside = ((fairValueMid - metrics.price) / metrics.price) * 100;
+        const upside = ((fairValueMid - currentPrice) / currentPrice) * 100;
 
         return {
           company_id: company.id,
@@ -127,19 +135,20 @@ async function fetchConsensusData(locale: string): Promise<{
           name_en: company.name_en,
           name_ar: company.name_ar,
           sector: company.sector,
-          current_price: metrics.price,
+          current_price: currentPrice,
           fair_value_low: fairValueLow,
           fair_value_mid: fairValueMid,
           fair_value_high: fairValueHigh,
           upside_pct: upside,
           rating,
-          pe_ratio: metrics.pe_ratio || 0,
-          roe: metrics.roe || 0,
-          market_cap: metrics.market_cap || 0,
+          pe_ratio: peRatio,
+          roe,
+          market_cap: marketCap,
         };
       })
       .filter((item): item is ConsensusData => item !== null)
-      .sort((a, b) => b.upside_pct - a.upside_pct);
+      .sort((a, b) => b.upside_pct - a.upside_pct)
+      .slice(0, 50);
 
     // Calculate market overview
     const overview = calculateMarketOverview(consensus);
