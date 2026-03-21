@@ -69,35 +69,46 @@ export default async function LocaleLayout({
     };
   } catch {}
 
+  // Desktop nav — compact, 5 items max
   const navLinks = [
     { href: `/${locale}`,            label: t(locale, "home"),     Icon: Home,               iconName: "Home" },
     { href: `/${locale}/screener`,   label: t(locale, "screener"), Icon: SlidersHorizontal,  iconName: "SlidersHorizontal" },
-    { href: `/${locale}/sentiment`,  label: isRTL ? "المعنويات" : "Sentiment", Icon: Gauge,   iconName: "Gauge" },
+    { href: `/${locale}/sentiment`,  label: isRTL ? "السوق" : "Market", Icon: Gauge,   iconName: "Gauge" },
     { href: `/${locale}/news`,       label: t(locale, "news"),     Icon: Newspaper,          iconName: "Newspaper" },
     { href: `/${locale}/portfolio`,  label: isRTL ? "سوقي" : "My SŪQAI", Icon: Briefcase,    iconName: "Briefcase" },
   ];
 
-  // Extended links for mobile nav (includes all features)
-  // Organized logically: Home, Screener + Sectors, Sentiment + Movers + Breadth, News, My SŪQAI + Compare/Dividends/Earnings/Insiders, Calendar, About
-  const allLinks = [
-    { href: `/${locale}`,            label: t(locale, "home"),     Icon: Home,               iconName: "Home" },
-    { href: `/${locale}/screener`,   label: t(locale, "screener"), Icon: SlidersHorizontal,  iconName: "SlidersHorizontal" },
-    { href: `/${locale}/sectors`,    label: isRTL ? "القطاعات" : "Sectors",        Icon: PieChart,     iconName: "PieChart" },
-    { href: `/${locale}/sentiment`,  label: isRTL ? "المعنويات" : "Sentiment", Icon: Gauge,   iconName: "Gauge" },
-    { href: `/${locale}/movers`,     label: isRTL ? "المحركات" : "Movers",     Icon: Zap,     iconName: "Zap" },
-    { href: `/${locale}/breadth`,    label: isRTL ? "اتساع السوق" : "Breadth",    Icon: BarChart3,    iconName: "BarChart3" },
-    { href: `/${locale}/news`,       label: t(locale, "news"),     Icon: Newspaper,          iconName: "Newspaper" },
-    { href: `/${locale}/portfolio`,  label: isRTL ? "سوقي" : "My SŪQAI", Icon: Briefcase,    iconName: "Briefcase" },
-    { href: `/${locale}/compare`,    label: isRTL ? "مقارنة" : "Compare",          Icon: GitCompare,   iconName: "GitCompare" },
-    { href: `/${locale}/dividends`,  label: isRTL ? "التوزيعات" : "Dividends",     Icon: DollarSign,   iconName: "DollarSign" },
-    { href: `/${locale}/earnings`,   label: isRTL ? "الأرباح" : "Earnings",        Icon: LineChart,    iconName: "LineChart" },
-    { href: `/${locale}/insiders`,   label: isRTL ? "المطلعين" : "Insiders",       Icon: Users,        iconName: "Users" },
-    { href: `/${locale}/calendar`,   label: t(locale, "calendar"),                  Icon: CalendarDays, iconName: "CalendarDays" },
-    { href: `/${locale}/about`,      label: t(locale, "about"),                     Icon: Info,         iconName: "Info" },
+  // Mobile nav — organized by category groups
+  const mobileGroups = [
+    { title: isRTL ? "الرئيسية" : "HOME", items: [
+      { href: `/${locale}`, label: t(locale, "home"), iconName: "Home" },
+    ]},
+    { title: isRTL ? "الأسهم" : "STOCKS", items: [
+      { href: `/${locale}/screener`, label: t(locale, "screener"), iconName: "SlidersHorizontal" },
+      { href: `/${locale}/sectors`, label: isRTL ? "القطاعات" : "Sectors", iconName: "PieChart" },
+      { href: `/${locale}/compare`, label: isRTL ? "مقارنة" : "Compare", iconName: "GitCompare" },
+    ]},
+    { title: isRTL ? "السوق" : "MARKET", items: [
+      { href: `/${locale}/sentiment`, label: isRTL ? "معنويات السوق" : "Market Sentiment", iconName: "Gauge" },
+      { href: `/${locale}/movers`, label: isRTL ? "المحركات" : "Top Movers", iconName: "Zap" },
+      { href: `/${locale}/breadth`, label: isRTL ? "اتساع السوق" : "Market Breadth", iconName: "BarChart3" },
+    ]},
+    { title: isRTL ? "المالية" : "FINANCIALS", items: [
+      { href: `/${locale}/dividends`, label: isRTL ? "التوزيعات" : "Dividends", iconName: "DollarSign" },
+      { href: `/${locale}/earnings`, label: isRTL ? "الأرباح" : "Earnings", iconName: "LineChart" },
+      { href: `/${locale}/insiders`, label: isRTL ? "المطلعين" : "Insiders", iconName: "Users" },
+    ]},
+    { title: isRTL ? "الأخبار" : "NEWS", items: [
+      { href: `/${locale}/news`, label: t(locale, "news"), iconName: "Newspaper" },
+    ]},
+    { title: isRTL ? "سوقي" : "MY SŪQAI", items: [
+      { href: `/${locale}/portfolio`, label: isRTL ? "محفظتي" : "Portfolio", iconName: "Briefcase" },
+      { href: `/${locale}/calendar`, label: t(locale, "calendar"), iconName: "CalendarDays" },
+    ]},
+    { title: isRTL ? "المزيد" : "MORE", items: [
+      { href: `/${locale}/about`, label: t(locale, "about"), iconName: "Info" },
+    ]},
   ];
-
-  // Serializable version for the client-side MobileNav (includes all features)
-  const mobileLinks = allLinks.map(({ href, label, iconName }) => ({ href, label, iconName }));
 
   return (
     <html lang={locale} dir={isRTL ? "rtl" : "ltr"}>
@@ -154,7 +165,7 @@ export default async function LocaleLayout({
 
             {/* Right: hamburger (mobile) + TASI chip + lang toggle */}
             <div className="flex items-center gap-2.5 shrink-0">
-              <MobileNav links={mobileLinks} locale={locale} />
+              <MobileNav groups={mobileGroups} locale={locale} />
               {/* TASI chip */}
               <div
                 className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg"

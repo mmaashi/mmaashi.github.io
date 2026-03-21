@@ -215,43 +215,58 @@ function HeroSection({ locale, heroStock }: { locale: string; heroStock: StockFu
   const sar = t(locale, "common.sar");
   const na = t(locale, "common.na");
   return (
-    <section className="fade-up" style={{ paddingTop: 32, paddingBottom: 8 }}>
-      <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12">
+    <section className="fade-up" style={{ paddingTop: 24, paddingBottom: 16, position: "relative", overflow: "hidden" }}>
+      {/* Ambient glow behind hero */}
+      <div style={{
+        position: "absolute", top: -100, left: "50%", transform: "translateX(-50%)",
+        width: 600, height: 400, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(200,169,81,0.06) 0%, transparent 70%)",
+        pointerEvents: "none",
+      }} />
+
+      <div className="flex flex-col md:flex-row items-start gap-6 md:gap-10" style={{ position: "relative" }}>
         {/* Left: copy + CTAs */}
         <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex items-center gap-2 mb-3">
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--c-gold)", boxShadow: "0 0 8px rgba(200,169,81,0.5)" }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--c-gold)", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "var(--font-grotesk)" }}>
+              {isAr ? "منصة السوق السعودي" : "SAUDI MARKET INTELLIGENCE"}
+            </span>
+          </div>
           <h1
             className="font-bold tracking-tight"
             style={{
-              fontSize: 34,
+              fontSize: "clamp(28px, 5vw, 40px)",
               fontFamily: "var(--font-grotesk)",
               letterSpacing: "-0.03em",
-              lineHeight: 1.2,
+              lineHeight: 1.15,
               color: "var(--c-text)",
-              marginBottom: 14,
+              marginBottom: 12,
             }}
           >
             {t(locale, "hero.headline")}
           </h1>
-          <p style={{ fontSize: 14, color: "var(--c-muted)", lineHeight: 1.75, maxWidth: 480, marginBottom: 24 }}>
+          <p style={{ fontSize: 14, color: "var(--c-muted)", lineHeight: 1.75, maxWidth: 500, marginBottom: 20 }}>
             {t(locale, "hero.subheadline")}
           </p>
           <div className="flex items-center gap-3 flex-wrap">
             <Link
               href={`/${locale}/screener`}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all"
               style={{
                 background: "var(--c-gold)",
                 color: "var(--c-base)",
                 textDecoration: "none",
                 fontFamily: "var(--font-grotesk)",
+                boxShadow: "0 4px 16px rgba(200,169,81,0.25)",
               }}
             >
               {t(locale, "hero.cta_primary")}
               <ArrowUpRight size={14} style={isAr ? { transform: "scaleX(-1)" } : undefined} />
             </Link>
             <Link
-              href={`/${locale}/screener`}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all"
+              href={`/${locale}/sentiment`}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm transition-all"
               style={{
                 background: "transparent",
                 color: "var(--c-gold)",
@@ -260,61 +275,107 @@ function HeroSection({ locale, heroStock }: { locale: string; heroStock: StockFu
                 fontFamily: "var(--font-grotesk)",
               }}
             >
-              <SlidersHorizontal size={13} />
-              {t(locale, "hero.cta_secondary")}
+              <Activity size={13} />
+              {isAr ? "حالة السوق" : "Market Pulse"}
             </Link>
+          </div>
+
+          {/* Quick stats row */}
+          <div className="flex items-center gap-4 mt-5 flex-wrap">
+            {[
+              { label: isAr ? "شركة" : "Companies", value: "119+" },
+              { label: isAr ? "مؤشر" : "Metrics", value: "59" },
+              { label: isAr ? "مجاني" : "Free", value: "100%" },
+            ].map((s) => (
+              <div key={s.label} style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span className="font-num" style={{ fontSize: 18, fontWeight: 700, color: "var(--c-gold)" }}>{s.value}</span>
+                <span style={{ fontSize: 11, color: "var(--c-dim)", fontWeight: 500 }}>{s.label}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Right: featured stock mini-card */}
+        {/* Right: featured stock card — bigger, more engaging */}
         {heroStock && (
           <Link
             href={`/${locale}/stock/${heroStock.ticker}`}
             className="card shrink-0 w-full md:w-auto group"
             style={{
-              maxWidth: 280,
-              padding: "18px 20px",
+              maxWidth: 300,
+              padding: "20px 22px",
               border: "1px solid var(--c-gold-ring)",
-              background: "linear-gradient(135deg, var(--c-surface), var(--c-elevated))",
+              background: "linear-gradient(145deg, var(--c-surface) 0%, rgba(200,169,81,0.04) 100%)",
               textDecoration: "none",
               transition: "all 0.2s",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
             }}
           >
-            <div className="flex items-center gap-2 mb-2">
-              <Star size={12} style={{ color: "var(--c-gold)" }} />
-              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--c-gold)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                {isAr ? "سهم مميز" : "FEATURED"}
-              </span>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Star size={12} style={{ color: "var(--c-gold)" }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: "var(--c-gold)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                  {isAr ? "سهم مميز" : "FEATURED"}
+                </span>
+              </div>
+              {heroStock.score != null && (
+                <div style={{
+                  padding: "4px 10px", borderRadius: 8,
+                  background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)",
+                }}>
+                  <span className="font-num font-bold" style={{ fontSize: 16, color: "var(--c-gold)" }}>
+                    {heroStock.score}
+                  </span>
+                  <span style={{ fontSize: 9, color: "var(--c-dim)" }}>/100</span>
+                </div>
+              )}
             </div>
-            <p className="font-bold" style={{ fontSize: 15, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
+            <p className="font-bold" style={{ fontSize: 16, color: "var(--c-text)", fontFamily: "var(--font-grotesk)", marginBottom: 2 }}>
               {displayName(locale, heroStock.nameEn, heroStock.nameAr)}
             </p>
-            <p className="font-num" style={{ fontSize: 11, color: "var(--c-muted)", marginBottom: 10 }}>{heroStock.ticker}</p>
-            <div className="flex items-center gap-4 mb-2">
+            <p className="font-num" style={{ fontSize: 11, color: "var(--c-muted)", marginBottom: 12 }}>{heroStock.ticker}</p>
+
+            {/* Price + Yield row */}
+            <div className="flex items-center gap-5 mb-3">
               <div>
-                <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "score.label")}</span>
-                <p className="font-num font-bold" style={{ fontSize: 16, color: "var(--c-gold)" }}>
-                  {heroStock.score != null ? <>{heroStock.score}<span style={{ fontSize: 10, fontWeight: 500, color: "var(--c-dim)" }}>/100</span></> : na}
+                <span style={{ fontSize: 9, color: "var(--c-dim)", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>{t(locale, "featured.latest_price")}</span>
+                <p className="font-num font-bold" style={{ fontSize: 18, color: "var(--c-text)", lineHeight: 1.3 }}>
+                  {heroStock.latestPrice != null ? `${heroStock.latestPrice.toFixed(2)}` : na}
+                  <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 400 }}> {sar}</span>
                 </p>
               </div>
-              <div style={{ width: 1, height: 28, background: "var(--c-border)" }} />
+              <div style={{ width: 1, height: 32, background: "var(--c-border)" }} />
               <div>
-                <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "featured.latest_price")}</span>
-                <p className="font-num font-bold" style={{ fontSize: 14, color: "var(--c-text)" }}>
-                  {heroStock.latestPrice != null ? `${heroStock.latestPrice.toFixed(2)} ${sar}` : na}
-                </p>
-              </div>
-              <div style={{ width: 1, height: 28, background: "var(--c-border)" }} />
-              <div>
-                <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 600 }}>{t(locale, "featured.div_yield")}</span>
-                <p className="font-num font-bold" style={{ fontSize: 14, color: "var(--c-green)" }}>
+                <span style={{ fontSize: 9, color: "var(--c-dim)", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>{t(locale, "featured.div_yield")}</span>
+                <p className="font-num font-bold" style={{ fontSize: 18, color: "var(--c-green)", lineHeight: 1.3 }}>
                   {heroStock.divYield ?? na}
                 </p>
               </div>
             </div>
-            <p style={{ fontSize: 11, color: "var(--c-muted)", lineHeight: 1.5, fontStyle: "italic" }}>
-              {t(locale, "hero.featured_note")}
-            </p>
+
+            {/* Pillar mini-bars */}
+            {heroStock.pillars && (
+              <div className="flex gap-1.5">
+                {(["value", "growth", "momentum", "health", "dividends"] as const).map((k) => {
+                  const v = heroStock.pillars[k];
+                  const pct = v != null ? Math.min(100, Math.max(0, v)) : 0;
+                  const labels: Record<string, string> = { value: "V", growth: "G", momentum: "M", health: "H", dividends: "D" };
+                  const labelsAr: Record<string, string> = { value: "ق", growth: "ن", momentum: "ز", health: "ص", dividends: "ت" };
+                  return (
+                    <div key={k} style={{ flex: 1, textAlign: "center" }}>
+                      <span style={{ fontSize: 8, fontWeight: 600, color: "var(--c-dim)" }}>{isAr ? labelsAr[k] : labels[k]}</span>
+                      <div style={{ height: 5, borderRadius: 3, background: "var(--c-border)", overflow: "hidden", marginTop: 2 }}>
+                        <div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: pct >= 70 ? "var(--c-green)" : pct >= 40 ? "var(--c-gold)" : "var(--c-red)" }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex items-center gap-1 mt-3" style={{ color: "var(--c-gold)", fontSize: 11, fontWeight: 600 }}>
+              <span>{isAr ? "عرض التحليل الكامل" : "View full analysis"}</span>
+              <ArrowUpRight size={12} style={isAr ? { transform: "scaleX(-1)" } : undefined} />
+            </div>
           </Link>
         )}
       </div>
@@ -1328,52 +1389,52 @@ export default async function DashboardPage({
 
   return (
     <div className="page-wrap">
-      {/* Section 2 — Hero */}
+      {/* Hero */}
       <HeroSection locale={locale} heroStock={featuredStocks[0] ?? null} />
 
-      {/* Section 3 — Search */}
+      {/* Search */}
       <SearchSection locale={locale} />
 
-      {/* Section 4 — What you can do with SŪQAI */}
-      <FeaturesSection locale={locale} />
-
-      {/* Section 5 — Featured Stock Analysis */}
-      <FeaturedAnalysis locale={locale} stocks={featuredStocks} />
-
-      {/* Section 5.5 — SŪQAI Intelligence Cards */}
-      <Suspense fallback={<SkeletonCard height={320} />}>
-        <IntelligenceCards locale={locale} />
-      </Suspense>
-
-      {/* Section 5.7 — Contract & Business Wins */}
-      <Suspense fallback={null}>
-        <ContractWins locale={locale} />
-      </Suspense>
-
-      {/* Section 6 — Market Snapshot */}
+      {/* Market Snapshot — front and center */}
       <Suspense fallback={<SkeletonCard height={220} />}>
         <MarketSnapshot locale={locale} />
       </Suspense>
 
-      {/* Sector Heat Map (compact horizontal strip) */}
+      {/* Sector Heat Map */}
       <Suspense fallback={<SkeletonCard height={80} />}>
         <SectorHeatMap locale={locale} />
       </Suspense>
 
-      {/* Section 7 — Top Gainers / Top Losers */}
+      {/* Top Gainers / Top Losers */}
       <Suspense fallback={<SkeletonCard height={320} />}>
         <MoversPanel locale={locale} />
       </Suspense>
 
-      {/* Section 8 — Latest Market News */}
+      {/* SŪQAI Intelligence Cards */}
+      <Suspense fallback={<SkeletonCard height={320} />}>
+        <IntelligenceCards locale={locale} />
+      </Suspense>
+
+      {/* Featured Stock Analysis */}
+      <FeaturedAnalysis locale={locale} stocks={featuredStocks} />
+
+      {/* Contract & Business Wins */}
+      <Suspense fallback={null}>
+        <ContractWins locale={locale} />
+      </Suspense>
+
+      {/* Latest Market News */}
       <Suspense fallback={<SkeletonCard height={280} />}>
         <NewsPanel locale={locale} />
       </Suspense>
 
-      {/* Section 9 — Trust / Methodology */}
+      {/* Explore Features */}
+      <FeaturesSection locale={locale} />
+
+      {/* Trust / Methodology */}
       <TrustSection locale={locale} />
 
-      {/* Section 10 — Footer */}
+      {/* Footer */}
       <FooterSection locale={locale} />
     </div>
   );
