@@ -248,9 +248,15 @@ function calculateConsensus(
   const rawLow = valuations[0];
   const rawMid = valuations[Math.floor(valuations.length / 2)];
   const rawHigh = valuations[valuations.length - 1];
-  const fairValueLow = Math.max(rawLow, currentPrice * 0.3);     // floor at -70%
-  const fairValueMid = Math.min(Math.max(rawMid, currentPrice * 0.4), currentPrice * 2.5); // cap ±
-  const fairValueHigh = Math.min(rawHigh, currentPrice * 3.0);    // cap at +200%
+  let fairValueLow = Math.max(rawLow, currentPrice * 0.3);     // floor at -70%
+  let fairValueMid = Math.min(Math.max(rawMid, currentPrice * 0.4), currentPrice * 2.5); // cap ±
+  let fairValueHigh = Math.min(rawHigh, currentPrice * 3.0);    // cap at +200%
+
+  // Ensure low ≤ mid ≤ high (capping can invert the range)
+  const sorted = [fairValueLow, fairValueMid, fairValueHigh].sort((a, b) => a - b);
+  fairValueLow = sorted[0];
+  fairValueMid = sorted[1];
+  fairValueHigh = sorted[2];
 
   // Determine rating based on current price vs fair value mid
   const priceToFV = currentPrice / fairValueMid;

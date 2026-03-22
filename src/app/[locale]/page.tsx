@@ -810,7 +810,7 @@ async function MoversPanel({ locale }: { locale: string }) {
           </div>
           <div>
             <p className="font-semibold text-sm truncate" style={{ color: "var(--c-text)", maxWidth: 130 }}>
-              {displayName(locale, s.name_en || s.name || s.symbol, s.name_ar)}
+              {displayName(locale, s.name_en || s.symbol, s.name || s.symbol)}
             </p>
             <p className="font-num" style={{ fontSize: 11, color: "var(--c-dim)" }}>{s.symbol}</p>
           </div>

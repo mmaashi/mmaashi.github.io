@@ -409,7 +409,7 @@ export default async function DividendsPage({
                                 fontWeight: 500,
                               }}
                             >
-                              Yield
+                              {isAr ? "العائد" : "Yield"}
                             </span>
                           </div>
                         )}
