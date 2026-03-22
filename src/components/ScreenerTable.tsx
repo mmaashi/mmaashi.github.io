@@ -3,7 +3,7 @@
 import { useState, useMemo, forwardRef, useImperativeHandle } from "react";
 import { useRouter } from "next/navigation";
 import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Gauge, Sparkles, TrendingUp, DollarSign, Shield, Zap, BarChart3, Crown, Target } from "lucide-react";
-import { t, tSector } from "@/lib/i18n";
+import { t, tSector, tTier } from "@/lib/i18n";
 import { displayName } from "@/lib/display-names";
 import MiniSnowflake from "@/components/stock/MiniSnowflake";
 
@@ -631,7 +631,7 @@ const ScreenerTableComponent = forwardRef<ScreenerTableHandle, {
                                   display: "block",
                                   marginTop: "2px",
                                 }}>
-                                  {c.score_tier}
+                                  {tTier(locale, c.score_tier)}
                                 </span>
                               )}
                             </div>

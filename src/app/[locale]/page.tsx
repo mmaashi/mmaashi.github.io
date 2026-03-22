@@ -11,7 +11,7 @@ import {
   Home, Scale, Eye, Leaf, Target, Gauge, Zap,
   GitCompare, Users, LineChart, PieChart,
 } from "lucide-react";
-import { t, tMood, tSector } from "@/lib/i18n";
+import { t, tMood, tSector, tTier } from "@/lib/i18n";
 import { calculateScores } from "@/lib/scores";
 import { scoreVerdict } from "@/lib/format";
 import { displayName } from "@/lib/display-names";
@@ -1265,7 +1265,7 @@ async function IntelligenceCards({ locale }: { locale: string }) {
             format={(m) => ({
               value: Number(m.suqai_score).toFixed(0),
               color: tierColor(m.score_tier),
-              sub: m.score_tier,
+              sub: tTier(locale, m.score_tier),
             })}
           />
         </div>

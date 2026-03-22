@@ -915,3 +915,18 @@ export function tMood(locale: string, mood: string): string {
   if (locale !== "ar") return cleaned;
   return moodMap[mood] ?? cleaned;
 }
+
+// Score tier translations
+const tierMap: Record<string, string> = {
+  "Strong Buy": "شراء قوي",
+  "Buy": "شراء",
+  "Hold": "احتفاظ",
+  "Underperform": "أداء ضعيف",
+  "Sell": "بيع",
+};
+
+export function tTier(locale: string, tier: string | null): string {
+  if (!tier) return "—";
+  if (locale !== "ar") return tier;
+  return tierMap[tier] ?? tier;
+}
