@@ -308,10 +308,15 @@ export default async function StockPage({
   const low          = liveQuote?.low    ?? (latestDbPrice ? Number(latestDbPrice.low)    : null);
   const open         = liveQuote?.open   ?? (latestDbPrice ? Number(latestDbPrice.open)   : null);
 
-  const eps       = financial?.earnings_per_share ? Number(financial.earnings_per_share) : null;
-  const pe        = currentPrice && eps && eps > 0 ? (currentPrice / eps).toFixed(1) : null;
+  // EPS: guard against sign mismatch (18 companies have positive net_income but negative EPS in DB)
+  let eps       = financial?.earnings_per_share ? Number(financial.earnings_per_share) : null;
   const revenue   = financial?.revenue   ? Number(financial.revenue)   : null;
   const netIncome = financial?.net_income ? Number(financial.net_income) : null;
+  // If net income is positive but EPS is negative, the EPS sign is likely a data error — use positive
+  if (eps !== null && netIncome !== null && netIncome > 0 && eps < 0) {
+    eps = Math.abs(eps);
+  }
+  const pe        = currentPrice && eps && eps > 0 ? (currentPrice / eps).toFixed(1) : null;
   const totalAssets = financial?.total_assets ? Number(financial.total_assets) : null;
   const totalLiabilities = financial?.total_liabilities ? Number(financial.total_liabilities) : null;
 
@@ -323,7 +328,9 @@ export default async function StockPage({
       : null;
   const currRatio = financial?.current_ratio   ? Number(financial.current_ratio)   : null;
   const ocf       = financial?.operating_cash_flow ? Number(financial.operating_cash_flow) : null;
-  const roe       = financial?.roe ? Number(financial.roe) : (netIncome && totalAssets && totalLiabilities && (totalAssets - totalLiabilities) > 0) ? (netIncome / (totalAssets - totalLiabilities)) * 100 : null;
+  // ROE: stored as decimal (0.14 = 14%) — convert to percentage for display & scoring
+  const roeRaw    = financial?.roe ? Number(financial.roe) : null;
+  const roe       = roeRaw !== null ? roeRaw * 100 : (netIncome && totalAssets && totalLiabilities && (totalAssets - totalLiabilities) > 0) ? (netIncome / (totalAssets - totalLiabilities)) * 100 : null;
   const grossProfit = financial?.gross_profit ? Number(financial.gross_profit) : null;
   const opIncome    = financial?.operating_income ? Number(financial.operating_income) : null;
 
@@ -334,15 +341,33 @@ export default async function StockPage({
     ? revenue >= 1e9 ? `${(revenue / 1e9).toFixed(1)}B` : `${(revenue / 1e6).toFixed(0)}M`
     : null;
 
-  // Use allDivs (last 12 records, no date filter) for yield — more reliable than recentDivs which filters by 1yr
-  const latestFourDivs = allDivs.slice(0, 4);
-  const annualDiv  = latestFourDivs.reduce((s, d) => s + Number(d.amount_per_share), 0);
+  // Dividend yield: detect payment frequency from ex_date gaps (semi-annual vs quarterly)
+  // Saudi banks/companies commonly pay semi-annually (2 payments/year)
+  let annualDiv = 0;
+  if (allDivs.length >= 2) {
+    // Detect frequency from gap between first two payments
+    const d0 = new Date(allDivs[0].ex_date);
+    const d1 = new Date(allDivs[1].ex_date);
+    const gapMonths = Math.abs((d0.getFullYear() - d1.getFullYear()) * 12 + d0.getMonth() - d1.getMonth());
+    const isSemiAnnual = gapMonths >= 4; // 5-7 month gap → semi-annual; <4 → quarterly
+    const paymentsPerYear = isSemiAnnual ? 2 : 4;
+    const latestDivs = allDivs.slice(0, paymentsPerYear);
+    annualDiv = latestDivs.reduce((s: number, d: any) => s + Number(d.amount_per_share), 0);
+  } else if (allDivs.length === 1) {
+    // Only one payment on record — assume it's the annual total
+    annualDiv = Number(allDivs[0].amount_per_share);
+  }
   const divYield   = currentPrice && annualDiv > 0 ? ((annualDiv / currentPrice) * 100).toFixed(2) + "%" : null;
   const divYieldNum = currentPrice && annualDiv > 0 ? (annualDiv / currentPrice) * 100 : null;
 
-  // 52W high/low from full history
-  const allHighs   = priceHistory.map((p) => Number(p.high ?? p.close));
-  const allLows    = priceHistory.map((p) => Number(p.low  ?? p.close));
+  // 52W high/low — filter to last 365 days only
+  const fiftyTwoWeekAgo = new Date();
+  fiftyTwoWeekAgo.setFullYear(fiftyTwoWeekAgo.getFullYear() - 1);
+  const fiftyTwoWeekStr = fiftyTwoWeekAgo.toISOString().split("T")[0];
+  const recentPrices = priceHistory.filter((p: any) => p.date >= fiftyTwoWeekStr);
+  const pricesFor52W = recentPrices.length > 0 ? recentPrices : priceHistory; // fallback to all if no recent
+  const allHighs   = pricesFor52W.map((p: any) => Number(p.high ?? p.close));
+  const allLows    = pricesFor52W.map((p: any) => Number(p.low  ?? p.close));
   const fiftyTwoHigh = allHighs.length > 0 ? Math.max(...allHighs).toFixed(2) : null;
   const fiftyTwoLow  = allLows.length  > 0 ? Math.min(...allLows).toFixed(2)  : null;
 

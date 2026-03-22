@@ -80,12 +80,22 @@ async function fetchConsensusData(locale: string): Promise<{
       .in('company_id', companyIds)
       .order('date', { ascending: false });
 
-    // Fetch financials
+    // Fetch financials (include book_value_per_share for P/B valuation)
     const { data: financialsRows } = await supabase
       .from('financials')
-      .select('company_id, revenue, net_income, earnings_per_share, total_assets, total_liabilities')
+      .select('company_id, revenue, net_income, earnings_per_share, total_assets, total_liabilities, book_value_per_share, roe, dividend_yield')
       .in('company_id', companyIds)
       .order('year', { ascending: false });
+
+    // Fetch sector averages for accurate P/E benchmarking
+    const { data: sectorAvgRows } = await supabase
+      .from('sector_averages')
+      .select('sector, median_pe, avg_pe, median_roe, avg_dividend_yield, as_of_date')
+      .order('as_of_date', { ascending: false });
+    const sectorAvgMap = new Map<string, any>();
+    for (const sa of sectorAvgRows || []) {
+      if (!sectorAvgMap.has(sa.sector)) sectorAvgMap.set(sa.sector, sa);
+    }
 
     // Build maps — keep latest per company
     const metricsMap = new Map<string, any>();
@@ -115,6 +125,9 @@ async function fetchConsensusData(locale: string): Promise<{
         const roe = metrics?.roe ? Number(metrics.roe) : 0;
         const marketCap = metrics?.market_cap ? Number(metrics.market_cap) : 0;
 
+        const bookValuePerShare = financials?.book_value_per_share ? Number(financials.book_value_per_share) : 0;
+        const sectorAvg = sectorAvgMap.get(company.sector);
+
         // Synthetic consensus model based on financial data
         const { fairValueLow, fairValueMid, fairValueHigh, rating } =
           calculateConsensus(
@@ -122,9 +135,9 @@ async function fetchConsensusData(locale: string): Promise<{
             peRatio,
             roe,
             marketCap,
-            0, // no book_value column
+            bookValuePerShare,
             financials,
-            companies
+            sectorAvg
           );
 
         const upside = ((fairValueMid - currentPrice) / currentPrice) * 100;
@@ -163,11 +176,11 @@ async function fetchConsensusData(locale: string): Promise<{
 function calculateConsensus(
   currentPrice: number,
   peRatio: number,
-  roe: number,
+  roe: number,       // decimal from company_metrics_daily (0.14 = 14%)
   marketCap: number,
-  bookValue: number,
+  bookValuePerShare: number,
   financials: any,
-  allCompanies: any[]
+  sectorAvg: any     // from sector_averages table
 ): {
   fairValueLow: number;
   fairValueMid: number;
@@ -176,57 +189,67 @@ function calculateConsensus(
 } {
   const valuations: number[] = [];
 
-  // Method 1: P/E based valuation (relative to sector average)
+  // Method 1: P/E based valuation — use real sector median P/E from sector_averages table
   if (peRatio && peRatio > 0) {
-    const sectorAvgPE = 16; // Saudi market average P/E
-    const sectorPEFactors = [0.8, 1.0, 1.2]; // Low, Mid, High
-    sectorPEFactors.forEach((factor) => {
-      const impliedEPS = currentPrice / peRatio;
-      const fairPrice = impliedEPS * (sectorAvgPE * factor);
-      valuations.push(fairPrice);
-    });
+    const sectorPE = sectorAvg?.median_pe ? Number(sectorAvg.median_pe) : (sectorAvg?.avg_pe ? Number(sectorAvg.avg_pe) : 16);
+    const impliedEPS = currentPrice / peRatio;
+    // Low / Mid / High scenarios around sector P/E
+    valuations.push(impliedEPS * (sectorPE * 0.85));  // conservative
+    valuations.push(impliedEPS * sectorPE);            // base case
+    valuations.push(impliedEPS * (sectorPE * 1.15));   // optimistic
   }
 
-  // Method 2: Book Value based valuation (P/B multiple)
-  if (bookValue && bookValue > 0) {
-    const pbMultiples = [1.2, 1.5, 1.8];
-    pbMultiples.forEach((multiple) => {
-      const fairPrice = bookValue * multiple;
-      valuations.push(fairPrice);
-    });
+  // Method 2: Book Value based valuation (P/B multiple) — now using financials.book_value_per_share
+  if (bookValuePerShare && bookValuePerShare > 0) {
+    // Saudi market P/B typically 1.0–3.0 depending on ROE quality
+    const roePct = roe > 0 ? (roe > 1 ? roe : roe * 100) : 10; // handle both decimal and pct
+    // Higher ROE deserves higher P/B multiple
+    const basePB = roePct > 20 ? 2.2 : roePct > 15 ? 1.8 : roePct > 10 ? 1.5 : 1.2;
+    valuations.push(bookValuePerShare * (basePB * 0.85));
+    valuations.push(bookValuePerShare * basePB);
+    valuations.push(bookValuePerShare * (basePB * 1.15));
   }
 
-  // Method 3: ROE-based valuation (DuPont/Gordon Growth)
-  if (roe && roe > 0 && bookValue && bookValue > 0) {
-    const requiredReturn = 0.08; // 8% required return
-    const growthRates = [0.02, 0.04, 0.06]; // 2-6% growth
+  // Method 3: ROE-based residual income / Gordon Growth model
+  if (roe && roe > 0 && bookValuePerShare && bookValuePerShare > 0) {
+    const roePct = roe > 1 ? roe / 100 : roe; // ensure decimal (0.14)
+    const requiredReturn = 0.09; // 9% cost of equity (Saudi risk-free ~5.5% + equity premium)
+    const growthRates = [0.02, 0.04, 0.05];
     growthRates.forEach((growth) => {
-      if (requiredReturn > growth) {
-        const payout = 0.3; // Assume 30% payout ratio
-        const roe_pct = Math.min(roe / 100, 0.25); // Cap at 25% ROE
-        const fairPrice =
-          bookValue *
-          (1 +
-            roe_pct * (1 - payout) * ((requiredReturn - growth) / (requiredReturn - growth)));
-        if (!isNaN(fairPrice) && fairPrice > 0) {
-          valuations.push(Math.min(fairPrice, currentPrice * 3)); // Cap at 3x current
+      if (requiredReturn > growth && roePct > growth) {
+        // Residual income model: BV + (ROE - r) * BV / (r - g)
+        const residualIncome = (roePct - requiredReturn) * bookValuePerShare;
+        const fairPrice = bookValuePerShare + residualIncome / (requiredReturn - growth);
+        if (!isNaN(fairPrice) && fairPrice > 0 && fairPrice < currentPrice * 5) {
+          valuations.push(fairPrice);
         }
       }
     });
   }
 
-  // Default valuation if no data
+  // Method 4: EPS-based (from financials directly) if P/E method didn't fire
+  if (valuations.length === 0 && financials?.earnings_per_share) {
+    const eps = Math.abs(Number(financials.earnings_per_share));
+    if (eps > 0) {
+      const sectorPE = sectorAvg?.median_pe ? Number(sectorAvg.median_pe) : 16;
+      valuations.push(eps * sectorPE * 0.85);
+      valuations.push(eps * sectorPE);
+      valuations.push(eps * sectorPE * 1.15);
+    }
+  }
+
+  // Default valuation if no data — price ±10%
   if (valuations.length === 0) {
     valuations.push(currentPrice * 0.9, currentPrice, currentPrice * 1.1);
   }
 
-  // Sort and get percentiles
+  // Sort and compute low / mid / high
   valuations.sort((a, b) => a - b);
-  const fairValueLow = Math.max(valuations[0] * 0.95, valuations[0]);
+  const fairValueLow = valuations[0];
   const fairValueMid = valuations[Math.floor(valuations.length / 2)];
-  const fairValueHigh = Math.min(valuations[valuations.length - 1] * 1.05, valuations[valuations.length - 1]);
+  const fairValueHigh = valuations[valuations.length - 1];
 
-  // Determine rating based on current price vs fair value
+  // Determine rating based on current price vs fair value mid
   const priceToFV = currentPrice / fairValueMid;
   let rating: 'Strong Buy' | 'Buy' | 'Hold' | 'Sell' | 'Strong Sell';
 
