@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { t } from "@/lib/i18n";
-import { X, ChevronDown, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
+import { X, ChevronDown, TrendingUp, TrendingDown, AlertCircle, Trophy, Search, Zap, BarChart3, Shield, DollarSign, Activity, Scale } from "lucide-react";
+import Link from "next/link";
 
 interface Company {
   id: string;
@@ -46,6 +47,16 @@ interface CompareClientProps {
   locale: string;
 }
 
+// Popular comparison pairs for quick access
+const POPULAR_PAIRS = [
+  { a: "1120", b: "1180", label: { en: "Al Rajhi vs Al Bilad", ar: "الراجحي vs البلاد" } },
+  { a: "2222", b: "2010", label: { en: "Aramco vs SABIC", ar: "أرامكو vs سابك" } },
+  { a: "7010", b: "7020", label: { en: "STC vs Etihad Etisalat", ar: "STC vs موبايلي" } },
+  { a: "1010", b: "1120", label: { en: "Riyad Bank vs Al Rajhi", ar: "الرياض vs الراجحي" } },
+  { a: "2350", b: "2380", label: { en: "Almarai vs NADEC", ar: "المراعي vs نادك" } },
+  { a: "3010", b: "3020", label: { en: "Arabian Cement vs Yamama", ar: "الاسمنت العربية vs اليمامة" } },
+];
+
 export default function CompareClient({ companies: allCompanies, locale }: CompareClientProps) {
   const isAr = locale === "ar";
   const [selectedTickers, setSelectedTickers] = useState<string[]>([]);
@@ -56,301 +67,228 @@ export default function CompareClient({ companies: allCompanies, locale }: Compa
   const [error, setError] = useState<string | null>(null);
   const dropdownRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      Object.values(dropdownRefs.current).forEach((ref) => {
+      Object.entries(dropdownRefs.current).forEach(([key, ref]) => {
         if (ref && !ref.contains(event.target as Node)) {
-          setOpenDropdowns((prev) => ({ ...prev, [ref.id]: false }));
+          setOpenDropdowns((prev) => ({ ...prev, [key]: false }));
         }
       });
     }
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Auto-compare when 2+ stocks selected
+  useEffect(() => {
+    if (selectedTickers.length >= 2) {
+      doCompare(selectedTickers);
+    } else {
+      setComparisonData(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTickers]);
+
+  const doCompare = async (tickers: string[]) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/compare?tickers=${tickers.join(",")}`);
+      if (!response.ok) throw new Error("Failed to fetch");
+      const data = await response.json();
+      setComparisonData(data);
+    } catch {
+      setError("Failed to load comparison data.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSelect = (index: number, ticker: string) => {
     const newTickers = [...selectedTickers];
     newTickers[index] = ticker;
     setSelectedTickers(newTickers.filter(Boolean));
-    setSearchInputs((prev) => {
-      const newInputs = [...prev];
-      newInputs[index] = ticker;
-      return newInputs;
-    });
+    setSearchInputs((prev) => { const n = [...prev]; n[index] = ticker; return n; });
     setOpenDropdowns((prev) => ({ ...prev, [index]: false }));
   };
 
   const handleRemove = (index: number) => {
     const newTickers = selectedTickers.filter((_, i) => i !== index);
     setSelectedTickers(newTickers);
-    setSearchInputs((prev) => {
-      const newInputs = [...prev];
-      newInputs[index] = "";
-      return newInputs;
-    });
-    setComparisonData(null);
+    setSearchInputs((prev) => { const n = [...prev]; n[index] = ""; return n; });
   };
 
   const handleSearchChange = (index: number, value: string) => {
-    setSearchInputs((prev) => {
-      const newInputs = [...prev];
-      newInputs[index] = value;
-      return newInputs;
-    });
+    setSearchInputs((prev) => { const n = [...prev]; n[index] = value; return n; });
     setOpenDropdowns((prev) => ({ ...prev, [index]: true }));
   };
 
+  const handleQuickPair = (a: string, b: string) => {
+    setSelectedTickers([a, b]);
+    setSearchInputs([a, b, "", ""]);
+  };
+
   const filteredCompanies = (index: number) => {
-    const searchValue = searchInputs[index].toUpperCase();
+    const sv = searchInputs[index].toUpperCase();
     return allCompanies.filter(
-      (c) =>
-        !selectedTickers.includes(c.ticker) &&
-        (c.ticker.includes(searchValue) || c.name_en.toUpperCase().includes(searchValue))
+      (c) => !selectedTickers.includes(c.ticker) && (c.ticker.includes(sv) || c.name_en.toUpperCase().includes(sv))
     );
   };
 
-  const handleCompare = async () => {
-    if (selectedTickers.length < 2) {
-      setError(t(locale, "common.na"));
-      return;
-    }
+  const fmt = (num: number | null, d = 2) => (num === null || isNaN(num)) ? "—" : num.toFixed(d);
+  const fmtCap = (mc: number | null) => mc === null ? "—" : mc >= 1e9 ? `${(mc / 1e9).toFixed(1)}B` : mc >= 1e6 ? `${(mc / 1e6).toFixed(0)}M` : fmt(mc, 0);
 
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/compare?tickers=${selectedTickers.join(",")}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch comparison data");
-      }
-      const data = await response.json();
-      setComparisonData(data);
-    } catch (err) {
-      setError("Failed to load comparison data. Please try again.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatNumber = (num: number | null, decimals = 2, isCurrency = false) => {
-    if (num === null || num === undefined) return "—";
-    if (isNaN(num)) return "—";
-
-    const formatted = num.toFixed(decimals);
-    if (isCurrency) return `${formatted}`;
-    return formatted;
-  };
-
-  const formatMarketCap = (marketCap: number | null) => {
-    if (marketCap === null) return "—";
-    if (marketCap >= 1_000_000_000) {
-      return `${(marketCap / 1_000_000_000).toFixed(1)}B`;
-    }
-    if (marketCap >= 1_000_000) {
-      return `${(marketCap / 1_000_000).toFixed(1)}M`;
-    }
-    return formatNumber(marketCap, 0);
-  };
-
-  const findBest = (metricKey: keyof ComparisonData, higherIsBetter = true) => {
+  const findBest = (key: keyof ComparisonData, higher = true): number | null => {
     if (!comparisonData) return null;
-    const validValues = comparisonData
-      .map((d, i) => ({ index: i, value: d[metricKey] }))
-      .filter((x) => x.value !== null && !isNaN(x.value as number));
-
-    if (validValues.length === 0) return null;
-
-    const best = higherIsBetter
-      ? validValues.reduce((a, b) => ((a.value as number) > (b.value as number) ? a : b))
-      : validValues.reduce((a, b) => ((a.value as number) < (b.value as number) ? a : b));
-
-    return best.index;
+    const valid = comparisonData.map((d, i) => ({ i, v: d[key] as number | null })).filter((x) => x.v !== null && !isNaN(x.v));
+    if (!valid.length) return null;
+    return (higher ? valid.reduce((a, b) => (a.v! > b.v! ? a : b)) : valid.reduce((a, b) => (a.v! < b.v! ? a : b))).i;
   };
 
-  const MetricBadge = ({ value, unit = "", best = false }: { value: string; unit?: string; best?: boolean }) => (
-    <div
-      style={{
-        padding: "6px 10px",
-        borderRadius: "var(--radius-md)",
-        background: best ? "rgba(34, 197, 94, 0.1)" : "var(--c-surface)",
-        border: best ? "1px solid var(--c-green)" : "1px solid var(--c-border)",
-        fontSize: 12,
-        fontWeight: best ? 600 : 500,
-        color: best ? "var(--c-green)" : "var(--c-text)",
-      }}
-    >
-      {value}
-      {unit && <span style={{ marginLeft: 3, opacity: 0.7 }}>{unit}</span>}
-    </div>
-  );
+  // Colors per stock slot
+  const SLOT_COLORS = ["#c8a951", "#60a5fa", "#a78bfa", "#34d399"];
+  const SLOT_BG = ["rgba(200,169,81,0.12)", "rgba(96,165,250,0.12)", "rgba(167,139,250,0.12)", "rgba(52,211,153,0.12)"];
 
-  const Metric = ({
-    label,
-    metricKey,
-    formatFn,
-    higherIsBetter = true,
-  }: {
-    label: string;
-    metricKey: keyof ComparisonData;
-    formatFn: (val: number | null) => string;
-    higherIsBetter?: boolean;
+  // ── Visual bar for a metric row ──
+  const MetricBar = ({ label, icon, values, unit = "", higher = true, format }: {
+    label: string; icon?: React.ReactNode; values: (number | null)[]; unit?: string; higher?: boolean;
+    format?: (v: number | null) => string;
   }) => {
     if (!comparisonData) return null;
-    const bestIndex = findBest(metricKey, higherIsBetter);
+    const nums = values.map((v) => (v !== null && !isNaN(v) ? v : null));
+    const absNums = nums.filter((n): n is number => n !== null).map(Math.abs);
+    const maxVal = absNums.length > 0 ? Math.max(...absNums) : 1;
+    const bestIdx = (() => {
+      const valid = nums.map((v, i) => ({ i, v })).filter((x) => x.v !== null);
+      if (!valid.length) return -1;
+      return (higher ? valid.reduce((a, b) => (a.v! > b.v! ? a : b)) : valid.reduce((a, b) => (a.v! < b.v! ? a : b))).i;
+    })();
 
     return (
-      <div style={{ marginBottom: 20 }}>
-        <h4 style={{ fontSize: 11, fontWeight: 600, color: "var(--c-muted)", textTransform: "uppercase", marginBottom: 8, opacity: 0.8 }}>
-          {label}
-        </h4>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${comparisonData.length}, 1fr)`,
-            gap: 10,
-          }}
-        >
-          {comparisonData.map((data, i) => (
-            <MetricBadge
-              key={`${data.ticker}-${metricKey}`}
-              value={formatFn(data[metricKey] as number | null)}
-              best={bestIndex === i}
-            />
-          ))}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+          {icon}
+          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--c-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</span>
         </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {comparisonData.map((d, i) => {
+            const v = nums[i];
+            const pct = v !== null ? (Math.abs(v) / maxVal) * 100 : 0;
+            const display = format ? format(v) : (v !== null ? `${fmt(v)}${unit}` : "—");
+            const isBest = i === bestIdx;
+            return (
+              <div key={d.ticker} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: SLOT_COLORS[i], width: 42, textAlign: "right", flexShrink: 0 }}>{d.ticker}</span>
+                <div style={{ flex: 1, height: 24, background: "var(--c-surface)", borderRadius: 6, overflow: "hidden", position: "relative" }}>
+                  <div style={{
+                    height: "100%", width: `${Math.max(pct, 3)}%`, borderRadius: 6,
+                    background: `linear-gradient(90deg, ${SLOT_COLORS[i]}40, ${SLOT_COLORS[i]}90)`,
+                    transition: "width 0.6s ease",
+                  }} />
+                  <span style={{
+                    position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                    fontSize: 11, fontWeight: isBest ? 700 : 500, color: isBest ? SLOT_COLORS[i] : "var(--c-text)",
+                  }}>
+                    {display}
+                  </span>
+                </div>
+                {isBest && <Trophy size={12} style={{ color: SLOT_COLORS[i], flexShrink: 0 }} />}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // ── Pentagon/Radar mini chart (CSS-based) ──
+  const MiniRadar = ({ data, index }: { data: ComparisonData; index: number }) => {
+    const dims = [
+      { key: "suqai_score", max: 100, label: "Score" },
+      { key: "roe", max: 30, label: "ROE" },
+      { key: "dividend_yield", max: 8, label: "Yield" },
+      { key: "net_margin", max: 40, label: "Margin" },
+      { key: "revenue_growth_yoy", max: 50, label: "Growth" },
+    ];
+    const scores = dims.map((d) => {
+      const raw = data[d.key as keyof ComparisonData] as number | null;
+      if (raw === null || isNaN(raw)) return 20;
+      return Math.min(100, Math.max(5, (Math.abs(raw) / d.max) * 100));
+    });
+    const color = SLOT_COLORS[index];
+    // Simple bar representation since CSS radar is complex
+    return (
+      <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 50 }}>
+        {scores.map((s, i) => (
+          <div key={dims[i].label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flex: 1 }}>
+            <div style={{ width: "100%", height: `${s * 0.45}px`, background: `${color}80`, borderRadius: "3px 3px 0 0", minHeight: 3 }} />
+            <span style={{ fontSize: 7, color: "var(--c-muted)", lineHeight: 1 }}>{dims[i].label}</span>
+          </div>
+        ))}
       </div>
     );
   };
 
   return (
     <div style={{ direction: isAr ? "rtl" : "ltr" }}>
-      {/* Selection Section */}
-      <div style={{ marginBottom: 30 }}>
-        <p style={{ fontSize: 12, color: "var(--c-muted)", marginBottom: 12, fontWeight: 500 }}>
-          {t(locale, "compare.add_stock")} ({selectedTickers.length}/4)
-        </p>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: 12,
-          }}
-        >
+      {/* ── Stock Selection ── */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{
+          display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12,
+        }}>
           {[0, 1, 2, 3].map((index) => (
             <div key={index} style={{ position: "relative" }}>
               <div
-                ref={(el) => {
-                  if (el) dropdownRefs.current[index] = el;
-                }}
+                ref={(el) => { if (el) dropdownRefs.current[index] = el; }}
                 id={String(index)}
-                style={{
-                  position: "relative",
-                  border: "1px solid var(--c-border)",
-                  borderRadius: "var(--radius-md)",
-                  background: "var(--c-surface)",
-                  overflow: "hidden",
-                }}
+                style={{ position: "relative", border: selectedTickers[index] ? `2px solid ${SLOT_COLORS[index]}` : "1px solid var(--c-border)", borderRadius: 10, background: selectedTickers[index] ? SLOT_BG[index] : "var(--c-surface)", overflow: "visible", transition: "all 0.2s" }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "10px 12px",
-                    cursor: "pointer",
-                    minHeight: 40,
-                  }}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", cursor: "pointer", minHeight: 44 }}
                   onClick={() => setOpenDropdowns((prev) => ({ ...prev, [index]: !prev[index] }))}
                 >
-                  <input
-                    type="text"
-                    placeholder={selectedTickers[index] ? "" : t(locale, "compare.add_stock")}
-                    value={searchInputs[index]}
-                    onChange={(e) => handleSearchChange(index, e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      flex: 1,
-                      border: "none",
-                      background: "transparent",
-                      fontSize: 13,
-                      color: "var(--c-text)",
-                      outline: "none",
-                      fontWeight: selectedTickers[index] ? 600 : 400,
-                      textAlign: isAr ? "right" : "left",
-                    }}
-                  />
-                  {selectedTickers[index] ? (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemove(index);
-                      }}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                    {!selectedTickers[index] && <Search size={14} style={{ color: "var(--c-muted)", flexShrink: 0 }} />}
+                    {selectedTickers[index] && (
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: SLOT_COLORS[index], flexShrink: 0 }} />
+                    )}
+                    <input
+                      type="text"
+                      placeholder={selectedTickers[index] ? "" : (isAr ? "ابحث عن سهم..." : "Search stock...")}
+                      value={searchInputs[index]}
+                      onChange={(e) => handleSearchChange(index, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
                       style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: 4,
-                        marginLeft: isAr ? 8 : 0,
-                        marginRight: isAr ? 0 : 8,
-                      }}
-                    >
-                      <X size={16} style={{ color: "var(--c-muted)" }} />
-                    </button>
-                  ) : (
-                    <ChevronDown
-                      size={16}
-                      style={{
-                        color: "var(--c-muted)",
-                        transform: openDropdowns[index] ? "rotate(180deg)" : "rotate(0deg)",
-                        transition: "transform 0.2s",
-                        marginLeft: isAr ? 8 : 0,
-                        marginRight: isAr ? 0 : 8,
+                        flex: 1, border: "none", background: "transparent", fontSize: 13,
+                        color: selectedTickers[index] ? SLOT_COLORS[index] : "var(--c-text)",
+                        outline: "none", fontWeight: selectedTickers[index] ? 700 : 400,
+                        textAlign: isAr ? "right" : "left",
                       }}
                     />
+                  </div>
+                  {selectedTickers[index] ? (
+                    <button onClick={(e) => { e.stopPropagation(); handleRemove(index); }}
+                      style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                      <X size={14} style={{ color: "var(--c-muted)" }} />
+                    </button>
+                  ) : (
+                    <ChevronDown size={14} style={{ color: "var(--c-muted)", transform: openDropdowns[index] ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
                   )}
                 </div>
-
-                {/* Dropdown */}
                 {openDropdowns[index] && !selectedTickers[index] && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: isAr ? "auto" : 0,
-                      right: isAr ? 0 : "auto",
-                      width: "100%",
-                      background: "var(--c-elevated)",
-                      border: "1px solid var(--c-border)",
-                      borderTop: "none",
-                      maxHeight: 200,
-                      overflowY: "auto",
-                      zIndex: 10,
-                    }}
-                  >
-                    {filteredCompanies(index).slice(0, 8).map((company) => (
-                      <div
-                        key={company.id}
-                        onClick={() => handleSelect(index, company.ticker)}
-                        style={{
-                          padding: "10px 12px",
-                          cursor: "pointer",
-                          borderBottom: "1px solid var(--c-border)",
-                          fontSize: 13,
-                          color: "var(--c-text)",
-                          textAlign: isAr ? "right" : "left",
-                          transition: "background 0.15s",
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLDivElement).style.background = "var(--c-surface)";
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLDivElement).style.background = "transparent";
-                        }}
-                      >
-                        <div style={{ fontWeight: 600 }}>{company.ticker}</div>
+                  <div style={{
+                    position: "absolute", top: "100%", left: 0, right: 0, width: "100%",
+                    background: "var(--c-elevated)", border: "1px solid var(--c-border)", borderTop: "none",
+                    maxHeight: 220, overflowY: "auto", zIndex: 50, borderRadius: "0 0 10px 10px",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                  }}>
+                    {filteredCompanies(index).slice(0, 10).map((company) => (
+                      <div key={company.id} onClick={() => handleSelect(index, company.ticker)}
+                        className="compare-dropdown-item"
+                        style={{ padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid var(--c-border)", fontSize: 13, color: "var(--c-text)", textAlign: isAr ? "right" : "left" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontWeight: 700, color: SLOT_COLORS[index] }}>{company.ticker}</span>
+                          <span style={{ fontSize: 10, color: "var(--c-dim)", background: "var(--c-surface)", padding: "2px 6px", borderRadius: 4 }}>{company.sector}</span>
+                        </div>
                         <div style={{ fontSize: 11, color: "var(--c-muted)", marginTop: 2 }}>
                           {isAr ? company.name_ar : company.name_en}
                         </div>
@@ -364,316 +302,199 @@ export default function CompareClient({ companies: allCompanies, locale }: Compa
         </div>
 
         {error && (
-          <div
-            style={{
-              marginTop: 12,
-              padding: 10,
-              background: "rgba(239, 68, 68, 0.1)",
-              border: "1px solid var(--c-red)",
-              borderRadius: "var(--radius-md)",
-              fontSize: 12,
-              color: "var(--c-red)",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <AlertCircle size={14} />
-            {error}
+          <div style={{ marginTop: 12, padding: 10, background: "rgba(239,68,68,0.1)", border: "1px solid var(--c-red)", borderRadius: 8, fontSize: 12, color: "var(--c-red)", display: "flex", alignItems: "center", gap: 8 }}>
+            <AlertCircle size={14} /> {error}
           </div>
         )}
-
-        <button
-          onClick={handleCompare}
-          disabled={selectedTickers.length < 2 || loading}
-          style={{
-            marginTop: 12,
-            padding: "10px 20px",
-            background: selectedTickers.length < 2 ? "var(--c-border)" : "var(--c-gold)",
-            color: selectedTickers.length < 2 ? "var(--c-muted)" : "#000",
-            border: "none",
-            borderRadius: "var(--radius-md)",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: selectedTickers.length < 2 ? "default" : "pointer",
-            opacity: loading ? 0.7 : 1,
-            transition: "all 0.2s",
-          }}
-        >
-          {loading ? t(locale, "common.loading") : "Compare"}
-        </button>
       </div>
 
-      {/* Comparison Cards */}
-      {comparisonData && comparisonData.length > 0 && (
-        <div style={{ marginTop: 30 }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: 16,
-              marginBottom: 30,
-            }}
-          >
-            {comparisonData.map((data) => {
-              const changeIsPositive = (data.changePct ?? 0) >= 0;
+      {/* ── Popular Comparisons (show when no data) ── */}
+      {!comparisonData && !loading && (
+        <div style={{ marginBottom: 32 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 600, color: "var(--c-muted)", marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            <Zap size={13} style={{ display: "inline", verticalAlign: "-2px", marginRight: 6, color: "var(--c-gold)" }} />
+            {isAr ? "مقارنات شائعة" : "Popular Comparisons"}
+          </h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+            {POPULAR_PAIRS.map((pair) => (
+              <button
+                key={pair.a + pair.b}
+                onClick={() => handleQuickPair(pair.a, pair.b)}
+                className="compare-pair-btn"
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                  padding: "14px 18px", background: "var(--c-surface)", border: "1px solid var(--c-border)",
+                  borderRadius: 12, cursor: "pointer", transition: "all 0.2s", color: "var(--c-text)",
+                  fontSize: 13, fontWeight: 600, fontFamily: "var(--font-grotesk)",
+                }}
+              >
+                <span style={{ color: SLOT_COLORS[0] }}>{pair.a}</span>
+                <Scale size={14} style={{ color: "var(--c-dim)" }} />
+                <span style={{ color: SLOT_COLORS[1] }}>{pair.b}</span>
+              </button>
+            ))}
+          </div>
 
+          {/* Empty state illustration */}
+          <div style={{
+            marginTop: 40, textAlign: "center", padding: "48px 24px",
+            background: "linear-gradient(180deg, rgba(200,169,81,0.03) 0%, transparent 100%)",
+            borderRadius: 16, border: "1px dashed var(--c-border)",
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>⚖️</div>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--c-text)", marginBottom: 8 }}>
+              {isAr ? "قارن بين الأسهم السعودية" : "Compare Saudi Stocks Side-by-Side"}
+            </h3>
+            <p style={{ fontSize: 13, color: "var(--c-muted)", maxWidth: 420, margin: "0 auto", lineHeight: 1.6 }}>
+              {isAr
+                ? "اختر سهمين أو أكثر لرؤية مقارنة مرئية شاملة — التقييم، الربحية، التوزيعات، النمو، والمزيد"
+                : "Select 2 or more stocks to see a comprehensive visual comparison — valuation, profitability, dividends, growth, and more"}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Loading ── */}
+      {loading && (
+        <div style={{ textAlign: "center", padding: 60 }}>
+          <div style={{ width: 40, height: 40, border: "3px solid var(--c-border)", borderTop: "3px solid var(--c-gold)", borderRadius: "50%", margin: "0 auto 16px", animation: "spin 0.8s linear infinite" }} />
+          <p style={{ fontSize: 13, color: "var(--c-muted)" }}>{isAr ? "جاري التحليل..." : "Analyzing..."}</p>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════
+          COMPARISON RESULTS
+         ══════════════════════════════════════════════════ */}
+      {comparisonData && comparisonData.length > 0 && !loading && (
+        <div>
+          {/* ── Header Cards ── */}
+          <div style={{
+            display: "grid", gridTemplateColumns: `repeat(${comparisonData.length}, 1fr)`, gap: 12, marginBottom: 24,
+          }}>
+            {comparisonData.map((data, i) => {
+              const up = (data.changePct ?? 0) >= 0;
               return (
-                <div
-                  key={data.ticker}
-                  className="card"
-                  style={{
-                    padding: 16,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  {/* Header */}
-                  <div style={{ marginBottom: 16, borderBottom: "1px solid var(--c-border)", paddingBottom: 12 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--c-text)", margin: 0 }}>
-                      {isAr ? data.name_ar : data.name_en}
-                    </h3>
-                    <p style={{ fontSize: 11, color: "var(--c-muted)", margin: "4px 0 0 0", fontWeight: 500 }}>
-                      {data.ticker}
-                    </p>
-                  </div>
-
-                  {/* Price Section */}
-                  {data.price !== null && (
-                    <div style={{ marginBottom: 16 }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-                        <span
-                          className="font-num"
-                          style={{
-                            fontSize: 18,
-                            fontWeight: 700,
-                            color: "var(--c-text)",
-                          }}
-                        >
-                          {formatNumber(data.price, 2)}
-                        </span>
-                        <span style={{ fontSize: 11, color: "var(--c-muted)" }}>SAR</span>
+                <Link key={data.ticker} href={`/${locale}/stock/${data.ticker}`} style={{ textDecoration: "none" }}>
+                  <div style={{
+                    padding: "18px 16px", borderRadius: 14, background: SLOT_BG[i],
+                    border: `2px solid ${SLOT_COLORS[i]}30`, transition: "all 0.2s",
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 10, height: 10, borderRadius: "50%", background: SLOT_COLORS[i] }} />
+                          <span style={{ fontSize: 15, fontWeight: 800, color: SLOT_COLORS[i] }}>{data.ticker}</span>
+                        </div>
+                        <p style={{ fontSize: 12, color: "var(--c-muted)", margin: "3px 0 0 16px" }}>
+                          {isAr ? data.name_ar : data.name_en}
+                        </p>
                       </div>
-                      {data.changePct !== null && (
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: changeIsPositive ? "var(--c-green)" : "var(--c-red)",
-                          }}
-                        >
-                          {changeIsPositive ? (
-                            <TrendingUp size={14} />
-                          ) : (
-                            <TrendingDown size={14} />
-                          )}
-                          {changeIsPositive ? "+" : ""}{formatNumber(data.changePct, 2)}%
+                      {data.suqai_score !== null && (
+                        <div style={{ textAlign: "center", padding: "4px 10px", borderRadius: 8, background: `${SLOT_COLORS[i]}20`, border: `1px solid ${SLOT_COLORS[i]}40` }}>
+                          <div style={{ fontSize: 8, fontWeight: 600, color: SLOT_COLORS[i], textTransform: "uppercase", letterSpacing: "0.05em" }}>SŪQAI</div>
+                          <div style={{ fontSize: 16, fontWeight: 800, color: SLOT_COLORS[i] }}>{fmt(data.suqai_score, 0)}</div>
                         </div>
                       )}
                     </div>
-                  )}
-
-                  {/* SUQAI Score */}
-                  {data.suqai_score !== null && (
-                    <div
-                      style={{
-                        padding: 10,
-                        background: "rgba(217, 119, 6, 0.1)",
-                        border: "1px solid var(--c-gold-ring)",
-                        borderRadius: "var(--radius-md)",
-                        marginBottom: 12,
-                        textAlign: "center",
-                      }}
-                    >
-                      <p style={{ fontSize: 10, color: "var(--c-gold)", fontWeight: 600, margin: 0, textTransform: "uppercase" }}>
-                        SUQAI Score
-                      </p>
-                      <p
-                        className="font-num"
-                        style={{
-                          fontSize: 20,
-                          fontWeight: 700,
-                          color: "var(--c-gold)",
-                          margin: "4px 0 0 0",
-                        }}
-                      >
-                        {formatNumber(data.suqai_score, 1)}
-                      </p>
-                      {data.score_tier && (
-                        <p style={{ fontSize: 10, color: "var(--c-muted)", margin: "4px 0 0 0" }}>
-                          {data.score_tier}
-                        </p>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                      <span style={{ fontSize: 22, fontWeight: 800, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
+                        {data.price !== null ? fmt(data.price) : "—"}
+                      </span>
+                      <span style={{ fontSize: 11, color: "var(--c-muted)" }}>SAR</span>
+                      {data.changePct !== null && (
+                        <span style={{ fontSize: 12, fontWeight: 700, color: up ? "var(--c-green)" : "var(--c-red)", display: "flex", alignItems: "center", gap: 3 }}>
+                          {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                          {up ? "+" : ""}{fmt(data.changePct)}%
+                        </span>
                       )}
                     </div>
-                  )}
-
-                  {/* Key Metrics */}
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: 8,
-                      fontSize: 11,
-                    }}
-                  >
-                    {data.pe_ratio !== null && (
-                      <div style={{ padding: 8, background: "var(--c-surface)", borderRadius: "var(--radius-md)" }}>
-                        <p style={{ fontSize: 9, color: "var(--c-muted)", margin: 0, fontWeight: 500 }}>P/E</p>
-                        <p className="font-num" style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)", margin: "4px 0 0 0" }}>
-                          {formatNumber(data.pe_ratio, 2)}
-                        </p>
-                      </div>
-                    )}
-                    {data.roe !== null && (
-                      <div style={{ padding: 8, background: "var(--c-surface)", borderRadius: "var(--radius-md)" }}>
-                        <p style={{ fontSize: 9, color: "var(--c-muted)", margin: 0, fontWeight: 500 }}>ROE</p>
-                        <p className="font-num" style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)", margin: "4px 0 0 0" }}>
-                          {formatNumber(data.roe, 2)}%
-                        </p>
-                      </div>
-                    )}
-                    {data.dividend_yield !== null && (
-                      <div style={{ padding: 8, background: "var(--c-surface)", borderRadius: "var(--radius-md)" }}>
-                        <p style={{ fontSize: 9, color: "var(--c-muted)", margin: 0, fontWeight: 500 }}>Yield</p>
-                        <p className="font-num" style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)", margin: "4px 0 0 0" }}>
-                          {formatNumber(data.dividend_yield, 2)}%
-                        </p>
-                      </div>
-                    )}
-                    {data.debt_to_equity !== null && (
-                      <div style={{ padding: 8, background: "var(--c-surface)", borderRadius: "var(--radius-md)" }}>
-                        <p style={{ fontSize: 9, color: "var(--c-muted)", margin: 0, fontWeight: 500 }}>D/E</p>
-                        <p className="font-num" style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)", margin: "4px 0 0 0" }}>
-                          {formatNumber(data.debt_to_equity, 2)}
-                        </p>
-                      </div>
-                    )}
-                    {data.market_cap !== null && (
-                      <div style={{ padding: 8, background: "var(--c-surface)", borderRadius: "var(--radius-md)", gridColumn: "1 / -1" }}>
-                        <p style={{ fontSize: 9, color: "var(--c-muted)", margin: 0, fontWeight: 500 }}>Market Cap</p>
-                        <p className="font-num" style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)", margin: "4px 0 0 0" }}>
-                          {formatMarketCap(data.market_cap)}
-                        </p>
-                      </div>
-                    )}
+                    {/* Mini strength bars */}
+                    <div style={{ marginTop: 12 }}>
+                      <MiniRadar data={data} index={i} />
+                    </div>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
 
-          {/* Detailed Comparison Tables */}
-          <div style={{ marginTop: 30 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--c-text)", marginBottom: 16 }}>
-              Detailed Comparison
+          {/* ── Visual Metric Bars ── */}
+          <div style={{ borderRadius: 16, background: "var(--c-surface)", border: "1px solid var(--c-border)", padding: "24px 20px", marginBottom: 20 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--c-text)", marginBottom: 20, display: "flex", alignItems: "center", gap: 8 }}>
+              <BarChart3 size={16} style={{ color: "var(--c-gold)" }} />
+              {isAr ? "مقارنة التقييم" : "Valuation Comparison"}
             </h3>
+            <MetricBar label={isAr ? "مكرر الأرباح" : "P/E Ratio"} icon={<Scale size={12} style={{ color: "var(--c-dim)" }} />} values={comparisonData.map((d) => d.pe_ratio)} higher={false} />
+            <MetricBar label={isAr ? "السعر / القيمة الدفترية" : "P/B Ratio"} values={comparisonData.map((d) => d.pb_ratio)} higher={false} />
+            <MetricBar label={isAr ? "القيمة السوقية" : "Market Cap"} icon={<DollarSign size={12} style={{ color: "var(--c-dim)" }} />} values={comparisonData.map((d) => d.market_cap)} format={(v) => fmtCap(v)} />
+          </div>
 
-            {/* Price Metrics */}
-            <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-              <h4 style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)", marginBottom: 12 }}>Price Metrics</h4>
-              <Metric
-                label="Current Price"
-                metricKey="price"
-                formatFn={(val) => (val !== null ? `${formatNumber(val, 2)} SAR` : "—")}
-                higherIsBetter={false}
-              />
-              <Metric
-                label="Change %"
-                metricKey="changePct"
-                formatFn={(val) => (val !== null ? `${val > 0 ? "+" : ""}${formatNumber(val, 2)}%` : "—")}
-                higherIsBetter={true}
-              />
-              {comparisonData[0]?.open !== null && (
-                <Metric
-                  label="Open"
-                  metricKey="open"
-                  formatFn={(val) => (val !== null ? `${formatNumber(val, 2)}` : "—")}
-                />
-              )}
-            </div>
+          <div style={{ borderRadius: 16, background: "var(--c-surface)", border: "1px solid var(--c-border)", padding: "24px 20px", marginBottom: 20 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--c-text)", marginBottom: 20, display: "flex", alignItems: "center", gap: 8 }}>
+              <Shield size={16} style={{ color: "var(--c-green)" }} />
+              {isAr ? "الربحية والجودة" : "Profitability & Quality"}
+            </h3>
+            <MetricBar label="ROE" values={comparisonData.map((d) => d.roe)} unit="%" />
+            <MetricBar label={isAr ? "هامش صافي الربح" : "Net Margin"} values={comparisonData.map((d) => d.net_margin)} unit="%" />
+            <MetricBar label={isAr ? "هامش الربح الإجمالي" : "Gross Margin"} values={comparisonData.map((d) => d.gross_margin)} unit="%" />
+            <MetricBar label={isAr ? "نمو الإيرادات" : "Revenue Growth"} icon={<Activity size={12} style={{ color: "var(--c-dim)" }} />} values={comparisonData.map((d) => d.revenue_growth_yoy)} unit="%" />
+          </div>
 
-            {/* Financial Metrics */}
-            <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-              <h4 style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)", marginBottom: 12 }}>Financial Metrics</h4>
-              <Metric
-                label="P/E Ratio"
-                metricKey="pe_ratio"
-                formatFn={(val) => (val !== null ? formatNumber(val, 2) : "—")}
-                higherIsBetter={false}
-              />
-              <Metric
-                label="ROE %"
-                metricKey="roe"
-                formatFn={(val) => (val !== null ? `${formatNumber(val, 2)}%` : "—")}
-                higherIsBetter={true}
-              />
-              <Metric
-                label="Dividend Yield %"
-                metricKey="dividend_yield"
-                formatFn={(val) => (val !== null ? `${formatNumber(val, 2)}%` : "—")}
-                higherIsBetter={true}
-              />
-              <Metric
-                label="Debt/Equity"
-                metricKey="debt_to_equity"
-                formatFn={(val) => (val !== null ? formatNumber(val, 2) : "—")}
-                higherIsBetter={false}
-              />
-              <Metric
-                label="Net Margin %"
-                metricKey="net_margin"
-                formatFn={(val) => (val !== null ? `${formatNumber(val, 2)}%` : "—")}
-                higherIsBetter={true}
-              />
-              <Metric
-                label="Revenue Growth YoY %"
-                metricKey="revenue_growth_yoy"
-                formatFn={(val) => (val !== null ? `${formatNumber(val, 2)}%` : "—")}
-                higherIsBetter={true}
-              />
-            </div>
+          <div style={{ borderRadius: 16, background: "var(--c-surface)", border: "1px solid var(--c-border)", padding: "24px 20px", marginBottom: 20 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--c-text)", marginBottom: 20, display: "flex", alignItems: "center", gap: 8 }}>
+              <DollarSign size={16} style={{ color: "#a78bfa" }} />
+              {isAr ? "التوزيعات والمخاطر" : "Dividends & Risk"}
+            </h3>
+            <MetricBar label={isAr ? "عائد التوزيعات" : "Dividend Yield"} values={comparisonData.map((d) => d.dividend_yield)} unit="%" />
+            <MetricBar label={isAr ? "الدين / حقوق الملكية" : "Debt / Equity"} values={comparisonData.map((d) => d.debt_to_equity)} higher={false} />
+            <MetricBar label={isAr ? "نسبة التداول" : "Current Ratio"} values={comparisonData.map((d) => d.current_ratio)} />
+          </div>
 
-            {/* Market Metrics */}
-            <div className="card" style={{ padding: 16 }}>
-              <h4 style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)", marginBottom: 12 }}>Market Metrics</h4>
-              <Metric
-                label="Market Cap"
-                metricKey="market_cap"
-                formatFn={(val) => formatMarketCap(val)}
-                higherIsBetter={true}
-              />
-              {comparisonData[0]?.volume !== null && (
-                <Metric
-                  label="Volume"
-                  metricKey="volume"
-                  formatFn={(val) => (val !== null ? `${(val / 1_000_000).toFixed(2)}M` : "—")}
-                  higherIsBetter={true}
-                />
-              )}
+          {/* ── Winner Summary ── */}
+          <div style={{
+            borderRadius: 16, padding: "20px 24px", marginBottom: 20,
+            background: "linear-gradient(135deg, rgba(200,169,81,0.08), rgba(6,13,24,0.9))",
+            border: "1px solid var(--c-gold-ring)",
+          }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--c-gold)", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+              <Trophy size={16} /> {isAr ? "ملخص المقارنة" : "Comparison Verdict"}
+            </h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+              {([
+                { label: isAr ? "أفضل قيمة" : "Best Value", key: "pe_ratio" as keyof ComparisonData, higher: false },
+                { label: isAr ? "أعلى ربحية" : "Most Profitable", key: "roe" as keyof ComparisonData, higher: true },
+                { label: isAr ? "أعلى عائد" : "Highest Yield", key: "dividend_yield" as keyof ComparisonData, higher: true },
+                { label: isAr ? "أقل مخاطرة" : "Lowest Risk", key: "debt_to_equity" as keyof ComparisonData, higher: false },
+                { label: isAr ? "أعلى نمو" : "Fastest Growth", key: "revenue_growth_yoy" as keyof ComparisonData, higher: true },
+                { label: isAr ? "أفضل تقييم SŪQAI" : "Best SŪQAI Score", key: "suqai_score" as keyof ComparisonData, higher: true },
+              ]).map((item) => {
+                const bestIdx = findBest(item.key, item.higher);
+                const winner = bestIdx !== null ? comparisonData[bestIdx] : null;
+                return (
+                  <div key={item.label} style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid var(--c-border)" }}>
+                    <div style={{ fontSize: 10, color: "var(--c-muted)", fontWeight: 500, marginBottom: 4 }}>{item.label}</div>
+                    {winner ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: SLOT_COLORS[bestIdx!] }} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: SLOT_COLORS[bestIdx!] }}>{winner.ticker}</span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: 12, color: "var(--c-dim)" }}>—</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
       )}
 
-      {/* Empty State */}
-      {!loading && !comparisonData && selectedTickers.length > 0 && (
-        <div
-          style={{
-            textAlign: "center",
-            padding: 40,
-            background: "var(--c-surface)",
-            borderRadius: "var(--radius-md)",
-            border: "1px dashed var(--c-border)",
-          }}
-        >
-          <p style={{ fontSize: 13, color: "var(--c-muted)", margin: 0 }}>
-            {t(locale, "compare.no_stocks")}
-          </p>
-        </div>
-      )}
+      {/* Styles */}
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .compare-pair-btn:hover { border-color: var(--c-gold) !important; background: rgba(200,169,81,0.08) !important; transform: translateY(-1px); }
+        .compare-dropdown-item:hover { background: var(--c-surface) !important; }
+      `}</style>
     </div>
   );
 }
