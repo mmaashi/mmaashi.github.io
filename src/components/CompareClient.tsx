@@ -322,15 +322,20 @@ export default function CompareClient({ companies: allCompanies, locale }: Compa
                 onClick={() => handleQuickPair(pair.a, pair.b)}
                 className="compare-pair-btn"
                 style={{
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                  display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", gap: 2,
                   padding: "14px 18px", background: "var(--c-surface)", border: "1px solid var(--c-border)",
                   borderRadius: 12, cursor: "pointer", transition: "all 0.2s", color: "var(--c-text)",
                   fontSize: 13, fontWeight: 600, fontFamily: "var(--font-grotesk)",
                 }}
               >
-                <span style={{ color: SLOT_COLORS[0] }}>{pair.a}</span>
-                <Scale size={14} style={{ color: "var(--c-dim)" }} />
-                <span style={{ color: SLOT_COLORS[1] }}>{pair.b}</span>
+                <span style={{ fontSize: 13, color: "var(--c-text)", fontWeight: 600 }}>
+                  {isAr ? pair.label.ar : pair.label.en}
+                </span>
+                <span style={{ fontSize: 10, color: "var(--c-dim)", fontWeight: 400, display: "block", marginTop: 2 }}>
+                  <span style={{ color: SLOT_COLORS[0] }}>{pair.a}</span>
+                  {" vs "}
+                  <span style={{ color: SLOT_COLORS[1] }}>{pair.b}</span>
+                </span>
               </button>
             ))}
           </div>
