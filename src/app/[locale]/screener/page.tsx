@@ -96,23 +96,45 @@ export default async function ScreenerPage({
 
   const sectors = [...new Set(companies.map((c) => c.sector).filter(Boolean))].sort();
 
+  const totalCompanies = enriched.length;
+  const withScore = enriched.filter((c) => c.suqai_score !== null).length;
+  const avgScore = withScore > 0 ? enriched.filter((c) => c.suqai_score !== null).reduce((s, c) => s + (c.suqai_score ?? 0), 0) / withScore : 0;
+  const isAr = locale === "ar";
+
   return (
     <div className="page-wrap">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}
-        >
-          <SlidersHorizontal size={16} style={{ color: "var(--c-gold)" }} />
+      {/* Premium Header */}
+      <div style={{ padding: "24px 26px 20px", borderRadius: 14, background: "linear-gradient(160deg, rgba(200,169,81,0.06) 0%, rgba(6,13,24,0.95) 50%)", border: "1px solid var(--c-gold-ring)", marginBottom: 18, position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: -30, right: -30, width: 140, height: 140, borderRadius: "50%", background: "radial-gradient(circle, rgba(200,169,81,0.08), transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10, position: "relative", zIndex: 1 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}>
+            <SlidersHorizontal size={16} style={{ color: "var(--c-gold)" }} />
+          </div>
+          <div>
+            <h1 style={{ fontSize: 18, fontWeight: 800, color: "var(--c-text)", fontFamily: "var(--font-grotesk)", margin: 0 }}>
+              {t(locale, "screener.title")}
+            </h1>
+            <p style={{ fontSize: 11, color: "var(--c-muted)", margin: 0 }}>
+              {t(locale, "screener.subtitle")}
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="font-bold text-xl" style={{ color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
-            {t(locale, "screener.title")}
-          </h1>
-          <p style={{ fontSize: 12, color: "var(--c-muted)" }}>
-            {t(locale, "screener.subtitle")}
-          </p>
+        {/* Quick stats */}
+        <div style={{ display: "flex", gap: 16, position: "relative", zIndex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>{totalCompanies}</span>
+            <span style={{ fontSize: 10, color: "var(--c-dim)" }}>{isAr ? "شركة" : "stocks"}</span>
+          </div>
+          <div style={{ width: 1, height: 20, background: "var(--c-border)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: "var(--c-gold)", fontFamily: "var(--font-grotesk)" }}>{sectors.length}</span>
+            <span style={{ fontSize: 10, color: "var(--c-dim)" }}>{isAr ? "قطاع" : "sectors"}</span>
+          </div>
+          <div style={{ width: 1, height: 20, background: "var(--c-border)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: avgScore >= 60 ? "var(--c-green)" : avgScore >= 40 ? "var(--c-gold)" : "var(--c-muted)", fontFamily: "var(--font-grotesk)" }}>{Math.round(avgScore)}</span>
+            <span style={{ fontSize: 10, color: "var(--c-dim)" }}>{isAr ? "متوسط التقييم" : "avg score"}</span>
+          </div>
         </div>
       </div>
 
