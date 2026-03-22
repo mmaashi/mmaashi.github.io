@@ -4,24 +4,42 @@ import { calculateScores } from "@/lib/scores";
 import { displayName } from "@/lib/display-names";
 import { getMarketSummary } from "@/lib/sahm";
 import Link from "next/link";
-import { Sparkles, Rocket } from "lucide-react";
+import { Sparkles, Rocket, TrendingUp, TrendingDown, ShieldCheck, AlertTriangle, ArrowUpRight, ArrowDownRight, BarChart3, Briefcase, Coins, Eye, Target, Zap, DollarSign, PieChart, Activity } from "lucide-react";
 
-// ── Dashboard Components ──
-import HeroStrip, { type HeroData } from "@/components/dashboard/HeroStrip";
-import TodayCards, { type TodayCardsData } from "@/components/dashboard/TodayCards";
-import AttentionModule, { type AttentionItem } from "@/components/dashboard/AttentionModule";
-import PortfolioSnapshot, { type SnapshotData } from "@/components/dashboard/PortfolioSnapshot";
-import PortfolioHealth, { type PortfolioHealthData, type HealthDimension } from "@/components/dashboard/PortfolioHealth";
+// ── Dashboard Components (interactive only) ──
 import PortfolioPerformanceChart from "@/components/dashboard/PortfolioPerformanceChart";
-import HoldingsTable, { type HoldingRow } from "@/components/dashboard/HoldingsTable";
-import SectorAllocationChart from "@/components/dashboard/SectorAllocationChart";
-import WatchlistModule, { type WatchlistStock, type WatchlistInsight } from "@/components/dashboard/WatchlistModule";
-import OpportunitiesModule, { type Opportunity } from "@/components/dashboard/OpportunitiesModule";
-import SavedScreens, { type SavedScreen } from "@/components/dashboard/SavedScreens";
 import WealthCalculator from "@/components/dashboard/WealthCalculator";
-import ContinueResearch, { type ContinueItem } from "@/components/dashboard/ContinueResearch";
-import ContractAlerts, { type ContractAlert } from "@/components/contracts/ContractAlerts";
-import DiversificationMatrix from "@/components/portfolio/DiversificationMatrix";
+
+// ── Type definitions ──
+interface HoldingRow {
+  ticker: string; name: string; sector: string; shares: number; avgCost: number;
+  currentPrice: number; totalValue: number; gainLoss: number; gainPct: number;
+  todayChange: number; weight: number; overallScore: number | null;
+  fairValueDiff: number | null; nextDivDate: string | null; nextDivAmount: number | null;
+}
+interface HealthDimension { key: string; label: { en: string; ar: string }; score: number; signal: "strong" | "healthy" | "mixed" | "weak"; }
+interface AttentionItem { priority: number; line: { en: string; ar: string }; action: { en: string; ar: string }; href: string; color: string; }
+interface WatchlistStock { ticker: string; name: string; price: number; change: number; score: number | null; signal: string; signalLine: { en: string; ar: string }; divYield: number | null; }
+interface Opportunity { ticker: string; name: string; price: number; score: number; matchReason: { en: string; ar: string }; insight: { en: string; ar: string }; tag: string; confidence: string; }
+
+function fmtCurrency(value: number, sar: string): string {
+  const abs = Math.abs(value);
+  if (abs >= 1e9) return `${sar} ${(value / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${sar} ${(value / 1e6).toFixed(2)}M`;
+  if (abs >= 1e3) return `${sar} ${(value / 1e3).toFixed(1)}K`;
+  return `${sar} ${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+function scoreColor(s: number): string {
+  if (s >= 75) return "var(--c-green)";
+  if (s >= 55) return "var(--c-gold)";
+  if (s >= 35) return "var(--c-text)";
+  return "var(--c-red)";
+}
+
+function signalColor(signal: string): string {
+  switch (signal) { case "strong": return "var(--c-green)"; case "healthy": return "#4ade80"; case "mixed": return "var(--c-gold)"; case "weak": return "var(--c-red)"; default: return "var(--c-muted)"; }
+}
 
 // Demo data (fallback when no real portfolio exists)
 const DEMO_HOLDINGS = [
@@ -428,7 +446,7 @@ export default async function MyDashboardPage({
     // Contract table may not exist yet
   }
 
-  const wlInsights: WatchlistInsight[] = [];
+  const wlInsights: Array<{ line: { en: string; ar: string }; color: string }> = [];
   if (wlContractCount > 0) wlInsights.push({ line: { en: `${wlContractCount} new contract${wlContractCount > 1 ? "s" : ""} announced by watchlist companies`, ar: `${wlContractCount} ${wlContractCount > 1 ? "عقود جديدة" : "عقد جديد"} من شركات قائمة المتابعة` }, color: "var(--c-green)" });
   const highScoreWL = watchlistStocks.filter((s) => s.score !== null && s.score >= 70);
   if (highScoreWL.length > 0) wlInsights.push({ line: { en: `${highScoreWL.length} stock${highScoreWL.length > 1 ? "s" : ""} in your watchlist rank${highScoreWL.length === 1 ? "s" : ""} highly on quality`, ar: `${highScoreWL.length} ${highScoreWL.length > 1 ? "أسهم" : "سهم"} في قائمتك ${highScoreWL.length > 1 ? "تحقق" : "يحقق"} جودة عالية` }, color: "var(--c-green)" });
@@ -508,7 +526,7 @@ export default async function MyDashboardPage({
   //  CONTRACT ALERTS FOR HOLDINGS
   // ══════════════════════════════════════════════════
 
-  const contractAlerts: ContractAlert[] = [];
+  const contractAlerts: Array<{ ticker: string; companyName: string; disclosureType: string; disclosureLabelEn: string; disclosureLabelAr: string; value: number | null; currency: string; counterparty: string | null; materialityLabel: string; announcementDate: string; daysAgo: number; interpretation: { en: string; ar: string } }> = [];
   try {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -604,189 +622,397 @@ export default async function MyDashboardPage({
   // ══════════════════════════════════════════════════
 
   const biggestMover = holdings.length > 0 ? holdings.reduce((best, h) => Math.abs(h.todayChange) > Math.abs(best.todayChange) ? h : best) : null;
-  const nextDiv = holdings.find((h) => h.nextDivDate && new Date(h.nextDivDate) >= new Date());
+  const sortedHoldings = [...holdings].sort((a, b) => b.totalValue - a.totalValue);
+  const topHolding = sortedHoldings[0] || null;
 
-  const todayCardsData: TodayCardsData = {
-    alertCount,
-    alertLine: alertCount > 0 ? { en: `${alertCount} holding${alertCount > 1 ? "s" : ""} need${alertCount === 1 ? "s" : ""} review today`, ar: `${alertCount} ${alertCount > 1 ? "أسهم تحتاج" : "سهم يحتاج"} مراجعة اليوم` } : { en: "All clear — no alerts today", ar: "كل شيء على ما يرام — لا تنبيهات اليوم" },
-    newMatches: opportunities.length,
-    matchesLine: opportunities.length > 0 ? { en: `${opportunities.length} stock${opportunities.length > 1 ? "s" : ""} now fit your style`, ar: `${opportunities.length} ${opportunities.length > 1 ? "أسهم تناسب" : "سهم يناسب"} أسلوبك` } : { en: "No new matches today", ar: "لا فرص جديدة اليوم" },
-    nextDividend: nextDiv ? { ticker: nextDiv.ticker, date: nextDiv.nextDivDate!, amount: nextDiv.nextDivAmount ?? 0 } : null,
-    biggestMover: biggestMover ? { ticker: biggestMover.ticker, name: biggestMover.name, change: biggestMover.todayChange } : null,
-    sar,
+  // Sector colors for diversity ring
+  const sectorColors: Record<string, string> = {
+    "Banks": "#c8a951", "Materials": "#60a5fa", "Telecommunication Services": "#a78bfa",
+    "Retailing": "#34d399", "Energy": "#f87171", "Food & Beverages": "#fbbf24",
+    "Insurance": "#818cf8", "Health Care Equipment & Svc": "#f472b6", "Real Estate Mgmt & Dev't": "#22d3ee",
+    "Utilities": "#94a3b8", "Capital Goods": "#fb923c", "Other": "#64748b",
   };
-
-  const heroData: HeroData = {
-    portfolioValue: totalValue, dailyChange: todayGainPct, dailyChangeAmount: todayGainAmount,
-    totalReturn: totalGainPct, totalReturnAmount: totalGain, weightedScore: weightedScore > 0 ? weightedScore : null,
-    healthLabel, healthColor, summaryLine, holdingsCount: holdings.length, sar,
-    primaryCta, secondaryCta,
-  };
-
-  const topIncomeHoldings = holdings.filter((h) => { const d = divMap.get(tickerToCompany.get(h.ticker)?.id || ""); return d && d.annualEst > 0; })
-    .map((h) => { const d = divMap.get(tickerToCompany.get(h.ticker)?.id || "")!; return { ticker: h.ticker, name: h.name, yield: (d.annualEst / h.currentPrice) * 100 }; })
-    .sort((a, b) => b.yield - a.yield).slice(0, 3);
-
-  const snapshotData: SnapshotData = {
-    currentValue: totalValue, investedAmount: totalCost, unrealizedGain: totalGain, returnPct: totalGainPct,
-    annualDividendEst, weightedDivYield, weightedScore: weightedScore > 0 ? weightedScore : null, topIncomeHoldings, sar,
-  };
-
-  const healthData: PortfolioHealthData = {
-    overallLabel: healthLabel, overallColor: healthColor,
-    summaryLine: watchouts.length > 1 ? watchouts[0] : { en: "Your portfolio quality is solid overall", ar: "جودة محفظتك قوية بشكل عام" },
-    dimensions, strengths: strengths.slice(0, 3), watchouts: watchouts.slice(0, 3),
-    benchmarkVerdict, benchmarkReturn, tasiReturn,
-    topStrength: topStrength || undefined,
-    topIssue: topIssue || undefined,
-    nextAction: nextAction || undefined,
-  };
-
-  const savedScreens: SavedScreen[] = [
-    { name: { en: "Dividend Leaders", ar: "رواد التوزيعات" }, matchCount: 12, newSinceLastVisit: 2, topMatch: opportunities.find((o) => o.tag === "dividend_leader") ? { ticker: opportunities.find((o) => o.tag === "dividend_leader")!.ticker, name: opportunities.find((o) => o.tag === "dividend_leader")!.name } : null },
-    { name: { en: "Quality + Value", ar: "جودة + قيمة" }, matchCount: 8, newSinceLastVisit: 1, topMatch: opportunities.find((o) => o.tag === "undervalued") ? { ticker: opportunities.find((o) => o.tag === "undervalued")!.ticker, name: opportunities.find((o) => o.tag === "undervalued")!.name } : null },
-    { name: { en: "Growth Momentum", ar: "زخم النمو" }, matchCount: 5, newSinceLastVisit: 0, topMatch: opportunities.find((o) => o.tag === "momentum") ? { ticker: opportunities.find((o) => o.tag === "momentum")!.ticker, name: opportunities.find((o) => o.tag === "momentum")!.name } : null },
-  ];
-
-  const continueItems: ContinueItem[] = [];
-  if (holdings.length > 0) continueItems.push({ type: "recently_viewed", label: { en: "Recently viewed", ar: "شوهد مؤخرًا" }, detail: { en: `You recently viewed ${holdings[0].name}`, ar: `شاهدت مؤخرًا ${holdings[0].name}` }, href: `/${locale}/stock/${holdings[0].ticker}` });
-  continueItems.push({ type: "screener", label: { en: "Resume screener", ar: "استأنف التصفية" }, detail: { en: "Your Value Picks screen has new matches", ar: "فلتر القيمة لديه نتائج جديدة" }, href: `/${locale}/screener` });
-  if (alertCount > 0) continueItems.push({ type: "alert", label: { en: "Open alerts", ar: "عرض التنبيهات" }, detail: { en: `${alertCount} alert${alertCount > 1 ? "s" : ""} need review`, ar: `${alertCount} تنبيه${alertCount > 1 ? "ات" : ""} بحاجة لمراجعة` }, href: `/${locale}/portfolio` });
+  function getSectorColor(sector: string): string { return sectorColors[sector] || "#64748b"; }
 
   // ══════════════════════════════════════════════════
-  //  RENDER
+  //  RENDER — Premium Wallet Design
   // ══════════════════════════════════════════════════
+
+  const up = todayGainPct >= 0;
+  const totalUp = totalGainPct >= 0;
 
   return (
     <div className="page-wrap">
-      {/* ── DEMO BANNER (only when viewing sample portfolio) ── */}
+      {/* ── DEMO BANNER ── */}
       {isDemo && (
-        <div
-          className="fade-up"
-          style={{
-            padding: "16px 20px",
-            borderRadius: 12,
-            background: "linear-gradient(135deg, rgba(200,169,81,0.06), rgba(6,13,24,0.8))",
-            border: "1px solid var(--c-gold-ring)",
-            marginBottom: 20,
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            flexWrap: "wrap",
-          }}
-        >
-          <Sparkles size={16} style={{ color: "var(--c-gold)", flexShrink: 0 }} />
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <p style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)", margin: 0, marginBottom: 3 }}>
-              {isAr ? "أنت تشاهد محفظة تجريبية" : "You\u2019re viewing a sample portfolio"}
-            </p>
-            <p style={{ fontSize: 10, color: "var(--c-muted)", margin: 0, lineHeight: 1.5 }}>
-              {isAr
-                ? "أنشئ محفظتك الخاصة لتفعيل التتبع الشخصي والتنبيهات وتحليل الصحة"
-                : "Create your own portfolio to unlock personal tracking, alerts, and health analysis"}
-            </p>
-          </div>
-          <Link
-            href={`/${locale}/portfolio/create`}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 18px",
-              borderRadius: 8,
-              background: "var(--c-gold)",
-              border: "none",
-              color: "var(--c-base)",
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: "pointer",
-              flexShrink: 0,
-              textDecoration: "none",
-              fontFamily: "var(--font-grotesk)",
-            }}
-          >
-            <Rocket size={11} />
-            {isAr ? "أنشئ محفظتي" : "Create my portfolio"}
+        <div style={{ padding: "14px 20px", borderRadius: 12, background: "linear-gradient(135deg, rgba(200,169,81,0.08), rgba(6,13,24,0.85))", border: "1px solid var(--c-gold-ring)", marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <Sparkles size={14} style={{ color: "var(--c-gold)" }} />
+          <span style={{ fontSize: 11, color: "var(--c-muted)", flex: 1 }}>
+            {isAr ? "محفظة تجريبية — أنشئ محفظتك الخاصة لتتبع استثماراتك" : "Sample portfolio — create yours to track your investments"}
+          </span>
+          <Link href={`/${locale}/portfolio/create`} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 16px", borderRadius: 8, background: "var(--c-gold)", color: "var(--c-base)", fontSize: 10, fontWeight: 700, textDecoration: "none", fontFamily: "var(--font-grotesk)" }}>
+            <Rocket size={10} /> {isAr ? "أنشئ محفظتي" : "Create portfolio"}
           </Link>
         </div>
       )}
 
-      {/* 1. HERO STRIP */}
-      <HeroStrip data={heroData} locale={locale} />
+      {/* ════════════════════════════════════════════════
+          HERO: Portfolio Value + Key Metrics
+         ════════════════════════════════════════════════ */}
+      <div style={{ padding: "32px 28px 28px", borderRadius: 16, background: "linear-gradient(160deg, rgba(200,169,81,0.08) 0%, rgba(6,13,24,0.95) 40%, rgba(6,13,24,0.98) 100%)", border: "1px solid var(--c-gold-ring)", marginBottom: 20, position: "relative", overflow: "hidden" }}>
+        {/* Ambient glow */}
+        <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(200,169,81,0.12), transparent 70%)", pointerEvents: "none" }} />
 
-      {/* 2. WHAT DESERVES ATTENTION */}
-      {attentionItems.length > 0 && (
-        <AttentionModule items={attentionItems} locale={locale} />
-      )}
+        <div style={{ display: "flex", gap: 32, flexWrap: "wrap", position: "relative", zIndex: 1 }}>
+          {/* Left: Value */}
+          <div style={{ flex: "1 1 320px" }}>
+            <p style={{ fontSize: 11, color: "var(--c-muted)", marginBottom: 4, fontFamily: "var(--font-grotesk)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              {isAr ? "قيمة المحفظة" : "Portfolio Value"}
+            </p>
+            <p style={{ fontSize: 36, fontWeight: 800, color: "var(--c-text)", fontFamily: "var(--font-grotesk)", lineHeight: 1, marginBottom: 10 }}>
+              {fmtCurrency(totalValue, sar)}
+            </p>
+            <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 16 }}>
+              <div>
+                <span style={{ fontSize: 10, color: "var(--c-dim)" }}>{isAr ? "اليوم" : "Today"}</span>
+                <p style={{ fontSize: 16, fontWeight: 700, color: up ? "var(--c-green)" : "var(--c-red)", margin: 0, display: "flex", alignItems: "center", gap: 3 }}>
+                  {up ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                  {up ? "+" : ""}{todayGainPct.toFixed(2)}%
+                  <span style={{ fontSize: 11, fontWeight: 400, color: "var(--c-muted)", marginInlineStart: 4 }}>{up ? "+" : ""}{fmtCurrency(todayGainAmount, sar)}</span>
+                </p>
+              </div>
+              <div>
+                <span style={{ fontSize: 10, color: "var(--c-dim)" }}>{isAr ? "إجمالي العائد" : "Total Return"}</span>
+                <p style={{ fontSize: 16, fontWeight: 700, color: totalUp ? "var(--c-green)" : "var(--c-red)", margin: 0 }}>
+                  {totalUp ? "+" : ""}{totalGainPct.toFixed(1)}%
+                  <span style={{ fontSize: 11, fontWeight: 400, color: "var(--c-muted)", marginInlineStart: 4 }}>{totalUp ? "+" : ""}{fmtCurrency(totalGain, sar)}</span>
+                </p>
+              </div>
+            </div>
 
-      {/* 3. TODAY CARDS */}
-      <TodayCards data={todayCardsData} locale={locale} />
+            {/* Summary line */}
+            <p style={{ fontSize: 12, color: "var(--c-muted)", lineHeight: 1.6, maxWidth: 400 }}>
+              {isAr ? summaryLine.ar : summaryLine.en}
+            </p>
+          </div>
 
-      {/* 4. PORTFOLIO BLOCK — reduced density with more gap */}
-      <div className="portfolio-block" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 16, marginBottom: 24 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <PortfolioSnapshot data={snapshotData} locale={locale} />
-          <SectorAllocationChart sectors={sectors} locale={locale} sar={sar} />
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <PortfolioHealth data={healthData} locale={locale} />
+          {/* Right: Quick stats grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, minWidth: 220 }}>
+            {[
+              { icon: <Briefcase size={12} />, label: isAr ? "المقتنيات" : "Holdings", value: `${holdings.length}`, color: "var(--c-gold)" },
+              { icon: <ShieldCheck size={12} />, label: isAr ? "الصحة" : "Health", value: isAr ? healthLabel.ar : healthLabel.en, color: healthColor },
+              { icon: <Coins size={12} />, label: isAr ? "عائد التوزيعات" : "Div. Yield", value: `${weightedDivYield.toFixed(1)}%`, color: weightedDivYield > 3 ? "var(--c-green)" : "var(--c-gold)" },
+              { icon: <Target size={12} />, label: isAr ? "تقييم SUQAI" : "SUQAI Score", value: weightedScore > 0 ? `${Math.round(weightedScore)}` : "—", color: weightedScore >= 60 ? "var(--c-green)" : weightedScore >= 40 ? "var(--c-gold)" : "var(--c-muted)" },
+            ].map((s, i) => (
+              <div key={i} style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid var(--c-border)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+                  <span style={{ color: s.color }}>{s.icon}</span>
+                  <span style={{ fontSize: 9, color: "var(--c-dim)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{s.label}</span>
+                </div>
+                <p style={{ fontSize: 16, fontWeight: 700, color: s.color, margin: 0, fontFamily: "var(--font-grotesk)" }}>{s.value}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Performance Chart */}
-      <div style={{ marginBottom: 24 }}>
+      {/* ════════════════════════════════════════════════
+          ATTENTION ITEMS (inline)
+         ════════════════════════════════════════════════ */}
+      {attentionItems.length > 0 && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+          {attentionItems.slice(0, 3).map((item, i) => (
+            <Link key={i} href={item.href} style={{ flex: "1 1 200px", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, background: "var(--c-surface)", border: "1px solid var(--c-border)", textDecoration: "none", transition: "border-color 0.2s" }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: item.color, flexShrink: 0 }} />
+              <span style={{ fontSize: 11, color: "var(--c-text)", flex: 1, lineHeight: 1.4 }}>
+                {isAr ? item.line.ar : item.line.en}
+              </span>
+              <ArrowUpRight size={12} style={{ color: "var(--c-dim)" }} />
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════
+          PORTFOLIO HEALTH + SECTOR MIX (side by side)
+         ════════════════════════════════════════════════ */}
+      <div className="portfolio-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 20 }}>
+        {/* Health Dimensions */}
+        <div className="card" style={{ padding: "20px 22px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+            <ShieldCheck size={14} style={{ color: healthColor }} />
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)", fontFamily: "var(--font-grotesk)", margin: 0 }}>
+              {isAr ? "صحة المحفظة" : "Portfolio Health"}
+            </h3>
+            <span style={{ marginInlineStart: "auto", fontSize: 10, fontWeight: 700, color: healthColor, padding: "2px 8px", borderRadius: 6, background: `${healthColor}15` }}>
+              {isAr ? healthLabel.ar : healthLabel.en}
+            </span>
+          </div>
+          {dimensions.map((dim) => (
+            <div key={dim.key} style={{ marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                <span style={{ fontSize: 10, color: "var(--c-muted)" }}>{isAr ? dim.label.ar : dim.label.en}</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: signalColor(dim.signal) }}>{Math.round(dim.score)}</span>
+              </div>
+              <div style={{ height: 6, borderRadius: 3, background: "var(--c-border)", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${Math.min(dim.score, 100)}%`, borderRadius: 3, background: `linear-gradient(90deg, ${signalColor(dim.signal)}80, ${signalColor(dim.signal)})`, transition: "width 0.5s ease" }} />
+              </div>
+            </div>
+          ))}
+          {/* Strengths & watchouts */}
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--c-border)" }}>
+            {strengths.slice(0, 2).map((s, i) => (
+              <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start", marginBottom: 6 }}>
+                <span style={{ color: "var(--c-green)", fontSize: 10, marginTop: 1 }}>+</span>
+                <span style={{ fontSize: 10, color: "var(--c-muted)", lineHeight: 1.4 }}>{isAr ? s.ar : s.en}</span>
+              </div>
+            ))}
+            {watchouts.slice(0, 2).map((w, i) => (
+              <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start", marginBottom: 6 }}>
+                <AlertTriangle size={10} style={{ color: "var(--c-gold)", marginTop: 1, flexShrink: 0 }} />
+                <span style={{ fontSize: 10, color: "var(--c-muted)", lineHeight: 1.4 }}>{isAr ? w.ar : w.en}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Sector Mix + Summary */}
+        <div className="card" style={{ padding: "20px 22px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+            <PieChart size={14} style={{ color: "var(--c-gold)" }} />
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)", fontFamily: "var(--font-grotesk)", margin: 0 }}>
+              {isAr ? "التوزيع القطاعي" : "Sector Mix"}
+            </h3>
+          </div>
+          {/* Visual sector bars */}
+          <div style={{ display: "flex", height: 12, borderRadius: 6, overflow: "hidden", marginBottom: 14 }}>
+            {sectors.map((s, i) => (
+              <div key={i} style={{ width: `${s.weight}%`, background: getSectorColor(s.sector), minWidth: s.weight > 3 ? 4 : 1, transition: "width 0.3s" }} title={`${s.sector}: ${s.weight.toFixed(1)}%`} />
+            ))}
+          </div>
+          {sectors.slice(0, 5).map((s, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 2, background: getSectorColor(s.sector), flexShrink: 0 }} />
+              <span style={{ fontSize: 11, color: "var(--c-text)", flex: 1 }}>{isAr ? s.sectorAr : s.sector}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>{s.weight.toFixed(0)}%</span>
+              <span style={{ fontSize: 10, color: s.change >= 0 ? "var(--c-green)" : "var(--c-red)" }}>{s.change >= 0 ? "+" : ""}{s.change.toFixed(1)}%</span>
+            </div>
+          ))}
+          {/* Portfolio summary row */}
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--c-border)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div>
+              <span style={{ fontSize: 9, color: "var(--c-dim)", textTransform: "uppercase" }}>{isAr ? "المبلغ المستثمر" : "Invested"}</span>
+              <p style={{ fontSize: 14, fontWeight: 700, color: "var(--c-text)", margin: 0 }}>{fmtCurrency(totalCost, sar)}</p>
+            </div>
+            <div>
+              <span style={{ fontSize: 9, color: "var(--c-dim)", textTransform: "uppercase" }}>{isAr ? "التوزيعات السنوية" : "Annual Div."}</span>
+              <p style={{ fontSize: 14, fontWeight: 700, color: "var(--c-green)", margin: 0 }}>{fmtCurrency(annualDividendEst, sar)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════════════
+          PERFORMANCE CHART
+         ════════════════════════════════════════════════ */}
+      <div style={{ marginBottom: 20 }}>
         <PortfolioPerformanceChart data={performanceData} locale={locale} sar={sar} />
       </div>
 
-      {/* Holdings Table */}
-      <div style={{ marginBottom: 28 }}>
-        <HoldingsTable holdings={holdings} locale={locale} sar={sar} />
+      {/* ════════════════════════════════════════════════
+          HOLDINGS — Visual Wallet Cards
+         ════════════════════════════════════════════════ */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <Briefcase size={14} style={{ color: "var(--c-gold)" }} />
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)", fontFamily: "var(--font-grotesk)", margin: 0 }}>
+            {isAr ? "مقتنياتي" : "My Holdings"}
+          </h3>
+          <span style={{ fontSize: 10, color: "var(--c-dim)", marginInlineStart: 4 }}>{holdings.length} {isAr ? "أسهم" : "stocks"}</span>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+          {sortedHoldings.map((h) => {
+            const gainUp = h.gainPct >= 0;
+            const todayUp = h.todayChange >= 0;
+            const score = h.overallScore;
+            const sColor = getSectorColor(h.sector);
+
+            return (
+              <Link key={h.ticker} href={`/${locale}/stock/${h.ticker}`} style={{ textDecoration: "none" }}>
+                <div className="card" style={{ padding: "16px 18px", position: "relative", overflow: "hidden", transition: "border-color 0.2s, transform 0.15s", cursor: "pointer" }}>
+                  {/* Sector accent */}
+                  <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: sColor, borderRadius: "4px 0 0 4px" }} />
+
+                  {/* Header row: ticker + weight */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 15, fontWeight: 800, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>{h.ticker}</span>
+                        {score !== null && (
+                          <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: `${scoreColor(score)}18`, color: scoreColor(score) }}>
+                            {Math.round(score)}
+                          </span>
+                        )}
+                      </div>
+                      <p style={{ fontSize: 10, color: "var(--c-muted)", margin: 0, marginTop: 2 }}>{h.name}</p>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <span style={{ fontSize: 9, color: "var(--c-dim)", textTransform: "uppercase" }}>{h.weight.toFixed(0)}%</span>
+                      <div style={{ width: 36, height: 3, borderRadius: 2, background: "var(--c-border)", marginTop: 3 }}>
+                        <div style={{ height: "100%", width: `${Math.min(h.weight, 100)}%`, borderRadius: 2, background: sColor }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Price row */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
+                      {sar} {h.currentPrice.toFixed(2)}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: todayUp ? "var(--c-green)" : "var(--c-red)", display: "flex", alignItems: "center", gap: 2 }}>
+                      {todayUp ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
+                      {todayUp ? "+" : ""}{h.todayChange.toFixed(2)}%
+                    </span>
+                  </div>
+
+                  {/* Metrics grid */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, paddingTop: 8, borderTop: "1px solid var(--c-border)" }}>
+                    <div>
+                      <span style={{ fontSize: 8, color: "var(--c-dim)", textTransform: "uppercase" }}>{isAr ? "القيمة" : "Value"}</span>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: "var(--c-text)", margin: 0 }}>{fmtCurrency(h.totalValue, sar)}</p>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 8, color: "var(--c-dim)", textTransform: "uppercase" }}>{isAr ? "الربح" : "P&L"}</span>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: gainUp ? "var(--c-green)" : "var(--c-red)", margin: 0 }}>
+                        {gainUp ? "+" : ""}{h.gainPct.toFixed(1)}%
+                      </p>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 8, color: "var(--c-dim)", textTransform: "uppercase" }}>{isAr ? "الأسهم" : "Shares"}</span>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: "var(--c-text)", margin: 0 }}>{h.shares}</p>
+                    </div>
+                  </div>
+
+                  {/* Fair value badge */}
+                  {h.fairValueDiff !== null && (
+                    <div style={{ position: "absolute", top: 12, right: 12 }}>
+                      <span style={{
+                        fontSize: 8, fontWeight: 700, padding: "2px 6px", borderRadius: 4,
+                        color: h.fairValueDiff > 10 ? "var(--c-green)" : h.fairValueDiff < -10 ? "var(--c-red)" : "var(--c-gold)",
+                        background: h.fairValueDiff > 10 ? "rgba(34,197,94,0.12)" : h.fairValueDiff < -10 ? "rgba(248,113,113,0.12)" : "rgba(200,169,81,0.12)",
+                      }}>
+                        {h.fairValueDiff > 10 ? (isAr ? "مخفّض" : "UNDERVALUED") : h.fairValueDiff < -10 ? (isAr ? "مرتفع" : "OVERVALUED") : (isAr ? "عادل" : "FAIR")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Diversification Matrix */}
-      <div style={{ marginBottom: 28 }}>
-        <DiversificationMatrix
-          locale={locale}
-          holdings={holdings.map((h) => ({
-            ticker: h.ticker,
-            companyName: h.name,
-            sector: h.sector,
-            weight: h.weight,
-            value: h.totalValue,
-          }))}
-          totalValue={totalValue}
-        />
-      </div>
-
-      {/* CONTRACT ALERTS FOR HOLDINGS */}
-      {contractAlerts.length > 0 && (
-        <ContractAlerts alerts={contractAlerts} locale={locale} sar={sar} />
+      {/* ════════════════════════════════════════════════
+          WATCHLIST — Compact Cards
+         ════════════════════════════════════════════════ */}
+      {watchlistStocks.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <Eye size={14} style={{ color: "var(--c-gold)" }} />
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)", fontFamily: "var(--font-grotesk)", margin: 0 }}>
+              {isAr ? "قائمة المتابعة" : "Watchlist"}
+            </h3>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
+            {watchlistStocks.map((s) => {
+              const wUp = s.change >= 0;
+              return (
+                <Link key={s.ticker} href={`/${locale}/stock/${s.ticker}`} style={{ textDecoration: "none" }}>
+                  <div className="card" style={{ padding: "14px 16px", transition: "border-color 0.2s" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>{s.ticker}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: wUp ? "var(--c-green)" : "var(--c-red)" }}>
+                        {wUp ? "+" : ""}{s.change.toFixed(1)}%
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 9, color: "var(--c-muted)", margin: 0, marginBottom: 6 }}>{s.name}</p>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: "var(--c-text)" }}>{sar} {s.price.toFixed(2)}</span>
+                      {s.score !== null && (
+                        <span style={{ fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: `${scoreColor(s.score)}15`, color: scoreColor(s.score) }}>
+                          {Math.round(s.score)}
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ fontSize: 9, color: "var(--c-dim)", margin: 0, marginTop: 6, lineHeight: 1.3 }}>
+                      {isAr ? s.signalLine.ar : s.signalLine.en}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       )}
 
-      {/* 5. WATCHLIST BLOCK */}
-      <div style={{ marginBottom: 28 }}>
-        <WatchlistModule stocks={watchlistStocks} insights={wlInsights} locale={locale} sar={sar} />
-      </div>
+      {/* ════════════════════════════════════════════════
+          OPPORTUNITIES — Compact
+         ════════════════════════════════════════════════ */}
+      {opportunities.length > 0 && (
+        <div id="opportunities" style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <Zap size={14} style={{ color: "var(--c-gold)" }} />
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)", fontFamily: "var(--font-grotesk)", margin: 0 }}>
+              {isAr ? "فرص تناسب أسلوبك" : "Opportunities for You"}
+            </h3>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
+            {opportunities.map((o) => {
+              const tagColors: Record<string, { bg: string; text: string; label: { en: string; ar: string } }> = {
+                undervalued: { bg: "rgba(34,197,94,0.12)", text: "var(--c-green)", label: { en: "Value", ar: "قيمة" } },
+                dividend_leader: { bg: "rgba(200,169,81,0.12)", text: "var(--c-gold)", label: { en: "Income", ar: "دخل" } },
+                momentum: { bg: "rgba(96,165,250,0.12)", text: "#60a5fa", label: { en: "Growth", ar: "نمو" } },
+                high_quality: { bg: "rgba(167,139,250,0.12)", text: "#a78bfa", label: { en: "Quality", ar: "جودة" } },
+              };
+              const tc = tagColors[o.tag] || tagColors.high_quality;
+              return (
+                <Link key={o.ticker} href={`/${locale}/stock/${o.ticker}`} style={{ textDecoration: "none" }}>
+                  <div className="card" style={{ padding: "14px 16px", transition: "border-color 0.2s" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>{o.ticker}</span>
+                      <span style={{ fontSize: 8, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: tc.bg, color: tc.text }}>
+                        {isAr ? tc.label.ar : tc.label.en}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 10, color: "var(--c-muted)", margin: 0, marginBottom: 8 }}>{o.name}</p>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: "var(--c-text)" }}>{sar} {o.price.toFixed(2)}</span>
+                      <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 3, background: `${scoreColor(o.score)}15`, color: scoreColor(o.score) }}>
+                        Score {Math.round(o.score)}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 9, color: "var(--c-dim)", margin: 0, marginTop: 6, lineHeight: 1.3 }}>
+                      {isAr ? o.insight.ar : o.insight.en}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-      {/* 6. OPPORTUNITIES */}
-      <div id="opportunities">
-        <OpportunitiesModule opportunities={opportunities} locale={locale} sar={sar} />
-      </div>
-
-      {/* 7. SAVED SCREENS */}
-      <div style={{ marginBottom: 28 }}>
-        <SavedScreens screens={savedScreens} locale={locale} />
-      </div>
-
-      {/* 8. WEALTH CALCULATOR */}
+      {/* ════════════════════════════════════════════════
+          WEALTH CALCULATOR
+         ════════════════════════════════════════════════ */}
       <WealthCalculator locale={locale} sar={sar} portfolioValue={totalValue} />
-
-      {/* 9. CONTINUE RESEARCH */}
-      <ContinueResearch items={continueItems} locale={locale} />
 
       {/* Responsive */}
       <style>{`
-        @media (max-width: 900px) { .portfolio-block { grid-template-columns: 1fr !important; } }
+        @media (max-width: 900px) {
+          .portfolio-grid { grid-template-columns: 1fr !important; }
+        }
       `}</style>
 
       <hr className="gold-line my-8" />
