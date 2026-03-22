@@ -189,9 +189,12 @@ function calculateConsensus(
 } {
   const valuations: number[] = [];
 
+  // Cap sector P/E to avoid extreme valuations from niche sectors (e.g., utilities at 68x)
+  const rawSectorPE = sectorAvg?.median_pe ? Number(sectorAvg.median_pe) : (sectorAvg?.avg_pe ? Number(sectorAvg.avg_pe) : 16);
+  const sectorPE = Math.min(Math.max(rawSectorPE, 8), 30); // Clamp to 8–30x range
+
   // Method 1: P/E based valuation — use real sector median P/E from sector_averages table
-  if (peRatio && peRatio > 0) {
-    const sectorPE = sectorAvg?.median_pe ? Number(sectorAvg.median_pe) : (sectorAvg?.avg_pe ? Number(sectorAvg.avg_pe) : 16);
+  if (peRatio && peRatio > 0 && peRatio < 200) { // skip extreme P/E
     const impliedEPS = currentPrice / peRatio;
     // Low / Mid / High scenarios around sector P/E
     valuations.push(impliedEPS * (sectorPE * 0.85));  // conservative
@@ -199,12 +202,11 @@ function calculateConsensus(
     valuations.push(impliedEPS * (sectorPE * 1.15));   // optimistic
   }
 
-  // Method 2: Book Value based valuation (P/B multiple) — now using financials.book_value_per_share
+  // Method 2: Book Value based valuation (P/B multiple) — using financials.book_value_per_share
   if (bookValuePerShare && bookValuePerShare > 0) {
-    // Saudi market P/B typically 1.0–3.0 depending on ROE quality
-    const roePct = roe > 0 ? (roe > 1 ? roe : roe * 100) : 10; // handle both decimal and pct
-    // Higher ROE deserves higher P/B multiple
-    const basePB = roePct > 20 ? 2.2 : roePct > 15 ? 1.8 : roePct > 10 ? 1.5 : 1.2;
+    const roePct = roe > 0 ? (roe > 1 ? roe : roe * 100) : 10;
+    // Higher ROE deserves higher P/B multiple, capped conservatively
+    const basePB = roePct > 20 ? 2.0 : roePct > 15 ? 1.7 : roePct > 10 ? 1.4 : 1.1;
     valuations.push(bookValuePerShare * (basePB * 0.85));
     valuations.push(bookValuePerShare * basePB);
     valuations.push(bookValuePerShare * (basePB * 1.15));
@@ -212,15 +214,14 @@ function calculateConsensus(
 
   // Method 3: ROE-based residual income / Gordon Growth model
   if (roe && roe > 0 && bookValuePerShare && bookValuePerShare > 0) {
-    const roePct = roe > 1 ? roe / 100 : roe; // ensure decimal (0.14)
-    const requiredReturn = 0.09; // 9% cost of equity (Saudi risk-free ~5.5% + equity premium)
+    const roeDec = roe > 1 ? roe / 100 : roe; // ensure decimal (0.14)
+    const requiredReturn = 0.09; // 9% cost of equity
     const growthRates = [0.02, 0.04, 0.05];
     growthRates.forEach((growth) => {
-      if (requiredReturn > growth && roePct > growth) {
-        // Residual income model: BV + (ROE - r) * BV / (r - g)
-        const residualIncome = (roePct - requiredReturn) * bookValuePerShare;
+      if (requiredReturn > growth && roeDec > growth) {
+        const residualIncome = (roeDec - requiredReturn) * bookValuePerShare;
         const fairPrice = bookValuePerShare + residualIncome / (requiredReturn - growth);
-        if (!isNaN(fairPrice) && fairPrice > 0 && fairPrice < currentPrice * 5) {
+        if (!isNaN(fairPrice) && fairPrice > 0 && fairPrice < currentPrice * 3) {
           valuations.push(fairPrice);
         }
       }
@@ -231,7 +232,6 @@ function calculateConsensus(
   if (valuations.length === 0 && financials?.earnings_per_share) {
     const eps = Math.abs(Number(financials.earnings_per_share));
     if (eps > 0) {
-      const sectorPE = sectorAvg?.median_pe ? Number(sectorAvg.median_pe) : 16;
       valuations.push(eps * sectorPE * 0.85);
       valuations.push(eps * sectorPE);
       valuations.push(eps * sectorPE * 1.15);
@@ -243,11 +243,14 @@ function calculateConsensus(
     valuations.push(currentPrice * 0.9, currentPrice, currentPrice * 1.1);
   }
 
-  // Sort and compute low / mid / high
+  // Sort and compute low / mid / high — cap at ±100% of current price for sanity
   valuations.sort((a, b) => a - b);
-  const fairValueLow = valuations[0];
-  const fairValueMid = valuations[Math.floor(valuations.length / 2)];
-  const fairValueHigh = valuations[valuations.length - 1];
+  const rawLow = valuations[0];
+  const rawMid = valuations[Math.floor(valuations.length / 2)];
+  const rawHigh = valuations[valuations.length - 1];
+  const fairValueLow = Math.max(rawLow, currentPrice * 0.3);     // floor at -70%
+  const fairValueMid = Math.min(Math.max(rawMid, currentPrice * 0.4), currentPrice * 2.5); // cap ±
+  const fairValueHigh = Math.min(rawHigh, currentPrice * 3.0);    // cap at +200%
 
   // Determine rating based on current price vs fair value mid
   const priceToFV = currentPrice / fairValueMid;
