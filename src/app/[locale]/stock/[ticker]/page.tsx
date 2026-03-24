@@ -4,7 +4,7 @@ import { getCompanyQuote } from "@/lib/data-sources";
 import PriceChart from "@/components/PriceChart";
 import SuqaiScore from "@/components/SuqaiScore";
 import { calculateScores } from "@/lib/scores";
-import StockTabs from "@/components/StockTabs";
+import StockTabsClient from "@/components/StockTabsClient";
 import FinancialChart from "@/components/FinancialChart";
 import StockChat from "@/components/StockChat";
 import VerdictHeader from "@/components/VerdictHeader";
@@ -929,19 +929,16 @@ export default async function StockPage({
       </div>
 
       {/* ══════════════════════════════════════════════════════
-          TAB NAVIGATION
+          CLIENT-SIDE TABS (no page navigation, instant switch)
       ══════════════════════════════════════════════════════ */}
-      <StockTabs
+      <StockTabsClient
         locale={locale}
         ticker={upperTicker}
-        activeTab={activeTab}
+        initialTab={activeTab}
         newsCount={newsItems.length}
-      />
-
-      {/* ══════════════════════════════════════════════════════
-          TAB: OVERVIEW (with side-nav)
-      ══════════════════════════════════════════════════════ */}
-      {activeTab === "overview" && (
+      >
+      {{
+      overview: (
         <SectionFocusWrapper
           locale={locale}
           hasNews={newsItems.length > 0}
@@ -1645,12 +1642,8 @@ export default async function StockPage({
           )}
           </>}
         />
-      )}
-
-      {/* ══════════════════════════════════════════════════════
-          TAB: CHART
-      ══════════════════════════════════════════════════════ */}
-      {activeTab === "chart" && (
+      ),
+      chart: (
         <section className="mb-5">
           <div className="card" style={{ padding: "22px 24px" }}>
             <div className="flex items-center justify-between mb-4">
@@ -1771,12 +1764,8 @@ export default async function StockPage({
             </div>
           )}
         </section>
-      )}
-
-      {/* ══════════════════════════════════════════════════════
-          TAB: FINANCIALS
-      ══════════════════════════════════════════════════════ */}
-      {activeTab === "financials" && (
+      ),
+      financials: (
         <section className="mb-5">
           <div className="card" style={{ padding: "22px 24px" }}>
             <div className="flex items-center gap-2 mb-5">
@@ -1892,12 +1881,8 @@ export default async function StockPage({
             </div>
           )}
         </section>
-      )}
-
-      {/* ══════════════════════════════════════════════════════
-          TAB: DIVIDENDS
-      ══════════════════════════════════════════════════════ */}
-      {activeTab === "dividends" && (
+      ),
+      dividends: (
         <section className="mb-5">
           {allDivs.length > 0 ? (
             <>
@@ -1977,12 +1962,8 @@ export default async function StockPage({
             </div>
           )}
         </section>
-      )}
-
-      {/* ══════════════════════════════════════════════════════
-          TAB: NEWS
-      ══════════════════════════════════════════════════════ */}
-      {activeTab === "news" && (
+      ),
+      news: (
         <section className="mb-5">
           <div className="card" style={{ padding: "22px 24px" }}>
             <div className="flex items-center gap-2 mb-5">
@@ -2072,12 +2053,8 @@ export default async function StockPage({
             )}
           </div>
         </section>
-      )}
-
-      {/* ══════════════════════════════════════════════════════
-          TAB: INFO
-      ══════════════════════════════════════════════════════ */}
-      {activeTab === "info" && (
+      ),
+      info: (
         <section className="mb-5">
           <div className="card" style={{ padding: "22px 24px" }}>
             <div className="flex items-center gap-2 mb-5">
@@ -2139,12 +2116,8 @@ export default async function StockPage({
             )}
           </div>
         </section>
-      )}
-
-      {/* ══════════════════════════════════════════════════════
-          TAB: ANALYSIS
-      ══════════════════════════════════════════════════════ */}
-      {activeTab === "analysis" && (
+      ),
+      analysis: (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Verdict at top of analysis */}
           <VerdictHeader
@@ -2202,7 +2175,9 @@ export default async function StockPage({
             />
           </div>
         </div>
-      )}
+      ),
+      }}
+      </StockTabsClient>
 
       {/* Back + Disclaimer */}
       <div className="mb-4 mt-8">

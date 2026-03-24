@@ -56,15 +56,6 @@ export default function SectionFocusWrapper({
       setFocused(id);
       setPulseId(id);
       setTimeout(() => setPulseId(null), 600);
-      // Scroll to the focused section card AFTER React renders
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const el = document.getElementById("focused-section-card");
-          if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "start" });
-          }
-        });
-      });
     }
   }
 
