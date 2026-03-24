@@ -28,6 +28,7 @@ import { getMarketSummary } from "@/lib/sahm";
 import { t } from "@/lib/i18n";
 import { NavLink } from "@/components/NavLink";
 import { MobileNav } from "@/components/MobileNav";
+import { MobileBottomBar } from "@/components/MobileBottomBar";
 
 const ibmPlexArabic = IBM_Plex_Sans_Arabic({
   weight: ["400", "500", "600", "700"],
@@ -235,6 +236,9 @@ export default async function LocaleLayout({
 
         {/* ── Main ── */}
         <main style={{ paddingTop: 56, paddingBottom: 24 }}>{children}</main>
+
+        {/* ── Mobile bottom tab bar ── */}
+        <MobileBottomBar locale={locale} />
       </body>
     </html>
   );

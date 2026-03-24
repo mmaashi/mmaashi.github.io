@@ -125,7 +125,7 @@ export default async function AboutPage({
         <h2 className="font-bold text-center mb-5" style={{ fontSize: 18, color: "var(--c-text)" }}>
           {t(locale, "about.features")}
         </h2>
-        <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(260px, 100%), 1fr))" }}>
           {features.map(({ icon: Icon, title, desc, color, bg, ring }) => (
             <div key={title} className="card" style={{ padding: "22px" }}>
               <div
@@ -150,7 +150,7 @@ export default async function AboutPage({
         <h2 className="font-bold text-center mb-5" style={{ fontSize: 18, color: "var(--c-text)" }}>
           {t(locale, "about.coming_soon")}
         </h2>
-        <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))" }}>
           {comingSoon.map(({ icon: Icon, label }) => (
             <div
               key={label}

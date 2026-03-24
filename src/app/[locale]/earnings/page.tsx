@@ -212,7 +212,7 @@ export default async function EarningsPage({
             padding: 24,
             marginBottom: 32,
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(140px, 100%), 1fr))",
             gap: 32,
           }}
         >
@@ -319,7 +319,7 @@ export default async function EarningsPage({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(min(380px, 100%), 1fr))",
             gap: 16,
           }}
         >

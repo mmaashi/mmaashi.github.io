@@ -296,7 +296,7 @@ export default async function ESGPage(props: { params: Promise<{ locale: string 
             borderColor: 'var(--c-green)',
           }}
         >
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: '1.5rem' }}>
             {/* Overall ESG */}
             <div>
               <div style={{ fontSize: '0.875rem', color: 'var(--c-muted)', marginBottom: '0.5rem' }}>
@@ -361,7 +361,7 @@ export default async function ESGPage(props: { params: Promise<{ locale: string 
         </div>
 
         {/* Summary Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
           {/* Best Sector */}
           <div
             style={{
@@ -532,7 +532,7 @@ export default async function ESGPage(props: { params: Promise<{ locale: string 
           </div>
 
           {vision2030Leaders.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px, 100%), 1fr))', gap: '1rem' }}>
               {vision2030Leaders.map((company) => (
                 <div
                   key={company.company_id}
@@ -590,7 +590,7 @@ export default async function ESGPage(props: { params: Promise<{ locale: string 
           <h3 style={{ fontFamily: 'var(--font-grotesk)', fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}>
             {isAr ? 'المنهجية' : 'Methodology'}
           </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', fontSize: '0.875rem', color: 'var(--c-muted)', lineHeight: 1.6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: '1rem', fontSize: '0.875rem', color: 'var(--c-muted)', lineHeight: 1.6 }}>
             <div>
               <div style={{ fontWeight: 600, color: 'var(--c-text)', marginBottom: '0.5rem' }}>
                 {isAr ? 'البيئي (25%)' : 'Environmental (25%)'}

@@ -299,7 +299,7 @@ export default async function PortfolioPage({
       )}
 
       {/* ── Quick links ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 10, marginBottom: 20 }}>
         <Link href={`/${locale}/dividend-forecast`} style={{
           display: "flex", alignItems: "center", gap: 10,
           padding: "14px 16px", borderRadius: 12,

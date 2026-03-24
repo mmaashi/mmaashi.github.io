@@ -290,7 +290,7 @@ export default async function DividendForecastPage({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))",
           gap: 12,
           marginBottom: 32,
         }}
@@ -547,7 +547,7 @@ export default async function DividendForecastPage({
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(min(100px, 100%), 1fr))",
                     gap: 8,
                   }}
                 >

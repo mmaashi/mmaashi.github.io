@@ -452,7 +452,7 @@ const ScreenerTableComponent = forwardRef<ScreenerTableHandle, {
       <div className="card mb-4" style={{ padding: "14px 16px" }}>
         <div className="flex flex-wrap gap-3 items-center">
           {/* Search */}
-          <div className="relative flex-1" style={{ minWidth: 200 }}>
+          <div className="relative flex-1" style={{ minWidth: 0 }}>
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2"
                     style={{ color: "var(--c-muted)" }} />
             <input
@@ -469,7 +469,7 @@ const ScreenerTableComponent = forwardRef<ScreenerTableHandle, {
             <Filter size={12} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--c-muted)", pointerEvents: "none" }} />
             <select
               className="input-field"
-              style={{ paddingLeft: 28, paddingRight: 28, minWidth: 160, cursor: "pointer",
+              style={{ paddingLeft: 28, paddingRight: 28, minWidth: 0, width: "100%", cursor: "pointer",
                        appearance: "none", WebkitAppearance: "none" }}
               value={sector}
               onChange={(e) => setSector(e.target.value)}
@@ -580,7 +580,7 @@ const ScreenerTableComponent = forwardRef<ScreenerTableHandle, {
         </div>
       ) : viewMode === "cards" ? (
         /* ── Card Grid View ── */
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+        <div className="screener-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(280px, 100%), 1fr))", gap: 12 }}>
           {filtered.map((c) => {
             const isUp = (c.change_pct ?? 0) >= 0;
             const name = displayName(locale, c.name_en, c.name_ar);

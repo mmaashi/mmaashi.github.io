@@ -356,7 +356,7 @@ export default async function SentimentPage({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(450px, 100%), 1fr))',
             gap: '2rem',
             marginBottom: '3rem',
           }}
@@ -574,7 +574,7 @@ export default async function SentimentPage({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(250px, 100%), 1fr))',
               gap: '2rem',
             }}
           >

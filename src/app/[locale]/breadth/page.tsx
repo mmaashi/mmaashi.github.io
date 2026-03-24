@@ -340,7 +340,7 @@ export default async function BreadthPage({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(320px, 100%), 1fr))",
           gap: "1.5rem",
           marginBottom: "2rem",
         }}
@@ -442,7 +442,7 @@ export default async function BreadthPage({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
+              gridTemplateColumns: "repeat(auto-fit, minmax(min(140px, 100%), 1fr))",
               gap: "1rem",
             }}
           >
@@ -634,7 +634,7 @@ export default async function BreadthPage({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: "1rem" }}>
             <div
               style={{
                 background: "var(--c-elevated)",
@@ -790,7 +790,7 @@ export default async function BreadthPage({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: "1rem" }}>
             <div
               style={{
                 background: "var(--c-elevated)",
@@ -857,7 +857,7 @@ export default async function BreadthPage({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))",
           gap: "1.5rem",
           marginBottom: "2rem",
         }}
