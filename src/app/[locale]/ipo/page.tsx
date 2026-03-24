@@ -2,10 +2,10 @@ import { createServiceClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
 // Empty State
-function EmptyState() {
+function EmptyState({ isAr }: { isAr: boolean }) {
   return (
     <div className="text-center py-12">
-      <p className="text-gray-400">No upcoming IPOs</p>
+      <p className="text-gray-400">{isAr ? "لا توجد اكتتابات قادمة" : "No upcoming IPOs"}</p>
     </div>
   );
 }
@@ -16,6 +16,7 @@ export default async function IPOpage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+  const isAr = locale === "ar";
 
   const supabase = createServiceClient();
   
@@ -25,7 +26,7 @@ export default async function IPOpage({
     .select("*")
     .order("offering_date", { ascending: false });
 
-  const title = locale === "ar" ? "الاكتتابات" : "IPO Tracker";
+  const title = isAr ? "الاكتتابات" : "IPO Tracker";
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
@@ -33,23 +34,23 @@ export default async function IPOpage({
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">{title}</h1>
         <p className="text-gray-400 text-sm mt-1">
-          {locale === "ar" ? "اكتتابات شركة السوق المالية" : "Tadawul IPO offerings"}
+          {isAr ? "اكتتابات شركة السوق المالية" : "Tadawul IPO offerings"}
         </p>
       </div>
 
       {/* IPOs Table */}
       {!ipos || ipos.length === 0 ? (
-        <EmptyState />
+        <EmptyState isAr={isAr} />
       ) : (
         <div className="bg-[#111827] rounded-lg overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-800/50">
               <tr>
-                <th className="text-left text-xs text-gray-400 font-medium p-3">Company</th>
-                <th className="text-left text-xs text-gray-400 font-medium p-3">Sector</th>
-                <th className="text-right text-xs text-gray-400 font-medium p-3">Expected Date</th>
-                <th className="text-center text-xs text-gray-400 font-medium p-3">Status</th>
-                <th className="text-right text-xs text-gray-400 font-medium p-3">Price Range</th>
+                <th className="text-left text-xs text-gray-400 font-medium p-3">{isAr ? "الشركة" : "Company"}</th>
+                <th className="text-left text-xs text-gray-400 font-medium p-3">{isAr ? "القطاع" : "Sector"}</th>
+                <th className="text-right text-xs text-gray-400 font-medium p-3">{isAr ? "التاريخ المتوقع" : "Expected Date"}</th>
+                <th className="text-center text-xs text-gray-400 font-medium p-3">{isAr ? "الحالة" : "Status"}</th>
+                <th className="text-right text-xs text-gray-400 font-medium p-3">{isAr ? "نطاق السعر" : "Price Range"}</th>
               </tr>
             </thead>
             <tbody>
@@ -88,7 +89,7 @@ export default async function IPOpage({
       {/* Disclaimer */}
       <div className="mt-8 p-4 bg-gray-800/50 rounded-lg">
         <p className="text-xs text-gray-500 text-center">
-          SŪQAI provides translated market data for informational purposes only. This is not investment advice.
+          {isAr ? "تقدم SŪQAI بيانات السوق المترجمة لأغراض إعلامية فقط. لا تُعدّ نصيحة استثمارية." : "SŪQAI provides translated market data for informational purposes only. This is not investment advice."}
         </p>
       </div>
     </div>
