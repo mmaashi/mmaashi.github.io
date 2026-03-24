@@ -99,6 +99,7 @@ export default async function LocaleLayout({
     ]},
     { title: isRTL ? "المالية" : "FINANCIALS", items: [
       { href: `/${locale}/dividends`, label: isRTL ? "التوزيعات" : "Dividends", iconName: "DollarSign" },
+      { href: `/${locale}/dividend-forecast`, label: isRTL ? "توقّعات التوزيعات" : "Dividend Forecast", iconName: "TrendingUp" },
       { href: `/${locale}/earnings`, label: isRTL ? "الأرباح" : "Earnings", iconName: "LineChart" },
       { href: `/${locale}/insiders`, label: isRTL ? "المطلعين" : "Insiders", iconName: "Users" },
     ]},
