@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { decodeHtml } from "@/lib/decode-html";
 import { getCompanyQuote } from "@/lib/data-sources";
 import PriceChart from "@/components/PriceChart";
 import SuqaiScore from "@/components/SuqaiScore";
@@ -1605,7 +1606,7 @@ export default async function StockPage({
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {newsItems.slice(0, 3).map((item) => {
-                  const title = isAr && item.title_ar ? item.title_ar : item.title_en;
+                  const title = decodeHtml(isAr && item.title_ar ? item.title_ar : item.title_en);
                   const pubDate = item.published_at
                     ? new Date(item.published_at).toLocaleDateString(isAr ? "ar-SA" : "en-US", { month: "short", day: "numeric", year: "numeric" })
                     : "";
@@ -1999,7 +2000,7 @@ export default async function StockPage({
             {newsItems.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {newsItems.map((item) => {
-                  const title = isAr && item.title_ar ? item.title_ar : item.title_en;
+                  const title = decodeHtml(isAr && item.title_ar ? item.title_ar : item.title_en);
                   const pubDate = item.published_at
                     ? new Date(item.published_at).toLocaleDateString(isAr ? "ar-SA" : "en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })
                     : "";
