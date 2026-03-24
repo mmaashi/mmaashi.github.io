@@ -39,7 +39,7 @@ const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-grote
 
 export const metadata: Metadata = {
   title: "SŪQAI | Saudi Market Intelligence",
-  description: "Multilingual AI platform for Saudi stock market intelligence",
+  description: "Bilingual platform for Saudi stock market analysis and intelligence",
 };
 
 const locales = ["en", "ar"];
@@ -101,12 +101,10 @@ export default async function LocaleLayout({
       { href: `/${locale}/dividends`, label: isRTL ? "التوزيعات" : "Dividends", iconName: "DollarSign" },
       { href: `/${locale}/earnings`, label: isRTL ? "الأرباح" : "Earnings", iconName: "LineChart" },
       { href: `/${locale}/insiders`, label: isRTL ? "المطلعين" : "Insiders", iconName: "Users" },
-      { href: `/${locale}/consensus`, label: isRTL ? "إجماع المحللين" : "Consensus", iconName: "Target" },
     ]},
     { title: isRTL ? "الرؤى" : "INSIGHTS", items: [
       { href: `/${locale}/shariah`, label: isRTL ? "الشريعة والزكاة" : "Shariah & Zakat", iconName: "Scale" },
-      { href: `/${locale}/smart-money`, label: isRTL ? "الأموال الذكية" : "Smart Money", iconName: "Eye" },
-      { href: `/${locale}/esg`, label: isRTL ? "ESG ورؤية 2030" : "ESG & Vision 2030", iconName: "Leaf" },
+      { href: `/${locale}/consensus`, label: isRTL ? "إجماع المحللين" : "Consensus", iconName: "Target" },
     ]},
     { title: isRTL ? "الأخبار" : "NEWS", items: [
       { href: `/${locale}/news`, label: t(locale, "news"), iconName: "Newspaper" },

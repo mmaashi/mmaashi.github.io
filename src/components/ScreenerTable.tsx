@@ -2,7 +2,7 @@
 
 import { useState, useMemo, forwardRef, useImperativeHandle } from "react";
 import { useRouter } from "next/navigation";
-import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Gauge, Sparkles, TrendingUp, DollarSign, Shield, Zap, BarChart3, Crown, Target } from "lucide-react";
+import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Gauge, Sparkles, TrendingUp, DollarSign, Shield, Zap, BarChart3, Crown, Target, LayoutGrid, List } from "lucide-react";
 import { t, tSector, tTier } from "@/lib/i18n";
 import { displayName } from "@/lib/display-names";
 import MiniSnowflake from "@/components/stock/MiniSnowflake";
@@ -227,6 +227,16 @@ function calculatePillarScores(company: Company): {
   };
 }
 
+/* Compact metric display for card view */
+function MetricPill({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div style={{ textAlign: "center", padding: "6px 2px", borderRadius: 8, background: "var(--c-elevated)" }}>
+      <div style={{ fontSize: 9, color: "var(--c-dim)", fontWeight: 600, textTransform: "uppercase", marginBottom: 2 }}>{label}</div>
+      <div className="font-num" style={{ fontSize: 12, fontWeight: 700, color }}>{value}</div>
+    </div>
+  );
+}
+
 export interface ScreenerTableHandle {
   applyTemplate: (filters: Record<string, any>) => void;
 }
@@ -249,6 +259,7 @@ const ScreenerTableComponent = forwardRef<ScreenerTableHandle, {
   const [shariah, setShariah] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "cards">("cards");
 
   // Advanced filters
   const [minScore, setMinScore] = useState<string>("");
@@ -501,10 +512,20 @@ const ScreenerTableComponent = forwardRef<ScreenerTableHandle, {
             )}
           </button>
 
-          {/* Count */}
-          <span style={{ fontSize: 12, color: "var(--c-muted)", marginLeft: "auto" }}>
-            {filtered.length} {t(locale, "screener.of")} {companies.length} {t(locale, "screener.companies")}
-          </span>
+          {/* Count + View Toggle */}
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 12, color: "var(--c-muted)" }}>
+              {filtered.length} {t(locale, "screener.of")} {companies.length} {t(locale, "screener.companies")}
+            </span>
+            <div style={{ display: "flex", borderRadius: 8, overflow: "hidden", border: "1px solid var(--c-border-md)" }}>
+              <button onClick={() => setViewMode("cards")} style={{ padding: "5px 8px", background: viewMode === "cards" ? "var(--c-gold-dim)" : "var(--c-elevated)", border: "none", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                <LayoutGrid size={13} style={{ color: viewMode === "cards" ? "var(--c-gold)" : "var(--c-dim)" }} />
+              </button>
+              <button onClick={() => setViewMode("table")} style={{ padding: "5px 8px", background: viewMode === "table" ? "var(--c-gold-dim)" : "var(--c-elevated)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", borderLeft: "1px solid var(--c-border)" }}>
+                <List size={13} style={{ color: viewMode === "table" ? "var(--c-gold)" : "var(--c-dim)" }} />
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Advanced filter row */}
@@ -552,13 +573,117 @@ const ScreenerTableComponent = forwardRef<ScreenerTableHandle, {
         )}
       </div>
 
-      {/* Table */}
-      <div className="card overflow-hidden">
-        {filtered.length === 0 ? (
-          <div style={{ padding: "48px 0", textAlign: "center" }}>
-            <p style={{ color: "var(--c-muted)", fontSize: 14 }}>{t(locale, "screener.no_results")}</p>
-          </div>
-        ) : (
+      {/* Content — Cards or Table */}
+      {filtered.length === 0 ? (
+        <div className="card" style={{ padding: "48px 0", textAlign: "center" }}>
+          <p style={{ color: "var(--c-muted)", fontSize: 14 }}>{t(locale, "screener.no_results")}</p>
+        </div>
+      ) : viewMode === "cards" ? (
+        /* ── Card Grid View ── */
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+          {filtered.map((c) => {
+            const isUp = (c.change_pct ?? 0) >= 0;
+            const name = displayName(locale, c.name_en, c.name_ar);
+            const scoreColor = tierColor(c.score_tier);
+            const scorePct = c.suqai_score !== null ? c.suqai_score : 0;
+            const fmtCap = c.market_cap !== null
+              ? c.market_cap >= 1e12 ? `${(c.market_cap / 1e12).toFixed(1)}T`
+              : c.market_cap >= 1e9 ? `${(c.market_cap / 1e9).toFixed(1)}B`
+              : c.market_cap >= 1e6 ? `${(c.market_cap / 1e6).toFixed(0)}M`
+              : "—" : "—";
+
+            return (
+              <div
+                key={c.ticker}
+                onClick={() => router.push(`/${locale}/stock/${c.ticker}`)}
+                className="cursor-pointer"
+                style={{
+                  padding: "16px 18px",
+                  borderRadius: 14,
+                  background: "var(--c-surface)",
+                  border: "1px solid var(--c-border)",
+                  transition: "border-color 0.15s, box-shadow 0.15s",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = scoreColor + "55"; e.currentTarget.style.boxShadow = `0 4px 20px ${scoreColor}15`; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--c-border)"; e.currentTarget.style.boxShadow = "none"; }}
+              >
+                {/* Top: ticker + name + score ring */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "var(--c-gold)", fontFamily: "var(--font-grotesk)" }}>{c.ticker}</span>
+                      {c.is_shariah_compliant && <span style={{ fontSize: 10 }}>☽</span>}
+                      <span className="badge badge-neutral" style={{ fontSize: 9, padding: "1px 6px" }}>{tSector(locale, c.sector)}</span>
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--c-text)", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</div>
+                  </div>
+                  {/* Score Ring */}
+                  {c.suqai_score !== null ? (
+                    <div style={{ position: "relative", width: 52, height: 52, flexShrink: 0 }}>
+                      <svg width="52" height="52" viewBox="0 0 52 52">
+                        <circle cx="26" cy="26" r="22" fill="none" stroke="var(--c-border)" strokeWidth="4" />
+                        <circle cx="26" cy="26" r="22" fill="none" stroke={scoreColor} strokeWidth="4"
+                                strokeDasharray={`${(scorePct / 100) * 138.2} 138.2`}
+                                strokeLinecap="round" transform="rotate(-90 26 26)"
+                                style={{ transition: "stroke-dasharray 0.3s" }} />
+                      </svg>
+                      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                        <span className="font-num" style={{ fontSize: 15, fontWeight: 800, color: scoreColor, lineHeight: 1 }}>{c.suqai_score.toFixed(0)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ width: 52, height: 52, borderRadius: "50%", border: "2px solid var(--c-border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ fontSize: 11, color: "var(--c-dim)" }}>—</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Price row */}
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
+                  <span className="font-num" style={{ fontSize: 20, fontWeight: 700, color: "var(--c-text)" }}>
+                    {c.price !== null ? c.price.toFixed(2) : "—"}
+                  </span>
+                  <span style={{ fontSize: 11, color: "var(--c-dim)" }}>SAR</span>
+                  {c.change_pct !== null && (
+                    <span className="font-num" style={{ fontSize: 12, fontWeight: 700, color: isUp ? "var(--c-green)" : "var(--c-red)" }}>
+                      {isUp ? "▲" : "▼"} {Math.abs(c.change_pct).toFixed(2)}%
+                    </span>
+                  )}
+                </div>
+
+                {/* Tier badge */}
+                {c.score_tier && (
+                  <div style={{ marginBottom: 10 }}>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 6,
+                      background: tierBg(c.score_tier), color: scoreColor,
+                    }}>
+                      {tTier(locale, c.score_tier)}
+                    </span>
+                  </div>
+                )}
+
+                {/* Key metrics row */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 4 }}>
+                  <MetricPill label="P/E" value={c.pe_ratio !== null ? (c.pe_ratio < 0 ? "N/A" : c.pe_ratio.toFixed(1)) : "—"}
+                              color={c.pe_ratio !== null && c.pe_ratio >= 0 ? (c.pe_ratio < 15 ? "var(--c-green)" : c.pe_ratio < 25 ? "var(--c-text)" : "var(--c-red)") : "var(--c-dim)"} />
+                  <MetricPill label={isAr ? "العائد" : "DIV"}
+                              value={c.dividend_yield !== null ? `${(c.dividend_yield * 100).toFixed(1)}%` : "—"}
+                              color={c.dividend_yield !== null && c.dividend_yield > 0 ? "var(--c-green)" : "var(--c-dim)"} />
+                  <MetricPill label="ROE"
+                              value={c.roe !== null ? `${(c.roe * 100).toFixed(0)}%` : "—"}
+                              color={c.roe !== null ? (c.roe > 0.15 ? "var(--c-green)" : c.roe > 0 ? "var(--c-text)" : "var(--c-red)") : "var(--c-dim)"} />
+                  <MetricPill label={isAr ? "القيمة" : "CAP"} value={fmtCap} color="var(--c-text-sm)" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* ── Table View ── */
+        <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="data-table">
               <thead>
@@ -593,97 +718,62 @@ const ScreenerTableComponent = forwardRef<ScreenerTableHandle, {
                       onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-hover)")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "")}
                     >
-                      {/* Ticker */}
                       <td style={{ padding: "10px 14px" }}>
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                                style={{ background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}>
-                            <span style={{ fontSize: 10, fontWeight: 800, color: "var(--c-gold)" }}>
-                              {c.ticker.slice(0, 4)}
-                            </span>
+                            <span style={{ fontSize: 10, fontWeight: 800, color: "var(--c-gold)" }}>{c.ticker.slice(0, 4)}</span>
                           </div>
                           <span className="ticker-tag">{c.ticker}</span>
                         </div>
                       </td>
-                      {/* Name */}
                       <td style={{ padding: "10px 14px" }}>
                         <div className="flex items-center gap-2">
                           <span style={{ color: "var(--c-text)", fontSize: 13 }}>{name}</span>
-                          {c.is_shariah_compliant && (
-                            <span className="badge badge-gold" style={{ padding: "1px 6px", fontSize: 9 }}>☽</span>
-                          )}
+                          {c.is_shariah_compliant && <span className="badge badge-gold" style={{ padding: "1px 6px", fontSize: 9 }}>☽</span>}
                         </div>
                       </td>
-                      {/* SŪQAI Score */}
                       <td style={{ textAlign: "right", padding: "10px 14px" }}>
                         {c.suqai_score !== null ? (
                           <div className="flex items-center justify-end gap-2">
                             <MiniSnowflake scores={calculatePillarScores(c)} size={40} />
                             <div>
-                              <span className="font-num font-bold" style={{ fontSize: 14, color: tierColor(c.score_tier) }}>
-                                {c.suqai_score.toFixed(0)}
-                              </span>
-                              {c.score_tier && (
-                                <span style={{
-                                  fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
-                                  background: tierBg(c.score_tier), color: tierColor(c.score_tier),
-                                  whiteSpace: "nowrap",
-                                  display: "block",
-                                  marginTop: "2px",
-                                }}>
-                                  {tTier(locale, c.score_tier)}
-                                </span>
-                              )}
+                              <span className="font-num font-bold" style={{ fontSize: 14, color: tierColor(c.score_tier) }}>{c.suqai_score.toFixed(0)}</span>
+                              {c.score_tier && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: tierBg(c.score_tier), color: tierColor(c.score_tier), whiteSpace: "nowrap", display: "block", marginTop: "2px" }}>{tTier(locale, c.score_tier)}</span>}
                             </div>
                           </div>
                         ) : <span style={{ color: "var(--c-dim)", fontSize: 12 }}>—</span>}
                       </td>
-                      {/* Price */}
                       <td style={{ textAlign: "right", padding: "10px 14px" }}>
-                        {c.price !== null ? (
-                          <span className="font-num font-semibold" style={{ color: "var(--c-text)" }}>
-                            {c.price.toFixed(2)}
-                          </span>
-                        ) : <span style={{ color: "var(--c-dim)" }}>—</span>}
+                        {c.price !== null ? <span className="font-num font-semibold" style={{ color: "var(--c-text)" }}>{c.price.toFixed(2)}</span> : <span style={{ color: "var(--c-dim)" }}>—</span>}
                       </td>
-                      {/* Change */}
                       <td style={{ textAlign: "right", padding: "10px 14px" }}>
-                        {c.change_pct !== null ? (
-                          <span className={`badge font-num ${isUp ? "badge-up" : "badge-down"}`}>
-                            {isUp ? "+" : ""}{c.change_pct.toFixed(2)}%
-                          </span>
-                        ) : <span style={{ color: "var(--c-dim)" }}>—</span>}
+                        {c.change_pct !== null ? <span className={`badge font-num ${isUp ? "badge-up" : "badge-down"}`}>{isUp ? "+" : ""}{c.change_pct.toFixed(2)}%</span> : <span style={{ color: "var(--c-dim)" }}>—</span>}
                       </td>
-                      {/* P/E */}
                       <td style={{ textAlign: "right", padding: "10px 14px" }}>
                         <span className="font-num" style={{ fontSize: 12, color: c.pe_ratio !== null ? (c.pe_ratio < 0 ? "var(--c-dim)" : c.pe_ratio < 15 ? "var(--c-green)" : c.pe_ratio < 25 ? "var(--c-text)" : "var(--c-red)") : "var(--c-dim)" }}>
                           {c.pe_ratio !== null ? (c.pe_ratio < 0 ? "N/A" : c.pe_ratio.toFixed(1)) : "—"}
                         </span>
                       </td>
-                      {/* Div Yield */}
                       <td style={{ textAlign: "right", padding: "10px 14px" }}>
                         <span className="font-num" style={{ fontSize: 12, color: c.dividend_yield !== null && c.dividend_yield > 0 ? "var(--c-green)" : "var(--c-dim)" }}>
                           {c.dividend_yield !== null ? `${(c.dividend_yield * 100).toFixed(1)}%` : "—"}
                         </span>
                       </td>
-                      {/* ROE */}
                       <td style={{ textAlign: "right", padding: "10px 14px" }}>
                         <span className="font-num" style={{ fontSize: 12, color: c.roe !== null ? (c.roe > 0.15 ? "var(--c-green)" : c.roe > 0 ? "var(--c-text)" : "var(--c-red)") : "var(--c-dim)" }}>
                           {c.roe !== null ? `${(c.roe * 100).toFixed(1)}%` : "—"}
                         </span>
                       </td>
-                      {/* Market Cap */}
                       <td style={{ textAlign: "right", padding: "10px 14px" }}>
                         <span className="font-num" style={{ fontSize: 12, color: "var(--c-text-sm)" }}>
                           {c.market_cap !== null
                             ? c.market_cap >= 1e12 ? `${(c.market_cap / 1e12).toFixed(1)}T`
                             : c.market_cap >= 1e9 ? `${(c.market_cap / 1e9).toFixed(1)}B`
                             : c.market_cap >= 1e6 ? `${(c.market_cap / 1e6).toFixed(0)}M`
-                            : "—"
-                            : "—"}
+                            : "—" : "—"}
                         </span>
                       </td>
-                      {/* Sector */}
                       <td style={{ padding: "10px 14px" }}>
                         <span className="badge badge-neutral" style={{ fontSize: 10 }}>{tSector(locale, c.sector)}</span>
                       </td>
@@ -693,8 +783,8 @@ const ScreenerTableComponent = forwardRef<ScreenerTableHandle, {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 });

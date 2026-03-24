@@ -630,7 +630,51 @@ function FeaturedAnalysis({ locale, stocks }: { locale: string; stocks: StockFun
 }
 
 // ════════════════════════════════════════════════════════════════
-// Section 6 — Market Snapshot
+// Screener CTA — drive users to the star page
+// ════════════════════════════════════════════════════════════════
+function ScreenerCTA({ locale }: { locale: string }) {
+  const isAr = locale === "ar";
+  return (
+    <section className="section-gap" style={{ padding: "0 16px" }}>
+      <Link
+        href={`/${locale}/screener`}
+        style={{
+          display: "block",
+          padding: "32px 28px",
+          borderRadius: 16,
+          background: "linear-gradient(135deg, rgba(200,169,81,0.10) 0%, rgba(6,13,24,0.98) 60%)",
+          border: "1px solid var(--c-gold-ring)",
+          textDecoration: "none",
+          textAlign: "center",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        {/* ambient glow */}
+        <div style={{ position: "absolute", top: -40, left: "50%", transform: "translateX(-50%)", width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(200,169,81,0.12), transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <SlidersHorizontal size={20} style={{ color: "var(--c-gold)" }} />
+            <span style={{ fontSize: 22, fontWeight: 800, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
+              {isAr ? "استكشف جميع الأسهم" : "Explore All Stocks"}
+            </span>
+          </div>
+          <p style={{ fontSize: 14, color: "var(--c-muted)", margin: 0, maxWidth: 420, marginInline: "auto" }}>
+            {isAr
+              ? "تصفية وفرز أكثر من ٢٦٠ سهم سعودي مع تقييمات SŪQAI والبيانات المالية"
+              : "Filter and sort 260+ Saudi stocks with SŪQAI Scores, financials, and key metrics"}
+          </p>
+          <div style={{ marginTop: 16, display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 20px", borderRadius: 10, background: "var(--c-gold)", color: "var(--c-base)", fontSize: 13, fontWeight: 700 }}>
+            {isAr ? "افتح الفلتر" : "Open Screener"} →
+          </div>
+        </div>
+      </Link>
+    </section>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// Section 6 — Market Snapshot (kept for reference, not rendered on homepage)
 // ════════════════════════════════════════════════════════════════
 async function MarketSnapshot({ locale }: { locale: string }) {
   try {
@@ -1477,47 +1521,16 @@ export default async function DashboardPage({
       {/* Search */}
       <SearchSection locale={locale} />
 
-      {/* Explore SŪQAI Tools */}
-      <ExploreSuqai locale={locale} />
-
-      {/* Market Snapshot — front and center */}
-      <Suspense fallback={<SkeletonCard height={220} />}>
-        <MarketSnapshot locale={locale} />
-      </Suspense>
-
-      {/* Sector Heat Map */}
-      <Suspense fallback={<SkeletonCard height={80} />}>
-        <SectorHeatMap locale={locale} />
-      </Suspense>
-
-      {/* Top Gainers / Top Losers */}
+      {/* Top Gainers / Top Losers — the most engaging section */}
       <Suspense fallback={<SkeletonCard height={320} />}>
         <MoversPanel locale={locale} />
       </Suspense>
 
-      {/* SŪQAI Intelligence Cards */}
-      <Suspense fallback={<SkeletonCard height={320} />}>
-        <IntelligenceCards locale={locale} />
-      </Suspense>
-
-      {/* Featured Stock Analysis */}
+      {/* Featured Stock Analysis — show SŪQAI Score in action */}
       <FeaturedAnalysis locale={locale} stocks={featuredStocks} />
 
-      {/* Contract & Business Wins */}
-      <Suspense fallback={null}>
-        <ContractWins locale={locale} />
-      </Suspense>
-
-      {/* Latest Market News */}
-      <Suspense fallback={<SkeletonCard height={280} />}>
-        <NewsPanel locale={locale} />
-      </Suspense>
-
-      {/* Explore Features */}
-      <FeaturesSection locale={locale} />
-
-      {/* Trust / Methodology */}
-      <TrustSection locale={locale} />
+      {/* Screener CTA — direct users to the star page */}
+      <ScreenerCTA locale={locale} />
 
       {/* Footer */}
       <FooterSection locale={locale} />
