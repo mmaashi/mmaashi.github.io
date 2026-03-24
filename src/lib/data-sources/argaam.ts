@@ -9,6 +9,8 @@
  *   - https://www.argaam.com/ar/feeds/articles-rss  (Arabic)
  */
 
+import { decodeHtml } from "@/lib/decode-html";
+
 export interface ArgaamArticle {
   title: string
   title_ar: string | null
@@ -222,15 +224,17 @@ export async function fetchArgaamNews(limit = 30): Promise<ArgaamArticle[]> {
   try {
     const items = await fetchRSSItems(ARGAAM_RSS_EN)
     for (const item of items.slice(0, limit)) {
+      const cleanTitle = decodeHtml(item.title)
+      const cleanDesc = decodeHtml(item.description.replace(/<[^>]+>/g, '')).slice(0, 500)
       articles.push({
-        title: item.title,
+        title: cleanTitle,
         title_ar: null,
-        description: item.description.replace(/<[^>]+>/g, '').slice(0, 500),
+        description: cleanDesc,
         url: item.link,
         publishedAt: new Date(item.pubDate).toISOString(),
         source: 'argaam',
-        category: categorizeArticle(item.title, item.description),
-        relatedTickers: extractTickers(`${item.title} ${item.description}`),
+        category: categorizeArticle(cleanTitle, cleanDesc),
+        relatedTickers: extractTickers(`${cleanTitle} ${cleanDesc}`),
       })
     }
   } catch (err) {
@@ -241,22 +245,24 @@ export async function fetchArgaamNews(limit = 30): Promise<ArgaamArticle[]> {
   try {
     const arItems = await fetchRSSItems(ARGAAM_RSS_AR)
     for (const item of arItems.slice(0, limit)) {
+      const cleanTitle = decodeHtml(item.title)
+      const cleanDesc = decodeHtml(item.description.replace(/<[^>]+>/g, '')).slice(0, 500)
       // Merge into existing English article if URL pattern matches
       const existingIdx = articles.findIndex(
         (a) => a.url.replace('/en/', '/ar/') === item.link || a.url.replace('/ar/', '/en/') === item.link
       )
       if (existingIdx >= 0) {
-        articles[existingIdx].title_ar = item.title
+        articles[existingIdx].title_ar = cleanTitle
       } else {
         articles.push({
-          title: item.title,
-          title_ar: item.title,
-          description: item.description.replace(/<[^>]+>/g, '').slice(0, 500),
+          title: cleanTitle,
+          title_ar: cleanTitle,
+          description: cleanDesc,
           url: item.link,
           publishedAt: new Date(item.pubDate).toISOString(),
           source: 'argaam',
-          category: categorizeArticle(item.title, item.description),
-          relatedTickers: extractTickers(`${item.title} ${item.description}`),
+          category: categorizeArticle(cleanTitle, cleanDesc),
+          relatedTickers: extractTickers(`${cleanTitle} ${cleanDesc}`),
         })
       }
     }

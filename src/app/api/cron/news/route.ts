@@ -2,11 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { fetchArgaamNews } from '@/lib/data-sources/argaam'
 import { fetchAllAnnouncements } from '@/lib/data-sources/cma'
+import { fetchMubasherNews } from '@/lib/data-sources/mubasher'
+import { decodeHtml } from '@/lib/decode-html'
 
 /**
  * Cron: Fetch and store news articles with company linking.
  *
- * Schedule: Every hour — vercel.json: "0 * * * *"
+ * Schedule: Every 4 hours — vercel.json: "0 */4 * * *"
+ *
+ * Sources:
+ *   1. Mubasher (Arabic + English) — Saudi market news & technical analysis
+ *   2. Argaam (Arabic + English) — Saudi financial news & filings
+ *   3. CMA + Tadawul — Regulatory announcements
  *
  * Requires UNIQUE(source_url) on the news table.
  * Run in Supabase SQL Editor if not already applied:
@@ -19,10 +26,8 @@ type NewsRow = {
   company_id: string | null
   title_en: string | null
   title_ar: string | null
-  title_zh: null
   body_en: string | null
-  body_ar: null
-  body_zh: null
+  body_ar: string | null
   source: string
   source_url: string
   sentiment_score: null
@@ -33,6 +38,7 @@ async function resolveCompanyId(
   supabase: ReturnType<typeof createServiceClient>,
   tickers: string[]
 ): Promise<string | null> {
+  if (tickers.length === 0) return null
   for (const ticker of tickers) {
     const { data } = await supabase
       .from('companies')
@@ -62,7 +68,7 @@ async function safeInsert(
     const { data: existing } = await supabase
       .from('news')
       .select('id')
-      .eq('source_url', row.source_url as string)
+      .eq('source_url', row.source_url)
       .limit(1)
 
     if (existing && existing.length > 0) return 'skipped'
@@ -86,12 +92,44 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now()
   const supabase = createServiceClient()
 
-  let newsInserted = 0
+  let mubasherInserted = 0
+  let argaamInserted = 0
   let announcementsInserted = 0
   let skipped = 0
   const errors: string[] = []
 
-  // ── 1. Argaam news ────────────────────────────────────────────
+  // ── 1. Mubasher news ──────────────────────────────────────────
+  let mubasherFetched = 0
+  try {
+    const mubasherArticles = await fetchMubasherNews(50)
+    mubasherFetched = mubasherArticles.length
+
+    for (const article of mubasherArticles) {
+      try {
+        const companyId = await resolveCompanyId(supabase, article.relatedTickers)
+        const row: NewsRow = {
+          company_id: companyId,
+          title_en: article.title,
+          title_ar: article.title_ar,
+          body_en: article.description || null,
+          body_ar: article.title_ar ? (article.description || null) : null,
+          source: 'mubasher',
+          source_url: article.url,
+          sentiment_score: null,
+          published_at: article.publishedAt,
+        }
+        const result = await safeInsert(supabase, row)
+        if (result === 'inserted') mubasherInserted++
+        else skipped++
+      } catch (err) {
+        errors.push(`Mubasher: ${err instanceof Error ? err.message : String(err)}`)
+      }
+    }
+  } catch (err) {
+    errors.push(`Mubasher fetch failed: ${err instanceof Error ? err.message : String(err)}`)
+  }
+
+  // ── 2. Argaam news ────────────────────────────────────────────
   let argaamFetched = 0
   try {
     const argaamArticles = await fetchArgaamNews(40)
@@ -104,17 +142,15 @@ export async function GET(request: NextRequest) {
           company_id: companyId,
           title_en: article.title,
           title_ar: article.title_ar,
-          title_zh: null,
-          body_en: article.description,
+          body_en: article.description || null,
           body_ar: null,
-          body_zh: null,
           source: 'argaam',
           source_url: article.url,
           sentiment_score: null,
           published_at: article.publishedAt,
         }
         const result = await safeInsert(supabase, row)
-        if (result === 'inserted') newsInserted++
+        if (result === 'inserted') argaamInserted++
         else skipped++
       } catch (err) {
         errors.push(`Argaam: ${err instanceof Error ? err.message : String(err)}`)
@@ -124,7 +160,7 @@ export async function GET(request: NextRequest) {
     errors.push(`Argaam fetch failed: ${err instanceof Error ? err.message : String(err)}`)
   }
 
-  // ── 2. CMA + Tadawul announcements ───────────────────────────
+  // ── 3. CMA + Tadawul announcements ───────────────────────────
   let announcementsFetched = 0
   try {
     const announcements = await fetchAllAnnouncements(20)
@@ -132,16 +168,13 @@ export async function GET(request: NextRequest) {
 
     for (const ann of announcements) {
       try {
-        // Try to link announcement to a company via ticker extraction from title
         const annCompanyId = await resolveCompanyId(supabase, ann.relatedTickers)
         const row: NewsRow = {
           company_id: annCompanyId,
-          title_en: ann.title,
-          title_ar: ann.title_ar,
-          title_zh: null,
-          body_en: ann.description,
+          title_en: decodeHtml(ann.title),
+          title_ar: ann.title_ar ? decodeHtml(ann.title_ar) : null,
+          body_en: ann.description ? decodeHtml(ann.description) : null,
           body_ar: null,
-          body_zh: null,
           source: ann.source,
           source_url: ann.url,
           sentiment_score: null,
@@ -158,13 +191,50 @@ export async function GET(request: NextRequest) {
     errors.push(`Announcements fetch failed: ${err instanceof Error ? err.message : String(err)}`)
   }
 
+  // ── 4. Clean old HTML entities in existing data ──────────────
+  // One-time cleanup: decode &quot; and similar in existing titles
+  let cleaned = 0
+  try {
+    const { data: dirtyRows } = await supabase
+      .from('news')
+      .select('id, title_en, title_ar')
+      .or('title_en.like.%&quot;%,title_ar.like.%&quot;%,title_en.like.%&amp;%,title_ar.like.%&amp;%')
+      .limit(100)
+
+    if (dirtyRows && dirtyRows.length > 0) {
+      for (const row of dirtyRows) {
+        const updates: Record<string, string> = {}
+        if (row.title_en && (row.title_en.includes('&quot;') || row.title_en.includes('&amp;'))) {
+          updates.title_en = decodeHtml(row.title_en)
+        }
+        if (row.title_ar && (row.title_ar.includes('&quot;') || row.title_ar.includes('&amp;'))) {
+          updates.title_ar = decodeHtml(row.title_ar)
+        }
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('news').update(updates).eq('id', row.id)
+          cleaned++
+        }
+      }
+    }
+  } catch (err) {
+    errors.push(`Cleanup: ${err instanceof Error ? err.message : String(err)}`)
+  }
+
   return NextResponse.json({
     success: true,
-    newsInserted,
-    announcementsInserted,
+    inserted: {
+      mubasher: mubasherInserted,
+      argaam: argaamInserted,
+      announcements: announcementsInserted,
+    },
+    cleaned,
     skipped,
-    fetched: { argaam: argaamFetched, announcements: announcementsFetched },
-    errors: errors.length > 0 ? errors.slice(0, 5) : undefined,
+    fetched: {
+      mubasher: mubasherFetched,
+      argaam: argaamFetched,
+      announcements: announcementsFetched,
+    },
+    errors: errors.length > 0 ? errors.slice(0, 10) : undefined,
     elapsedMs: Date.now() - startTime,
     timestamp: new Date().toISOString(),
   })
