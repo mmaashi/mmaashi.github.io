@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     const { data: allMetrics, error: metricsError } = await supabase
       .from("company_metrics_daily")
       .select(
-        "company_id, ticker, suqai_score, score_tier, pe_ratio, pb_ratio, dividend_yield, roe, revenue_growth_yoy, debt_to_equity, current_ratio, market_cap, net_margin, gross_margin, as_of_date"
+        "company_id, suqai_score, score_tier, pe_ratio, pb_ratio, dividend_yield, roe, revenue_growth_yoy, debt_to_equity, current_ratio, market_cap, net_margin, as_of_date"
       )
       .in("company_id", companyIds)
       .order("as_of_date", { ascending: false });
@@ -116,7 +116,6 @@ export async function GET(request: Request) {
         current_ratio: metrics?.current_ratio != null ? Number(metrics.current_ratio) : null,
         market_cap: metrics?.market_cap != null ? Number(metrics.market_cap) : null,
         net_margin: metrics?.net_margin != null ? Number(metrics.net_margin) : null,
-        gross_margin: metrics?.gross_margin != null ? Number(metrics.gross_margin) : null,
         as_of_date: metrics?.as_of_date ?? null,
       };
     });
