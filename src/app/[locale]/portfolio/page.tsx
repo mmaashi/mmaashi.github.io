@@ -79,6 +79,14 @@ export default async function PortfolioPage({
   // ══════════════════════════════════════════════════
   //  DATA FETCHING
   // ══════════════════════════════════════════════════
+
+  // Fetch ALL companies for the inline add search
+  const { data: allCompanies } = await supabase.from("companies").select("ticker, name_en, name_ar").order("ticker");
+  const allStocks = (allCompanies || []).map((c) => ({
+    ticker: c.ticker,
+    name: displayName(locale, c.name_en, c.name_ar),
+  }));
+
   const allTickers = [...new Set([...activeHoldingsInput.map((h) => h.ticker), ...DEMO_WATCHLIST])];
   const { data: companies } = await supabase.from("companies").select("id, ticker, name_en, name_ar, sector").in("ticker", allTickers);
   const companyIds = (companies || []).map((c) => c.id);
@@ -270,6 +278,7 @@ export default async function PortfolioPage({
           holdings={holdings}
           watchlist={watchlist}
           sectors={sectors}
+          allStocks={allStocks}
           locale={locale}
           totalValue={totalValue}
           totalCost={totalCost}
