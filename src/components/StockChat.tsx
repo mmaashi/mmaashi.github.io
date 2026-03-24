@@ -173,7 +173,7 @@ export default function StockChat({ stockContext, locale }: Props) {
                 {isAr ? "مساعد SŪQAI" : "SŪQAI Assistant"}
               </p>
               <p style={{ fontSize: 10, color: "var(--c-muted)" }}>
-                {stockContext.ticker} · {isAr ? "ذكاء اصطناعي" : "AI-powered"}
+                {stockContext.ticker} · {isAr ? "تحليل فوري" : "Instant Analysis"}
               </p>
             </div>
             <button onClick={() => setOpen(false)}
