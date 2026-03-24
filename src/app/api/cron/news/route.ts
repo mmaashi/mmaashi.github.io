@@ -8,7 +8,7 @@ import { decodeHtml } from '@/lib/decode-html'
 /**
  * Cron: Fetch and store news articles with company linking.
  *
- * Schedule: Every 4 hours — vercel.json: "0 */4 * * *"
+ * Schedule: Daily at 11:00 UTC (see vercel.json)
  *
  * Sources:
  *   1. Mubasher (Arabic + English) — Saudi market news & technical analysis
