@@ -837,77 +837,62 @@ async function MarketSnapshot({ locale }: { locale: string }) {
 // Section 7 — Top Gainers / Top Losers
 // ════════════════════════════════════════════════════════════════
 async function MoversPanel({ locale }: { locale: string }) {
+  // Try Sahm API first, fall back to DB-computed movers
+  let gainers: any[] = [];
+  let losers: any[] = [];
+
   try {
-    const [gainers, losers] = await Promise.all([getTopGainers(), getTopLosers()]);
-
-    const MoverRow = ({ s, type }: { s: any; type: "up" | "down" }) => (
-      <Link href={`/${locale}/stock/${s.symbol}`}
-            className="flex items-center justify-between px-4 py-2.5 hover:bg-[var(--c-hover)] transition-colors group"
-            style={{ borderBottom: "1px solid var(--c-border)", textDecoration: "none" }}>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-               style={{ background: type === "up" ? "var(--c-green-bg)" : "var(--c-red-bg)",
-                        border: `1px solid ${type === "up" ? "var(--c-green-ring)" : "var(--c-red-ring)"}` }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: type === "up" ? "var(--c-green)" : "var(--c-red)" }}>
-              {s.symbol.slice(0, 4)}
-            </span>
-          </div>
-          <div>
-            <p className="font-semibold text-sm truncate" style={{ color: "var(--c-text)", maxWidth: 130 }}>
-              {displayName(locale, s.name_en || s.symbol, s.name || s.symbol)}
-            </p>
-            <p className="font-num" style={{ fontSize: 11, color: "var(--c-dim)" }}>{s.symbol}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="text-end">
-            <span className={`badge ${type === "up" ? "badge-up" : "badge-down"}`}>
-              {type === "up" ? "+" : ""}{s.change_percent.toFixed(2)}%
-            </span>
-            <p className="font-num mt-0.5" style={{ fontSize: 12, color: "var(--c-text-sm)" }}>
-              {t(locale, "common.sar")} {s.price.toFixed(2)}
-            </p>
-          </div>
-          <span
-            className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-md font-semibold opacity-0 group-hover:opacity-100 transition-opacity"
-            style={{ fontSize: 10, color: "var(--c-gold)", background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}
-          >
-            {t(locale, "movers.view_analysis")}
-          </span>
-        </div>
-      </Link>
-    );
-
-    return (
-      <section className="fade-up" style={{ marginBottom: 32 }}>
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-          {/* Gainers */}
-          <div className="card overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3"
-                 style={{ borderBottom: "1px solid var(--c-border)", background: "var(--c-elevated)" }}>
-              <TrendingUp size={14} style={{ color: "var(--c-green)" }} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-green)", letterSpacing: "0.05em" }}>
-                {t(locale, "market.top_gainers")}
-              </span>
-            </div>
-            {gainers.slice(0, 5).map((s) => <MoverRow key={s.symbol} s={s} type="up" />)}
-          </div>
-
-          {/* Losers */}
-          <div className="card overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3"
-                 style={{ borderBottom: "1px solid var(--c-border)", background: "var(--c-elevated)" }}>
-              <TrendingDown size={14} style={{ color: "var(--c-red)" }} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-red)", letterSpacing: "0.05em" }}>
-                {t(locale, "market.top_losers")}
-              </span>
-            </div>
-            {losers.slice(0, 5).map((s) => <MoverRow key={s.symbol} s={s} type="down" />)}
-          </div>
-        </div>
-      </section>
-    );
+    [gainers, losers] = await Promise.all([getTopGainers(), getTopLosers()]);
   } catch {
+    // Sahm API failed — compute movers from DB
+    try {
+      const supabase = createServiceClient();
+      const { data: companies } = await supabase.from("companies").select("id, ticker, name_en, name_ar");
+      if (companies && companies.length > 0) {
+        const companyIds = companies.map(c => c.id);
+        const { data: prices } = await supabase
+          .from("stock_prices")
+          .select("company_id, close, open, date")
+          .in("company_id", companyIds)
+          .order("date", { ascending: false })
+          .limit(companyIds.length * 2);
+
+        if (prices && prices.length > 0) {
+          const latest = new Map<string, { close: number; prev: number | null; date: string }>();
+          for (const p of prices) {
+            const entry = latest.get(p.company_id);
+            if (!entry) {
+              latest.set(p.company_id, { close: Number(p.close), prev: null, date: p.date });
+            } else if (!entry.prev) {
+              entry.prev = Number(p.close);
+            }
+          }
+          const companyMap = new Map(companies.map(c => [c.id, c]));
+          const movers: any[] = [];
+          for (const [cid, data] of latest) {
+            if (data.prev && data.prev > 0) {
+              const changePct = ((data.close - data.prev) / data.prev) * 100;
+              const c = companyMap.get(cid);
+              if (c) {
+                movers.push({
+                  symbol: c.ticker,
+                  name_en: c.name_en,
+                  name: c.name_ar,
+                  price: data.close,
+                  change_percent: changePct,
+                });
+              }
+            }
+          }
+          movers.sort((a, b) => b.change_percent - a.change_percent);
+          gainers = movers.filter(m => m.change_percent > 0).slice(0, 10);
+          losers = movers.filter(m => m.change_percent < 0).sort((a, b) => a.change_percent - b.change_percent).slice(0, 10);
+        }
+      }
+    } catch {}
+  }
+
+  if (gainers.length === 0 && losers.length === 0) {
     return (
       <section style={{ marginBottom: 32 }}>
         <div className="card" style={{ padding: 20 }}>
@@ -916,6 +901,74 @@ async function MoversPanel({ locale }: { locale: string }) {
       </section>
     );
   }
+
+  const MoverRow = ({ s, type }: { s: any; type: "up" | "down" }) => (
+    <Link href={`/${locale}/stock/${s.symbol}`}
+          className="flex items-center justify-between px-4 py-2.5 hover:bg-[var(--c-hover)] transition-colors group"
+          style={{ borderBottom: "1px solid var(--c-border)", textDecoration: "none" }}>
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+             style={{ background: type === "up" ? "var(--c-green-bg)" : "var(--c-red-bg)",
+                      border: `1px solid ${type === "up" ? "var(--c-green-ring)" : "var(--c-red-ring)"}` }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: type === "up" ? "var(--c-green)" : "var(--c-red)" }}>
+            {s.symbol.slice(0, 4)}
+          </span>
+        </div>
+        <div>
+          <p className="font-semibold text-sm truncate" style={{ color: "var(--c-text)", maxWidth: 130 }}>
+            {displayName(locale, s.name_en || s.symbol, s.name || s.symbol)}
+          </p>
+          <p className="font-num" style={{ fontSize: 11, color: "var(--c-dim)" }}>{s.symbol}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="text-end">
+          <span className={`badge ${type === "up" ? "badge-up" : "badge-down"}`}>
+            {type === "up" ? "+" : ""}{s.change_percent.toFixed(2)}%
+          </span>
+          <p className="font-num mt-0.5" style={{ fontSize: 12, color: "var(--c-text-sm)" }}>
+            {t(locale, "common.sar")} {s.price.toFixed(2)}
+          </p>
+        </div>
+        <span
+          className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-md font-semibold opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{ fontSize: 10, color: "var(--c-gold)", background: "var(--c-gold-dim)", border: "1px solid var(--c-gold-ring)" }}
+        >
+          {t(locale, "movers.view_analysis")}
+        </span>
+      </div>
+    </Link>
+  );
+
+  return (
+    <section className="fade-up" style={{ marginBottom: 32 }}>
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+        {/* Gainers */}
+        <div className="card overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3"
+               style={{ borderBottom: "1px solid var(--c-border)", background: "var(--c-elevated)" }}>
+            <TrendingUp size={14} style={{ color: "var(--c-green)" }} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-green)", letterSpacing: "0.05em" }}>
+              {t(locale, "market.top_gainers")}
+            </span>
+          </div>
+          {gainers.slice(0, 5).map((s) => <MoverRow key={s.symbol} s={s} type="up" />)}
+        </div>
+
+        {/* Losers */}
+        <div className="card overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3"
+               style={{ borderBottom: "1px solid var(--c-border)", background: "var(--c-elevated)" }}>
+            <TrendingDown size={14} style={{ color: "var(--c-red)" }} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-red)", letterSpacing: "0.05em" }}>
+              {t(locale, "market.top_losers")}
+            </span>
+          </div>
+          {losers.slice(0, 5).map((s) => <MoverRow key={s.symbol} s={s} type="down" />)}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 // ════════════════════════════════════════════════════════════════

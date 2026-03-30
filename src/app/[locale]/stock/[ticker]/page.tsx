@@ -1255,7 +1255,7 @@ export default async function StockPage({
           )}
           </>}
           sectionContent={{
-            valuation: interpValuation.signal !== "insufficient_data" ? (
+            valuation: (
               <InterpretationCard
                 iconName="Target"
                 iconColor="#C8A951"
@@ -1283,8 +1283,8 @@ export default async function StockPage({
                   sectorAvgPB={undefined}
                 />
               </InterpretationCard>
-            ) : undefined,
-            quality: interpQuality.signal !== "insufficient_data" ? (
+            ),
+            quality: (
               <InterpretationCard
                 iconName="ShieldCheck"
                 iconColor="#A78BFA"
@@ -1302,8 +1302,8 @@ export default async function StockPage({
                   { key: "operating_margin", label: isAr ? "هامش الربح التشغيلي" : "Op. Margin", ...metricDisplayPolicy("operating_margin", n("operating_margin")), interpretation: mi("operating_margin") },
                 ]}
               />
-            ) : undefined,
-            growth: interpGrowth.signal !== "insufficient_data" ? (
+            ),
+            growth: (
               <InterpretationCard
                 iconName="Zap"
                 iconColor="#0ECB81"
@@ -1321,8 +1321,8 @@ export default async function StockPage({
                   { key: "revenue_cagr_3y", label: isAr ? "معدل نمو الإيرادات 3 سنوات" : "Rev CAGR 3Y", ...metricDisplayPolicy("revenue_cagr_3y", n("revenue_cagr_3y")), interpretation: mi("revenue_cagr_3y"), colorBySign: true },
                 ]}
               />
-            ) : undefined,
-            safety: interpSafety.signal !== "insufficient_data" ? (
+            ),
+            safety: (
               <InterpretationCard
                 iconName="Shield"
                 iconColor="#14B8A6"
@@ -1340,7 +1340,7 @@ export default async function StockPage({
                   { key: "ocf_to_debt", label: isAr ? "التدفق النقدي / الدين" : "OCF/Debt", ...metricDisplayPolicy("ocf_to_debt", n("ocf_to_debt")), interpretation: mi("ocf_to_debt") },
                 ]}
               />
-            ) : undefined,
+            ),
             dividend: (
               <InterpretationCard
                 iconName="DollarSign"
@@ -1360,7 +1360,7 @@ export default async function StockPage({
                 ]}
               />
             ),
-            momentum: interpMomentum.signal !== "insufficient_data" ? (
+            momentum: (
               <InterpretationCard
                 iconName="LineChart"
                 iconColor="#60A5FA"
@@ -1378,7 +1378,7 @@ export default async function StockPage({
                   { key: "return_1y", label: isAr ? "سنة" : "1Y", ...metricDisplayPolicy("return_1y", n("return_1y")), interpretation: mi("return_1y"), colorBySign: true },
                 ]}
               />
-            ) : undefined,
+            ),
           }}
           bottomContent={<>
           {/* ── Return Comparison Table (Tier 2) ── */}
