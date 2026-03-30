@@ -632,6 +632,45 @@ function FeaturedAnalysis({ locale, stocks }: { locale: string; stocks: StockFun
 // ════════════════════════════════════════════════════════════════
 // Screener CTA — drive users to the star page
 // ════════════════════════════════════════════════════════════════
+function CompareCTA({ locale }: { locale: string }) {
+  const isAr = locale === "ar";
+  return (
+    <section className="section-gap" style={{ padding: "0 16px" }}>
+      <Link
+        href={`/${locale}/compare`}
+        style={{
+          display: "block",
+          padding: "28px 24px",
+          borderRadius: 16,
+          background: "linear-gradient(135deg, rgba(96,165,250,0.08) 0%, rgba(6,13,24,0.98) 60%)",
+          border: "1px solid rgba(96,165,250,0.2)",
+          textDecoration: "none",
+          textAlign: "center",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <GitCompare size={20} style={{ color: "#60a5fa" }} />
+            <span style={{ fontSize: 19, fontWeight: 800, color: "var(--c-text)", fontFamily: "var(--font-grotesk)" }}>
+              {isAr ? "قارن بين الأسهم" : "Compare Stocks"}
+            </span>
+          </div>
+          <p style={{ fontSize: 13, color: "var(--c-muted)", margin: 0, maxWidth: 400, marginInline: "auto" }}>
+            {isAr
+              ? "حلل الأسهم جنباً إلى جنب — التقييم، الربحية، التوزيعات، والمزيد"
+              : "Analyze stocks side by side — valuation, profitability, dividends, and more"}
+          </p>
+          <div style={{ marginTop: 14, display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 18px", borderRadius: 10, background: "#60a5fa", color: "var(--c-base)", fontSize: 12, fontWeight: 700 }}>
+            {isAr ? "ابدأ المقارنة" : "Start Comparing"} →
+          </div>
+        </div>
+      </Link>
+    </section>
+  );
+}
+
 function ScreenerCTA({ locale }: { locale: string }) {
   const isAr = locale === "ar";
   return (
@@ -1581,6 +1620,9 @@ export default async function DashboardPage({
 
       {/* Featured Stock Analysis — show SŪQAI Score in action */}
       <FeaturedAnalysis locale={locale} stocks={featuredStocks} />
+
+      {/* Compare CTA */}
+      <CompareCTA locale={locale} />
 
       {/* Screener CTA — direct users to the star page */}
       <ScreenerCTA locale={locale} />

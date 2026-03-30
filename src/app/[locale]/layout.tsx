@@ -100,11 +100,11 @@ export default async function LocaleLayout({
     } catch {}
   }
 
-  // Desktop nav — compact, 5 items max
+  // Desktop nav — compact, 6 items
   const navLinks = [
     { href: `/${locale}`,            label: t(locale, "home"),     Icon: Home,               iconName: "Home" },
     { href: `/${locale}/screener`,   label: t(locale, "screener"), Icon: SlidersHorizontal,  iconName: "SlidersHorizontal" },
-    { href: `/${locale}/sentiment`,  label: isRTL ? "السوق" : "Market", Icon: Gauge,   iconName: "Gauge" },
+    { href: `/${locale}/compare`,    label: isRTL ? "مقارنة" : "Compare", Icon: GitCompare,  iconName: "GitCompare" },
     { href: `/${locale}/news`,       label: t(locale, "news"),     Icon: Newspaper,          iconName: "Newspaper" },
     { href: `/${locale}/portfolio`,  label: isRTL ? "سوقي" : "My SŪQAI", Icon: Briefcase,    iconName: "Briefcase" },
   ];
