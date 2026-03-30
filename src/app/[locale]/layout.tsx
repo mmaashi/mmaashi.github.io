@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import "../globals.css";
 import { getMarketSummary } from "@/lib/sahm";
+import { createServiceClient } from "@/lib/supabase/server";
 import { t } from "@/lib/i18n";
 import { NavLink } from "@/components/NavLink";
 import { MobileNav } from "@/components/MobileNav";
@@ -60,19 +61,44 @@ export default async function LocaleLayout({
   const isRTL = locale === "ar";
 
   let tasi = { value: "--", change: "--", isPositive: true, isOpen: false };
+  const riyadh = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Riyadh" }));
+  const day = riyadh.getDay();
+  const min = riyadh.getHours() * 60 + riyadh.getMinutes();
+  const marketOpen = day >= 0 && day <= 4 && min >= 600 && min <= 900;
+
   try {
     const s = await getMarketSummary();
     const isPositive = s.index_change >= 0;
-    const riyadh = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Riyadh" }));
-    const day = riyadh.getDay();
-    const min = riyadh.getHours() * 60 + riyadh.getMinutes();
     tasi = {
       value: s.index_value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       change: `${isPositive ? "+" : ""}${s.index_change_percent.toFixed(2)}%`,
       isPositive,
-      isOpen: day >= 0 && day <= 4 && min >= 600 && min <= 900,
+      isOpen: marketOpen,
     };
-  } catch {}
+    // Save to DB so we have a fallback when API is down
+    try {
+      const sb = createServiceClient();
+      await sb.from("market_cache").upsert({
+        key: "tasi",
+        value: { value: tasi.value, change: tasi.change, isPositive },
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "key" });
+    } catch {}
+  } catch {
+    // Sahm API failed — load last saved TASI from DB
+    try {
+      const sb = createServiceClient();
+      const { data } = await sb.from("market_cache").select("value").eq("key", "tasi").single();
+      if (data && data.value && data.value.value !== "--") {
+        tasi = {
+          value: data.value.value,
+          change: data.value.change,
+          isPositive: data.value.isPositive !== false,
+          isOpen: marketOpen,
+        };
+      }
+    } catch {}
+  }
 
   // Desktop nav — compact, 5 items max
   const navLinks = [
